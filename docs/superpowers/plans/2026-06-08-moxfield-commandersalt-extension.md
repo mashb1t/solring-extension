@@ -79,7 +79,7 @@ cp /Volumes/data/private/mtg/tests/fixtures/commandersalt/search_mashb1t.json fi
 ```json
 {
   "manifest_version": 3,
-  "name": "Solring — CommanderSalt for Moxfield",
+  "name": "Solring — Stats for Moxfield",
   "version": "0.1.0",
   "description": "Shows CommanderSalt deck metrics on Moxfield.",
   "permissions": ["storage"],

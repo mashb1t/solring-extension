@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Solring — CommanderSalt for Moxfield",
+  "name": "Solring – Stats for Moxfield",
   "version": "0.1.0",
-  "description": "Shows CommanderSalt deck metrics (power, bracket, tier, archetype, saltiness, threat/interaction/wincons/synergy) on Moxfield.",
+  "description": "Shows deck metrics and useful information for evaluating decks on Moxfield.",
   "permissions": ["storage"],
   "host_permissions": ["https://api.commandersalt.com/*"],
   "background": {
