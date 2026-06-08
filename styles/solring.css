@@ -1,2 +1,120 @@
-/* Solring — injected CommanderSalt UI. Namespaced `solring-`, blended into Moxfield.
-   Full styling lands in Phase 6 (Task 20). */
+/* Solring — injected CommanderSalt UI. Namespaced `solring-`, blended into
+   Moxfield's surfaces. Rating color is used only as a meaningful data accent,
+   always paired with a letter/label. Light + dark via [data-bs-theme]. */
+
+:root {
+  --solring-rating-a: #1a7f37;
+  --solring-rating-b: #4f9d2b;
+  --solring-rating-c: #b8860b;
+  --solring-rating-d: #d2691e;
+  --solring-rating-e: #c1440e;
+  --solring-rating-f: #b00020;
+  --solring-accent: #ff6600;
+  --solring-surface: #ffffff;
+  --solring-surface-2: #f6f7f8;
+  --solring-border: #e2e5e9;
+  --solring-text: #1b1f24;
+  --solring-text-2: #6b7280;
+}
+[data-bs-theme='dark'], .solring-dark {
+  --solring-rating-a: #3fb950;
+  --solring-rating-b: #7ee787;
+  --solring-rating-c: #e3b341;
+  --solring-rating-d: #f0883e;
+  --solring-rating-e: #ff7b55;
+  --solring-rating-f: #ff6b6b;
+  --solring-surface: #1c2128;
+  --solring-surface-2: #22272e;
+  --solring-border: #373e47;
+  --solring-text: #e6edf3;
+  --solring-text-2: #9aa4af;
+}
+
+.solring-tier-a { color: var(--solring-rating-a); }
+.solring-tier-b { color: var(--solring-rating-b); }
+.solring-tier-c { color: var(--solring-rating-c); }
+.solring-tier-d { color: var(--solring-rating-d); }
+.solring-tier-e { color: var(--solring-rating-e); }
+.solring-tier-f { color: var(--solring-rating-f); }
+
+/* ---- deck-page report-card panel ---- */
+.solring-panel {
+  margin: 0 0 1rem;
+  border: 1px solid var(--solring-border);
+  border-radius: 8px;
+  background: var(--solring-surface);
+  color: var(--solring-text);
+  font-size: 0.9rem;
+  overflow: hidden;
+}
+.solring-panel-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0.5rem 0.85rem;
+  background: var(--solring-surface-2); border: 0; cursor: pointer;
+  color: var(--solring-text); font-weight: 600;
+}
+.solring-panel-bar:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
+.solring-wordmark { letter-spacing: 0.01em; }
+.solring-wordmark::before {
+  content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px;
+  border-radius: 50%; background: var(--solring-accent); vertical-align: middle;
+}
+.solring-chevron { color: var(--solring-text-2); }
+.solring-panel-body { display: none; padding: 0.85rem; background: var(--solring-surface); }
+.solring-panel.solring-open .solring-panel-body { display: block; }
+
+.solring-tiles {
+  display: grid; gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin-bottom: 0.85rem;
+}
+.solring-tile {
+  padding: 0.55rem 0.7rem; border: 1px solid var(--solring-border);
+  border-radius: 6px; background: var(--solring-surface);
+}
+.solring-tile-label {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--solring-text-2); margin-bottom: 0.2rem;
+}
+.solring-tile-value { font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
+.solring-tile-sub { font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.15rem; }
+.solring-num { font-variant-numeric: tabular-nums; }
+.solring-archetype { font-size: 1rem; font-weight: 600; }
+
+.solring-grades {
+  display: grid; gap: 0.4rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.solring-grade-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.25rem 0; border-top: 1px solid var(--solring-border);
+}
+.solring-grade-label { flex: 1; color: var(--solring-text-2); }
+.solring-grade-score { font-variant-numeric: tabular-nums; color: var(--solring-text-2); font-size: 0.8rem; min-width: 3.5em; text-align: right; }
+.solring-grade { font-weight: 800; font-variant-numeric: tabular-nums; }
+.solring-grade[data-tier='a'] { color: var(--solring-rating-a); }
+.solring-grade[data-tier='b'] { color: var(--solring-rating-b); }
+.solring-grade[data-tier='c'] { color: var(--solring-rating-c); }
+.solring-grade[data-tier='d'] { color: var(--solring-rating-d); }
+.solring-grade[data-tier='e'] { color: var(--solring-rating-e); }
+.solring-grade[data-tier='f'] { color: var(--solring-rating-f); }
+
+.solring-msg { color: var(--solring-text-2); padding: 0.25rem 0 0.6rem; }
+.solring-btn {
+  padding: 0.35rem 0.8rem; border: 1px solid var(--solring-accent);
+  border-radius: 6px; background: transparent; color: var(--solring-text);
+  cursor: pointer; font-weight: 600;
+}
+.solring-btn:disabled { opacity: 0.6; cursor: default; }
+.solring-btn:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+
+/* ---- per-card annotations (Text view) — wired in Task 14 ---- */
+.solring-salt { font-variant-numeric: tabular-nums; color: var(--solring-text-2); margin-left: 0.5rem; }
+.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
+.solring-tags { display: inline-flex; gap: 0.25rem; margin-left: 0.4rem; flex-wrap: wrap; }
+.solring-tag {
+  font-size: 0.68rem; padding: 0.02rem 0.35rem; border-radius: 4px;
+  background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
+}
+
+@media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
