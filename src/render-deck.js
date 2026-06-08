@@ -13,6 +13,7 @@ import { getCardPrefs, onPrefChange } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
+import { buildCombosSection } from './render-combos.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -138,14 +139,35 @@ function renderBody(body, f) {
   ]);
 
   // Row 2: the report-card grades + a Combos count (5th tile, keeps both rows at 5).
+  const hasCombos = !!(f.combos && f.combos.length);
+  const comboTile = tile('Combos',
+    el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
+    hasCombos ? 'show ▾' : null);
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' }, [
     ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
-    tile('Combos',
-      el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
-      f.combosCount ? 'via Spellbook' : null),
+    comboTile,
   ]);
 
   body.append(mainTiles, gradeTiles);
+
+  // The combo list is hidden until the Combos tile is clicked.
+  if (hasCombos) {
+    const section = buildCombosSection(f.combos);
+    body.append(section);
+    comboTile.classList.add('solring-clickable');
+    comboTile.setAttribute('role', 'button');
+    comboTile.setAttribute('tabindex', '0');
+    comboTile.setAttribute('aria-expanded', 'false');
+    const sub = comboTile.querySelector('.solring-tile-sub');
+    const toggle = () => {
+      const open = section.hasAttribute('hidden');
+      if (open) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
+      comboTile.setAttribute('aria-expanded', String(open));
+      if (sub) sub.textContent = open ? 'hide ▴' : 'show ▾';
+    };
+    comboTile.addEventListener('click', toggle);
+    comboTile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  }
 }
 
 function renderMessage(body, text, action) {

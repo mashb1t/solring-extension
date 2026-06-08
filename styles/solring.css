@@ -95,6 +95,39 @@
 .solring-bracket-up { color: var(--solring-rating-f); }   /* red — plays above its baseline */
 .solring-bracket-down { color: var(--solring-text-2); }   /* grey — plays below its baseline */
 .solring-grade-tiles { margin-top: 0; }
+
+/* ---- combo list (toggled by the Combos tile) ---- */
+.solring-clickable { cursor: pointer; }
+.solring-clickable:hover { border-color: var(--solring-accent); }
+.solring-clickable:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+.solring-combos { display: grid; gap: 0.6rem; margin-top: 0.2rem; }
+.solring-combo {
+  border: 1px solid var(--solring-border); border-radius: 6px;
+  padding: 0.7rem 0.85rem; background: var(--solring-surface);
+}
+.solring-combo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.solring-combo-pieces { font-weight: 700; }
+.solring-combo-meta {
+  display: inline-flex; gap: 0.75rem; align-items: baseline;
+  font-size: 0.78rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums;
+}
+.solring-combo-link { font-weight: 600; white-space: nowrap; }
+.solring-combo-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.4rem 0; }
+.solring-combo-tag {
+  font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.03em;
+  padding: 0.05rem 0.4rem; border-radius: 4px;
+  background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
+}
+.solring-combo-block { margin-top: 0.5rem; }
+.solring-combo-h { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-bottom: 0.2rem; }
+.solring-combo-list { margin: 0; padding-left: 1.2rem; font-size: 0.82rem; }
+.solring-combo-list li { margin: 0.1rem 0; }
+.solring-combo-pay { color: var(--solring-accent); font-size: 0.72rem; }
+.solring-combo-bd { display: grid; gap: 0.2rem; }
+.solring-combo-bd-row { display: grid; grid-template-columns: 8.5rem 1fr 2.5rem; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--solring-text-2); }
+.solring-combo-bd-bar { height: 6px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
+.solring-combo-bd-bar > span { display: block; height: 100%; background: var(--solring-accent); }
+.solring-combo-bd-val { text-align: right; font-variant-numeric: tabular-nums; }
 .solring-archetype { font-size: 1rem; font-weight: 600; }
 
 .solring-grades {

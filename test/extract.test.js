@@ -51,6 +51,22 @@ test('extractDeck enriches cards with bracket flags + power/salt breakdowns', ()
   assert.ok(jw.power.every((x) => typeof x.score === 'number'));
 });
 
+test('extractDeck shapes the deck combo list for display', () => {
+  const d = extractDeck(deck);
+  assert.equal(d.combos.length, 1);
+  const c = d.combos[0];
+  assert.ok(c.pieces.includes('Pyrohemia'), `pieces: ${c.pieces}`);
+  assert.equal(c.score, 25);
+  assert.equal(Math.round(c.complexity * 100), 46); // bias.final
+  assert.equal(c.extraMana, 1);
+  assert.ok(c.categories.includes('infinite-damage'));
+  assert.ok(c.needsBoard);
+  assert.ok(c.prerequisites.length >= 1);
+  assert.ok(c.steps.length >= 1 && c.steps.some((s) => s.payMana));
+  assert.ok(c.produces.length >= 1);
+  assert.ok(/commanderspellbook\.com/.test(c.spellbookUri));
+});
+
 test('extractDeck attaches synergy combos (anchors) to cards that have them', () => {
   const d = extractDeck(deck);
   const withCombos = Object.values(d.cards).filter((c) => c.combos && c.combos.total > 0);

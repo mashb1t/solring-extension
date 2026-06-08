@@ -119,9 +119,47 @@ function extractCards(p) {
   return out;
 }
 
+// id → display name, from the deck's own cards (covers DFC front/container ids).
+function buildIdToName(cards) {
+  const map = {};
+  for (const c of Object.values(cards || {})) {
+    if (!c || !c.name) continue;
+    for (const id of [c.id, c.frontFaceId, c.containerId]) if (id && !(id in map)) map[id] = c.name;
+  }
+  return map;
+}
+
+// The deck's combos (details.combos.list — Commander Spellbook), shaped for display.
+function extractCombos(p) {
+  const list = g(p, 'details', 'combos', 'list') || [];
+  const idToName = buildIdToName(p.cards);
+  return list.map((c) => {
+    const cx = c.complexity || {};
+    const lines = (sec) => ((g(cx, sec, 'lines')) || []).map((l) => l.parsed).filter(Boolean);
+    return {
+      pieces: (c.cards || []).map((id) => idToName[id] || titleCase(id)),
+      score: c.score,
+      complexity: g(cx, 'bias', 'final'), // 0–1
+      extraMana: cx.additionalCmcValue,
+      type: c.type,
+      categories: c.categories || [],
+      needsBoard: !!cx.requiresCardsOnBoard,
+      prerequisites: lines('notablePrerequisites'),
+      steps: ((g(cx, 'steps', 'lines')) || [])
+        .map((l) => ({ text: l.parsed, payMana: !!(l.qualifiers && l.qualifiers.requiresPayMana) }))
+        .filter((s) => s.text),
+      produces: lines('results'),
+      breakdown: g(cx, 'bias', 'sections') || {}, // {easyPrerequisites, notablePrerequisites, preconditions, steps, results} → 0–1
+      spellbookUri: c.spellbookUri,
+    };
+  });
+}
+
 /** Full deck payload → DeckFields. */
 export function extractDeck(p) {
+  const combos = extractCombos(p);
   return {
+    combos,
     deckId: p.id,
     commander: (p.commanders || [])[0],
     colorIdentity: p.colorIdentity,
@@ -135,7 +173,7 @@ export function extractDeck(p) {
     wincons: p.comboRating,
     synergy: p.synergyRating,
     archetype: p.archetypeLabel,
-    combosCount: (g(p, 'details', 'combos', 'list') || []).length, // # of deck combos (Commander Spellbook)
+    combosCount: combos.length, // # of deck combos (Commander Spellbook)
     combosScore: g(p, 'details', 'combos', 'score'),
     isPrivate: p.isPrivate,
     isIllegal: p.isIllegal,
