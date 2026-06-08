@@ -17,7 +17,8 @@ it inline, styled to **blend into Moxfield's native look**:
 
 - **Deck page** (`/decks/{id}`): a report-card block below the deck header — power, baseline/realistic
   bracket, commander tier, saltiness, deck value, archetype, plus the four letter grades (threat,
-  interaction, wincons, synergy).
+  interaction, wincons, synergy). **Plus per-card annotations** (salt value, tags, expandable stats)
+  inlined into Moxfield's own decklist rows, controlled by toggles added to Moxfield's Customize View.
 - **User page** (`/users/{name}`): per-deck metric columns added to the deck table, an averages block
   appended to the profile sidebar, and a per-row expander that loads the full profile on demand.
 
@@ -32,6 +33,11 @@ All data is cached persistently so revisits are instant and offline-tolerant.
 | 3 | Visual style | **Blend into Moxfield** — native card/badge look, follows Moxfield light/dark, no orange branding. |
 | 4 | Link entry | **On-page only** — no popup/input surface; the extension reacts to the current Moxfield page. |
 | 5 | Tooling | Vanilla JS, **Manifest V3, no build step** (loads unpacked). |
+| 6 | Per-card annotations | Salt value + tags + stats inlined into Moxfield decklist rows; shown in **Text view only**. |
+| 7 | "Stats" control | A **per-card expander** (detailed breakdown) **plus a global "toggle all"** to expand/collapse every card at once. |
+| 8 | Card-pref persistence | **Global** preference, shared across all decks (`chrome.storage.local`), applied immediately. |
+| 9 | CommanderSalt menu link | Injected into Moxfield's external-links menu, **visible only when the EDHREC link is visible** (i.e. a legal 100-card Commander deck). |
+| 10 | Combos | **Deferred** — show combos via Commander Spellbook in a later iteration; not implemented now. |
 
 ## Architecture
 
@@ -123,13 +129,63 @@ hardcoded "2 realistic" is demo data and is **not** replicated; the up/down arro
 
 `extract.js` returns:
 - `HitFields` (from a search hit): `{ deckId, title, commander, colorIdentity, power, bracketRating, salt, synergy, archetypeMajor, archetypeMinor, isPrivate, isIllegal }`.
-- `DeckFields` (from a full payload): the above plus `{ bracketBaseline, bracketRealistic, commanderTier, threat, interaction, wincons, value, fingerprint, reportCard }`.
+- `DeckFields` (from a full payload): the above plus `{ bracketBaseline, bracketRealistic, commanderTier, threat, interaction, wincons, value, fingerprint, reportCard, cards }`.
+  - `cards`: a per-card map keyed by normalized card name → `{ salt: number, tags: string[], stats: { …flags }, total: number, scoring?: { power, salt, synergy } }`, derived from each entry in the payload's top-level `cards` object.
+
+## Per-card annotations (deck page, Text view only)
+
+Each card in the payload's `cards` object carries `salt` (string number, e.g. `"5.5"`), `categories.stats`
+(boolean flags from a fixed vocabulary — `anthem, boardWipes, burn, cantrip, cheat, combat, costReduction,
+counterspell, evasion, fastmana, groupslug, landsmatter, manafixing, multipliers, otherControl,
+plusOnePlusOneCounters, ramp, recursion, slow, spotRemoval, stax, stompy, tokens, voltron`), and
+`categories.total`. Optional per-card scoring contribution comes from `details.powerLevel.scoring.*.list.{id}`,
+`details.salt.scoring.*.list.{id}`, and `details.synergy`.
+
+**Matching:** Moxfield decklist rows are matched to CommanderSalt cards by **normalized card name**
+(lowercased, trimmed; double-faced cards match on the front-face name). Unmatched rows simply get no
+annotation.
+
+**Three toggles** are injected into Moxfield's **Customize View → Include Extra Data** section, alongside
+the native Mana Cost / Price / Set Symbol checkboxes:
+
+| Toggle | Renders per row | Notes |
+|---|---|---|
+| **Salt Value** | The card's salt as a compact chip, **accent-colored when ≥ 5.0**, muted otherwise. | Default **on**. Mirrors the screenshot styling. |
+| **Tags** | The card's true stat-flags as small gray pills, with prettified labels (`multipliers`→"multiplier", `fastmana`→"fast mana", `boardWipes`→"boardwipe", `costReduction`→"cost↓", …). | Default **on**. |
+| **Stats** | A small expander (`▸`) on each row revealing a detailed breakdown — full stat-category list + the card's power/salt/synergy contribution. Collapsed by default. | Default **off**. See toggle-all below. |
+
+**Toggle-all:** when **Stats** is enabled, a single **"toggle all"** control (in the decklist header
+region) expands/collapses every card's stat panel at once.
+
+**Gating:**
+- These annotations render **only when Moxfield's View Style is "Text"** (not Condensed Text / Visual
+  Grid / Visual Stacks / Spoiler). The content script reads the current view style and re-evaluates when
+  it changes (Customize View save, or DOM mutation).
+- They require the full deck payload (already fetched/cached for the report-card block). On a stub/private
+  deck, no annotations render.
+
+**Persistence:** a single **global** preference object `prefs:cardData = { saltValue, tags, stats }` in
+`chrome.storage.local`, shared across all decks. Changes **apply immediately** on toggle and persist
+independently of Moxfield's own Save/Cancel (these are the extension's settings, not Moxfield's per-deck
+view state). Defaults: `saltValue: true, tags: true, stats: false`.
+
+## Moxfield UI integration
+
+- **Customize View modal:** a MutationObserver detects the modal opening and injects the three checkboxes
+  into the "Include Extra Data" group, styled to match Moxfield's native checkboxes and wired to the global
+  prefs. Idempotent (sentinel-guarded) so re-opening doesn't duplicate them.
+- **External-links menu — CommanderSalt link:** Moxfield shows an **EDHREC** link in the deck's
+  tools/links menu only for legal 100-card Commander decks. The extension injects a sibling **"CommanderSalt"**
+  link into that menu **only when the EDHREC link is present**, pointing at the deck's CommanderSalt page
+  (`https://commandersalt.com/deck/{md5}` — exact URL form confirmed at implementation time). When EDHREC is
+  absent, no CommanderSalt link is added.
 
 ## Caching
 
 `chrome.storage.local`, **extracted display fields only** (never the ~349 KB raw blob).
 
-- Keys: `deck:{md5}` → `{ fetchedAt, fields }`; `search:{username}` → `{ fetchedAt, hits, cursor }`.
+- Keys: `deck:{md5}` → `{ fetchedAt, fields }` (now includes the per-card `cards` map); `search:{username}`
+  → `{ fetchedAt, hits, cursor }`; `prefs:cardData` → `{ saltValue, tags, stats }` (global, no TTL).
 - **TTL** 7 days (configurable constant). **Stale-while-revalidate:** serve cached value immediately,
   refetch in the background when older than TTL.
 - **Refresh** affordance per block forces a refetch and rewrites the cache entry.
@@ -190,6 +246,11 @@ extension/
     router.js                   # idempotent inject/teardown per page type
     render-deck.js              # report-card block
     render-user.js              # table columns + sidebar averages + expanders
+    render-cards.js             # per-card salt/tags/stats annotations (Text view)
+    customize-view.js           # inject Salt Value/Tags/Stats checkboxes into Moxfield's modal
+    links-menu.js               # inject CommanderSalt link, gated on EDHREC link
+    prefs.js                    # global card-display prefs (chrome.storage.local)
+    labels.js                   # stat-flag → prettified tag label map
     api.js  cache.js  extract.js  ratings.js  md5.js  moxfield.js  dom.js
   styles/solring.css
   fixtures/
@@ -197,8 +258,9 @@ extension/
     search_mashb1t.json
   test/
     md5.test.js                 # deckMd5("https://moxfield.com/decks/1OeRLCXjAUC9dNmkw3e_7g") === "9bc8a6c2106583c1fd66e0492a3a5a26"
-    extract.test.js             # deck + hit fixtures → expected DeckFields/HitFields
+    extract.test.js             # deck + hit fixtures → expected DeckFields/HitFields, incl. per-card map
     ratings.test.js             # 130.6/300→C+, 197/400→B-, 347.8/300→A+, 1787.3/2500→B+
+    labels.test.js              # multipliers→multiplier, fastmana→"fast mana", boardWipes→boardwipe …
 ```
 
 A `MOCK` flag lets the content script render from the bundled fixtures (no network) for fast UI iteration.
@@ -209,7 +271,9 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
   values verified in `ratings.js`.
 - **Manual load-unpacked checklist:** deck page (indexed), un-indexed deck (Analyze flow), private deck
   (silent + owner-view note), user page (columns + averages + expander + load more), SPA navigation
-  deck→user→deck, light/dark theme, offline (cache), refresh.
+  deck→user→deck, light/dark theme, offline (cache), refresh, **per-card salt/tags/stats in Text view
+  (and their absence in other views), Customize View checkboxes persist globally, toggle-all stats, and
+  the CommanderSalt link appearing only when EDHREC's does**.
 
 ## Assumptions to confirm at implementation time
 
@@ -218,10 +282,21 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
    `search_mashb1t.json`); full payloads are required for those.
 3. Threat/interaction/wincons/tier sidebar averages are **partial** under on-demand — averaged over the
    decks opened so far, with a coverage hint. (Alternative: hide until all loaded — not chosen.)
+4. Moxfield's Customize View modal exposes an "Include Extra Data" group we can append checkboxes to; the
+   current View Style is detectable from the DOM; and the EDHREC external link is detectable in the deck's
+   links menu. All confirmed against the live DOM at implementation time (anchored by content, not hashed
+   class names).
+5. CommanderSalt cards match Moxfield rows by normalized name; the deck-page CommanderSalt URL form
+   (`/deck/{md5}` vs a slug) is confirmed against the live site.
+
+## Roadmap (not implemented now)
+
+- **Combos via Commander Spellbook** — a combos panel/section on the deck page (this deck can do / one
+  card away), sourced from Commander Spellbook. Deferred to a later iteration.
 
 ## Out of scope
 
 - Popup/options input surface (link entry is on-page only).
-- Non-Moxfield deck sources; EDHREC/Spellbook synergy & combo panels from the prototype.
+- Non-Moxfield deck sources; EDHREC/Spellbook synergy & "cards to add" panels from the prototype.
 - Orange Solring branding / standalone site chrome.
 - Account/auth-gated private deck access.
