@@ -121,6 +121,20 @@ function bracketValue(f) {
   return node;
 }
 
+// "2 2-card · 9 3-card · 2 4+ card" — combos grouped by how many cards each needs.
+function comboSizeBreakdown(combos) {
+  let two = 0; let three = 0; let four = 0;
+  for (const c of combos) {
+    const n = (c.pieces || []).length;
+    if (n >= 4) four += 1; else if (n === 3) three += 1; else two += 1;
+  }
+  const parts = [];
+  if (two) parts.push(`${two} 2-card`);
+  if (three) parts.push(`${three} 3-card`);
+  if (four) parts.push(`${four} 4+ card`);
+  return parts.join(' · ');
+}
+
 function renderBody(body, f) {
   body.replaceChildren();
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
@@ -142,7 +156,7 @@ function renderBody(body, f) {
   const hasCombos = !!(f.combos && f.combos.length);
   const comboTile = tile('Combos',
     el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
-    hasCombos ? 'show' : null);
+    hasCombos ? comboSizeBreakdown(f.combos) : null);
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' }, [
     ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
     comboTile,
@@ -159,14 +173,12 @@ function renderBody(body, f) {
     comboTile.setAttribute('tabindex', '0');
     comboTile.setAttribute('aria-expanded', 'false');
     const chevron = el('span', { class: 'solring-combos-chev', text: '⌄', attrs: { 'aria-hidden': 'true' } });
-    comboTile.append(chevron); // big toggle affordance
-    const sub = comboTile.querySelector('.solring-tile-sub');
+    comboTile.append(chevron); // big toggle affordance (the subline shows the size breakdown)
     const toggle = () => {
       const open = section.hasAttribute('hidden');
       if (open) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
       comboTile.classList.toggle('solring-open', open);
       comboTile.setAttribute('aria-expanded', String(open));
-      if (sub) sub.textContent = open ? 'hide' : 'show';
     };
     comboTile.addEventListener('click', toggle);
     comboTile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
