@@ -238,4 +238,24 @@
 /* CommanderSalt links-menu entry matches its siblings (no bold); the separator
    uses Bootstrap's mx-2 spacing, so no custom rule is needed. */
 
+/* ---- per-card Info panel (card-detail modal sidebar, ~220px wide) ---- */
+.solring-card-modal {
+  width: 100%; box-sizing: border-box; text-align: left;
+  margin-top: 1rem; font-size: 0.85rem;
+}
+.solring-card-modal .solring-panel-bar.solring-cm-bar { cursor: default; }
+.solring-card-modal .solring-panel-bar.solring-cm-bar:focus-visible { outline: 0; }
+/* Fixed 2-up tiles (auto-fit would collapse to 1 column at this width). */
+.solring-card-modal .solring-tiles {
+  grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0;
+}
+.solring-card-modal .solring-tile-value { font-size: 1.15rem; }
+.solring-cm-section { margin-top: 0.75rem; }
+.solring-cm-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+/* Stacked bar row: label/value line over a full-width bar (the deck panel's
+   label|bar|value grid is too wide for the modal column). */
+.solring-cm-row { margin: 0.3rem 0; }
+.solring-cm-row-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.72rem; margin-bottom: 0.15rem; }
+.solring-cm-note { font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.35rem; }
+
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
