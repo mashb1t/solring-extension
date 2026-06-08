@@ -39,6 +39,8 @@ All data is cached persistently so revisits are instant and offline-tolerant.
 | 8 | Card-pref persistence | **Global** preference, shared across all decks (`chrome.storage.local`), applied immediately. |
 | 9 | CommanderSalt menu link | Injected into Moxfield's external-links menu, **always shown** (not gated on EDHREC / 100-card legality). |
 | 10 | Combos | **Deferred** — show combos via Commander Spellbook in a later iteration; not implemented now. |
+| 11 | Bulk sync (user page) | Two buttons — **Scan all** (warm indexed + import un-indexed) and **Re-scan all** (re-import all) — over the user's **non-private** decks; throttled, single POST attempt, progress. Last-sync timestamp persisted + shown; Moxfield-style tooltip notes private decks can't be synced. |
+| 12 | Syncability | Decided by each deck's **Moxfield visibility**: **Private → excluded**; **Unlisted + Public → syncable** (CommanderSalt can fetch an unlisted deck by URL). |
 
 ## Data sources (hard constraint)
 
@@ -208,12 +210,49 @@ view state). Defaults: `saltValue: true, tags: true, stats: false`.
   **always shown** — not gated on the EDHREC link or 100-card legality (alongside EDHREC when present, on
   its own otherwise).
 
+## Bulk sync (user page)
+
+Two controls injected next to the sidebar averages block on the user profile, operating over the user's
+**non-private** decks:
+
+- **Scan all** — for each syncable deck: GET + cache if CommanderSalt already has it (skipping entries
+  still fresh within TTL); **POST-import** (~5 s) any deck CommanderSalt hasn't indexed yet. Result:
+  every syncable deck is cached, so all sidebar averages and per-row profiles are complete.
+- **Re-scan all** — **POST re-import** every syncable deck to pull the latest analysis (like the site's
+  own Refresh). Heaviest; **confirm-gated**.
+
+**Syncability — driven by Moxfield visibility** (read from each deck row's badge):
+
+| Visibility | Syncable? | Why |
+|---|---|---|
+| Public | ✅ | Indexed/importable by CommanderSalt. |
+| Unlisted | ✅ | Not listed, but CommanderSalt can fetch it by URL. |
+| Private | ❌ | CommanderSalt can't read it. |
+
+A **Moxfield-styled info tooltip** sits next to the buttons: *"Private decks can't be synced —
+CommanderSalt can't read them."* Private rows are filtered out **before** any request is made.
+
+**Safety / UX:**
+- **Sequential + throttled** with a small inter-request delay; a **progress indicator** ("Syncing 4/15…")
+  and a **cancel** control.
+- Each **POST is attempted once** — never auto-retried (idempotency / ~5 s compute). Per-deck failures
+  are listed, not retried.
+- A **confirm dialog** precedes Re-scan all (and Scan all when it would import many un-indexed decks).
+- **Last-sync timestamp** persisted per username (`sync:{username}` → `{ lastScanAt, lastRescanAt }`) and
+  shown near the buttons (e.g. "Last synced 8 Jun 2026, 16:40").
+
+**Deck enumeration:** the user's decks come from the Moxfield profile list joined with CommanderSalt
+`/search`, with **visibility taken from the Moxfield row badges**. Enumerating decks beyond the loaded
+page (Moxfield paginates) may use Moxfield's own deck API — an implementation-time detail; in all cases
+private decks are excluded before any CommanderSalt request.
+
 ## Caching
 
 `chrome.storage.local`, **extracted display fields only** (never the ~349 KB raw blob).
 
 - Keys: `deck:{md5}` → `{ fetchedAt, fields }` (now includes the per-card `cards` map); `search:{username}`
-  → `{ fetchedAt, hits, cursor }`; `prefs:cardData` → `{ saltValue, tags, stats }` (global, no TTL).
+  → `{ fetchedAt, hits, cursor }`; `prefs:cardData` → `{ saltValue, tags, stats }` (global, no TTL);
+  `sync:{username}` → `{ lastScanAt, lastRescanAt }` (no TTL).
 - **TTL** 7 days (configurable constant). **Stale-while-revalidate:** serve cached value immediately,
   refetch in the background when older than TTL.
 - **Refresh** affordance per block forces a refetch and rewrites the cache entry.
@@ -274,6 +313,7 @@ extension/
     router.js                   # idempotent inject/teardown per page type
     render-deck.js              # report-card block
     render-user.js              # table columns + sidebar averages + expanders
+    sync.js                     # bulk Scan all / Re-scan all (throttled, progress, timestamp)
     render-cards.js             # per-card salt/tags/stats annotations (Text view)
     customize-view.js           # inject Salt Value/Tags/Stats checkboxes into Moxfield's modal
     links-menu.js               # inject CommanderSalt link, gated on EDHREC link
@@ -301,7 +341,8 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
   (silent + owner-view note), user page (columns + averages + expander + load more), SPA navigation
   deck→user→deck, light/dark theme, offline (cache), refresh, **per-card salt/tags/stats in Text view
   (and their absence in other views), Customize View checkboxes persist globally, toggle-all stats, and
-  the CommanderSalt link appearing only when EDHREC's does**.
+  the CommanderSalt link always appearing**, and **Scan all / Re-scan all over non-private decks
+  (private excluded with tooltip, progress, last-sync timestamp persisted)**.
 
 ## Assumptions to confirm at implementation time
 
@@ -311,9 +352,9 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
 3. Threat/interaction/wincons/tier sidebar averages are **partial** under on-demand — averaged over the
    decks opened so far, with a coverage hint. (Alternative: hide until all loaded — not chosen.)
 4. Moxfield's Customize View modal exposes an "Include Extra Data" group we can append checkboxes to; the
-   current View Style is detectable from the DOM; and the EDHREC external link is detectable in the deck's
-   links menu. All confirmed against the live DOM at implementation time (anchored by content, not hashed
-   class names).
+   current View Style is detectable from the DOM; the EDHREC external link is detectable in the deck's
+   links menu; and each deck row's **visibility (Public/Unlisted/Private) is readable** from its badge.
+   All confirmed against the live DOM at implementation time (anchored by content, not hashed class names).
 5. CommanderSalt cards match Moxfield rows by normalized name. (Deck-page URL form `/details/deck/{md5}`
    and API hosts/paths are already confirmed against the live site — see Data sources.)
 
