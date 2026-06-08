@@ -16,6 +16,24 @@ export function el(tag, props = {}, children = []) {
   return node;
 }
 
+/** A symmetric up-chevron SVG (centered in its viewBox) — rotate the wrapping
+    element 180° for the down/closed state and it stays perfectly centered. */
+export function chevronSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS(NS, 'polyline');
+  p.setAttribute('points', '6 15 12 9 18 15');
+  p.setAttribute('stroke', 'currentColor');
+  p.setAttribute('stroke-width', '2.5');
+  p.setAttribute('stroke-linecap', 'round');
+  p.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(p);
+  return svg;
+}
+
 /** Returns true once per (node, key); marks the node so repeated calls no-op. */
 export function claim(node, key) {
   const set = (node.dataset.solring || '').split(' ').filter(Boolean);

@@ -8,7 +8,7 @@
   --solring-rating-b: #d2691e;
   --solring-rating-c: #b8860b;
   --solring-rating-d: #1a7f37;
-  --solring-accent: #731fa1;
+  --solring-accent: var(--bs-primary);
   /* Surfaces / borders / text inherit Moxfield's Bootstrap theme variables so
      the injected UI matches in both light and dark; the hex values are only
      fallbacks if those vars are ever absent. */
@@ -25,7 +25,6 @@
   --solring-rating-b: #f0883e;
   --solring-rating-c: #e3b341;
   --solring-rating-d: #3fb950;
-  --solring-accent: #c999e6;
 }
 
 .solring-tier-a { color: var(--solring-rating-a); }
@@ -70,9 +69,11 @@
 /* Panel-bar chevron: same big ⌃ as the expandable tiles — rotated 180° when the
    panel is collapsed, upright when open. */
 .solring-chevron {
-  font-size: 1.8rem; line-height: 1; font-weight: 400; color: var(--solring-text-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem; color: var(--solring-text-2);
   transform: rotate(180deg);
 }
+.solring-chevron svg { width: 100%; height: 100%; display: block; }
 .solring-panel.solring-open .solring-chevron { transform: rotate(0deg); }
 .solring-panel-body { display: none; padding: 0.85rem; background: var(--solring-surface); }
 .solring-panel.solring-open .solring-panel-body { display: block; }
@@ -107,10 +108,12 @@
    when open. (⌃ renders cleaner than ⌄.) */
 .solring-expandable { position: relative; padding-right: 2.4rem; }
 .solring-tile-chev {
-  position: absolute; right: 0.7rem; top: 50%;
+  position: absolute; right: 0.6rem; top: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem; color: var(--solring-text-2);
   transform: translateY(-50%) rotate(180deg);
-  font-size: 1.8rem; line-height: 1; font-weight: 400; color: var(--solring-text-2);
 }
+.solring-tile-chev svg { width: 100%; height: 100%; display: block; }
 .solring-expandable:hover .solring-tile-chev { color: var(--solring-text); }
 .solring-expandable.solring-open .solring-tile-chev { transform: translateY(-50%) rotate(0deg); }
 
@@ -125,7 +128,7 @@
 .solring-pl-label { color: var(--solring-text-2); }
 .solring-pl-bar { height: 6px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
-.solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text); }
+.solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
 /* Per-combo Details toggle + collapsible body. */
 .solring-combo-details {

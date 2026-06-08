@@ -8,7 +8,7 @@ import { parseDeckId } from './moxfield.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
-import { el, tierFromGrade, isDark } from './dom.js';
+import { el, tierFromGrade, isDark, chevronSvg } from './dom.js';
 import { getCardPrefs, onPrefChange } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
@@ -144,8 +144,8 @@ function makeExpandable(tile, section, body) {
   tile.setAttribute('role', 'button');
   tile.setAttribute('tabindex', '0');
   tile.setAttribute('aria-expanded', 'false');
-  // Always the ⌃ glyph; CSS rotates it 180° when closed (renders cleaner than ⌄).
-  const chev = el('span', { class: 'solring-tile-chev', text: '⌃', attrs: { 'aria-hidden': 'true' } });
+  // Symmetric SVG chevron; CSS rotates it 180° when closed (stays centered).
+  const chev = el('span', { class: 'solring-tile-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   tile.append(chev);
   const toggle = () => {
     const willOpen = section.hasAttribute('hidden');
@@ -240,7 +240,7 @@ export async function mount({ waitFor }) {
   const md5 = deckMd5(canonicalDeckUrl(publicId));
 
   const body = el('div', { class: 'solring-panel-body' });
-  const chevron = el('span', { class: 'solring-chevron', text: '⌃', attrs: { 'aria-hidden': 'true' } });
+  const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
   const refreshBtn = el('button', {
     class: 'solring-refresh', text: '↻',
@@ -248,13 +248,13 @@ export async function mount({ waitFor }) {
   });
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
-    el('span', { class: 'solring-wordmark', text: 'CommanderSalt' }),
+    el('span', { class: 'solring-wordmark', text: 'Solring' }),
     el('span', { class: 'solring-bar-right' }, [synced, refreshBtn, chevron]),
   ]);
 
   const panel = el('div', { class: `solring-panel${isDark() ? ' solring-dark' : ''}` }, [titleBar, body]);
   // Wrap in a Bootstrap .container so the panel aligns with the deck body width.
-  const wrap = el('div', { class: 'container mt-3 solring-container', attrs: { 'data-solring-root': '' } }, [panel]);
+  const wrap = el('div', { class: 'container mt-3 mb-5 solring-container', attrs: { 'data-solring-root': '' } }, [panel]);
 
   function setOpen(open) {
     panel.classList.toggle('solring-open', open);
