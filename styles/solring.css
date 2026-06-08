@@ -132,7 +132,12 @@
    all 6 columns (qty, name, mana, legality, menu, salt) stay on one line and
    only our full-width sub-lines (tags, detail) wrap below. */
 .solring-row { flex-wrap: wrap; }
-.solring-row > .w-100 { flex: 1 1 0; min-width: 0; }
+/* Name cell becomes a flex row so the card name (shrinks, ellipsis) and our
+   stats toggle stay side-by-side on the title line instead of the toggle
+   wrapping under the name. */
+.solring-row > .w-100 { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+/* Name truncates to one line so the toggle stays beside it instead of wrapping. */
+.solring-row > .w-100 > a { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Tags + detail are full-width sub-lines spanning name-column → row end; the
    inline padding-left (set in JS = quantity-column width) starts them under the
    title. Pills are left-packed and wrap, not stretched across the width. */
@@ -146,7 +151,8 @@
 }
 .solring-stats-toggle {
   border: 0; background: transparent; color: var(--solring-text-2);
-  cursor: pointer; padding: 0 0.35rem 0 0; font-size: 0.8rem; line-height: 1;
+  cursor: pointer; padding: 0 0.5rem; font-size: 0.8rem; line-height: 1;
+  flex: 0 0 auto; align-self: center;
 }
 .solring-stats-toggle::before { content: '▸'; }
 .solring-stats-open .solring-stats-toggle::before { content: '▾'; }
