@@ -47,16 +47,11 @@ export function isDark() {
   return false;
 }
 
-// CommanderSalt semantics: HIGH is bad (A = saltiest / most oppressive),
-// LOW is good. So the color scale is inverted vs a school report card:
-// A → red, B → orange, C → gold, D → green.
-export function tierFromPct(p) {
-  return p >= 83 ? 'f' : p >= 67 ? 'e' : p >= 50 ? 'd' : p >= 33 ? 'c' : p >= 17 ? 'b' : 'a';
-}
-
-/** A–F grade string → color tier (high grade = bad = red). */
+// CommanderSalt grades run A–D only (no E/F), and HIGH is bad — so the color
+// scale is inverted vs a school report card: A → red, B → orange, C → gold,
+// D → green.
 export function tierFromGrade(grade) {
-  return ({ A: 'f', B: 'd', C: 'c', D: 'a', E: 'a', F: 'a' })[(grade.trim()[0] || '').toUpperCase()] || 'c';
+  return ({ A: 'f', B: 'd', C: 'c', D: 'a' })[(grade.trim()[0] || '').toUpperCase()] || 'c';
 }
 
 /** Run fn, swallowing+logging any error so Moxfield's page is never broken. */

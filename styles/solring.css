@@ -67,10 +67,10 @@
 @keyframes solring-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .solring-refresh.solring-spin { animation: none; } }
 .solring-wordmark { letter-spacing: 0.01em; }
-.solring-wordmark::before {
-  content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px;
-  border-radius: 50%; background: var(--solring-accent); vertical-align: middle;
-}
+/*.solring-wordmark::before {*/
+/*  content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px;*/
+/*  border-radius: 50%; background: var(--solring-accent); vertical-align: middle;*/
+/*}*/
 .solring-chevron { color: var(--solring-text-2); }
 .solring-panel-body { display: none; padding: 0.85rem; background: var(--solring-surface); }
 .solring-panel.solring-open .solring-panel-body { display: block; }
