@@ -22,6 +22,7 @@ let currentFields = null;
 let deckObserver = null;
 let dvRef = null;
 let installedOnce = false;
+let syncTimer = null; // ticks the "synced …ago" label live; manual refresh only, no auto-revalidate
 
 function connectObserver() {
   if (deckObserver && dvRef) deckObserver.observe(dvRef, { childList: true, subtree: true });
@@ -276,10 +277,16 @@ export async function mount({ waitFor }) {
     const h = Math.round(m / 60);
     return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
   }
+  let lastSync = null;
   function setSynced(ts) {
-    synced.textContent = ts ? `synced ${relTime(ts)}` : '';
-    synced.title = ts ? new Date(ts).toLocaleString() : '';
+    lastSync = ts || null;
+    synced.textContent = lastSync ? `synced ${relTime(lastSync)}` : '';
+    synced.title = lastSync ? new Date(lastSync).toLocaleString() : '';
   }
+  // Keep the relative "synced …ago" label current without re-fetching. Clear any
+  // ticker left by a prior mount so intervals never stack across SPA navigations.
+  clearInterval(syncTimer);
+  syncTimer = setInterval(() => { if (lastSync) synced.textContent = `synced ${relTime(lastSync)}`; }, 30000);
   async function doRefresh() {
     refreshBtn.classList.add('solring-spin');
     refreshBtn.disabled = true;
@@ -310,38 +317,26 @@ export async function mount({ waitFor }) {
     setOpen(true);
     return;
   }
-  const SOFT_TTL_MS = 10 * 60 * 1000; // trust cache within 10 min; auto-revalidate when older
-  let shown = null;
   function showFields(f) {
     if (f.isPrivate || f.isIllegal) {
       renderMessage(body, 'Private/illegal — CommanderSalt can’t analyze it.');
       setOpen(false);
       currentFields = null;
       clearAnnotations();
-      shown = f;
       return;
     }
     renderBody(body, f);
     setOpen(true); // analyzed/cached → default open
     startAnnotations(f);
-    shown = f;
   }
 
-  // A deck's analysis can change anytime, so an instant cached paint is followed
-  // by a foreground revalidation that re-renders only if the values changed.
-  async function revalidate() {
-    const fresh = await guardAsync(() => getDeck(md5, true));
-    if (fresh && fresh.fields) {
-      if (JSON.stringify(fresh.fields) !== JSON.stringify(shown)) showFields(fresh.fields);
-      setSynced(fresh.fetchedAt || Date.now());
-    }
-  }
-
+  // Stats never auto-revalidate: an analysis can change anytime, but a silent
+  // background refresh would shift the numbers under the user. We paint the
+  // cached values and leave updating to the manual ↻ button; the "synced …ago"
+  // label (ticked live above) keeps the staleness visible.
   if (res.fields) {
     showFields(res.fields);
     setSynced(res.fetchedAt);
-    const stale = !res.fetchedAt || (Date.now() - res.fetchedAt) > SOFT_TTL_MS;
-    if (res.cached && stale) revalidate(); // soft-TTL auto-refresh; otherwise trust cache
     return;
   }
   // stub / un-indexed → closed; expand to Analyze
