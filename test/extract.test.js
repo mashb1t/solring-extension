@@ -37,6 +37,17 @@ test('extractDeck builds a per-card map (salt + prettified tags)', () => {
   assert.ok(d.cards['gleeful arsonist'].tags.includes('groupslug'));
 });
 
+test('extractDeck enriches cards with bracket flags + power/salt breakdowns', () => {
+  const d = extractDeck(deck);
+  const jw = d.cards["jeska's will"];
+  assert.ok(jw, "expected Jeska's Will in the card map");
+  assert.deepEqual([...jw.flags].sort(), ['Game Changer', 'cEDH staple']);
+  const powerCats = jw.power.map((x) => x.cat);
+  assert.ok(powerCats.includes('draw') && powerCats.includes('fastmana'), `power cats: ${powerCats}`);
+  assert.ok(jw.saltBreakdown.length > 0);
+  assert.ok(jw.power.every((x) => typeof x.score === 'number'));
+});
+
 test('extractHit pulls per-row metrics from a search hit', () => {
   const h = extractHit(search.hits.find((x) => /ojer/i.test(x.title)));
   assert.equal(h.deckId, '9bc8a6c2106583c1fd66e0492a3a5a26');

@@ -4,6 +4,7 @@
 // Controlled by global prefs; re-applied on Moxfield re-render via the caller's observer.
 
 import { el, isDark } from './dom.js';
+import { prettifyStat } from './labels.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
 
@@ -22,17 +23,28 @@ export function isTextView() {
   return !!document.querySelector(ROW_SEL);
 }
 
+function detailLine(label, body) {
+  return el('div', { class: 'solring-detail-line' }, [el('b', { text: `${label} ` }), body]);
+}
+const scoreText = (arr) => arr.map((x) => `${prettifyStat(x.cat)} ${x.score.toFixed(1)}`).join('  ·  ');
+
+// The Stats detail shows what the Tags toggle does NOT: bracket flags, the card's
+// power contribution by dimension, and the breakdown of its salt score.
 function statsDetail(card) {
   const rows = [];
-  if (card.tags && card.tags.length) {
-    rows.push(el('span', { class: 'solring-detail-item' }, [
-      el('b', { text: 'Stats: ' }), document.createTextNode(card.tags.join(', ')),
-    ]));
+  if (card.flags && card.flags.length) {
+    rows.push(detailLine('Bracket:', el('span', { class: 'solring-flags' },
+      card.flags.map((f) => el('span', { class: 'solring-flag', text: f })))));
   }
-  rows.push(el('span', { class: 'solring-detail-item' }, [
-    el('b', { text: 'Salt: ' }), document.createTextNode(card.salt.toFixed(1)),
-    el('b', { text: '  ·  Categories: ' }), document.createTextNode(String(card.total)),
-  ]));
+  if (card.power && card.power.length) {
+    rows.push(detailLine('Power:', document.createTextNode(scoreText(card.power))));
+  }
+  if (card.saltBreakdown && card.saltBreakdown.length) {
+    rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
+  }
+  if (!rows.length) {
+    rows.push(detailLine('Stats:', document.createTextNode('no extra CommanderSalt data for this card')));
+  }
   return el('div', { class: 'solring-card-detail' }, rows);
 }
 

@@ -3,7 +3,7 @@
 // undefined, never throw. Deck value and baseline (WOTC) bracket are
 // intentionally NOT extracted — only the realistic bracket is shown.
 
-import { prettifyTag } from './labels.js';
+import { prettifyTag, BRACKET_FLAG_LABELS } from './labels.js';
 
 function g(obj, ...path) {
   let cur = obj;
@@ -14,15 +14,40 @@ function g(obj, ...path) {
   return cur;
 }
 
+// Collect a card's scoring contributions from a details.<area>.scoring object:
+// [{ cat, score }] for each category whose per-id list scores this card, top-first.
+function scoringFor(scoring, id) {
+  const out = [];
+  for (const [cat, v] of Object.entries(scoring || {})) {
+    const entry = v && typeof v === 'object' && v.list && typeof v.list === 'object' ? v.list[id] : null;
+    if (entry && typeof entry.score === 'number' && entry.score > 0) out.push({ cat, score: entry.score });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+
+// Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.
+function cardStats(details, id) {
+  const cats = g(details, 'brackets', 'categories') || {};
+  const flags = Object.keys(BRACKET_FLAG_LABELS)
+    .filter((k) => Array.isArray(cats[k] && cats[k].list) && cats[k].list.includes(id))
+    .map((k) => BRACKET_FLAG_LABELS[k]);
+  return {
+    flags,
+    power: scoringFor(g(details, 'powerLevel', 'scoring'), id).slice(0, 4),
+    saltBreakdown: scoringFor(g(details, 'salt', 'scoring'), id).slice(0, 4),
+  };
+}
+
 /** A deck is a stub (private / non-Commander / illegal / not yet analyzed). */
 export function isStub(p) {
   return !p || p.name == null || (p._cardCount || 0) === 0;
 }
 
-/** Per-card map keyed by normalized card name → { salt, tags, total }. */
+/** Per-card map keyed by normalized card name → { salt, tags, total, flags, power, saltBreakdown }. */
 function extractCards(p) {
   const out = {};
   const cards = p.cards || {};
+  const details = p.details || {};
   for (const c of Object.values(cards)) {
     if (!c || !c.name) continue;
     const stats = g(c, 'categories', 'stats') || {};
@@ -31,6 +56,7 @@ function extractCards(p) {
       salt: parseFloat(c.salt) || 0,
       tags,
       total: g(c, 'categories', 'total') || 0,
+      ...cardStats(details, c.id),
     };
   }
   return out;
