@@ -120,7 +120,8 @@ function renderBody(body, f) {
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
 
   const tiles = el('div', { class: 'solring-tiles' }, [
-    tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` })),
+    tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
+      typeof f.power === 'number' ? num(f.power, 2) : null),
     tile('Bracket', el('span', { class: 'solring-num', text: f.bracketRealistic != null ? String(f.bracketRealistic) : '—' }), 'realistic'),
     tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' })),
     tile('Saltiness', gradeChip(csRatingGrade(f.salt, 'saltRating')), `raw ${num(f.salt)}`),
