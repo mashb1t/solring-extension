@@ -7,6 +7,7 @@ import { el } from './dom.js';
 import { getCardPrefs, setCardPrefs } from './prefs.js';
 
 const TOGGLES = [
+  ['power', 'Power'],
   ['saltValue', 'Salt Value'],
   ['tags', 'Tags'],
   ['stats', 'Stats'],

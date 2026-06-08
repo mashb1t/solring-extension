@@ -204,7 +204,7 @@
 .solring-btn:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 
 /* ---- per-card annotations (Text view) ---- */
-.solring-salt-cell {
+.solring-salt-cell, .solring-power-cell {
   font-variant-numeric: tabular-nums; color: var(--solring-text-2);
   padding-left: 0.5rem; white-space: nowrap;
 }

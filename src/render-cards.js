@@ -78,7 +78,15 @@ export function annotate(fields, prefs) {
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
 
-    // 1) Salt value — trailing column, stays on the first line (before the wrapping rows).
+    // 1) Power + Salt value — trailing columns that stay on the first line (before
+    // the wrapping rows). Power sits to the left of salt (it is appended first).
+    if (prefs.power && typeof card.powerTotal === 'number') {
+      li.append(el('span', {
+        class: 'solring-power-cell text-end solring-card-anno',
+        text: card.powerTotal.toFixed(1),
+        title: 'CommanderSalt power contribution',
+      }));
+    }
     if (prefs.saltValue && typeof card.salt === 'number') {
       const high = card.salt >= 5;
       li.append(el('span', {
@@ -102,7 +110,7 @@ export function annotate(fields, prefs) {
 }
 
 export function clearAnnotations(root = document) {
-  root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell')
+  root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell')
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
 }
