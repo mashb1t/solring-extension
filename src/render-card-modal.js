@@ -35,10 +35,21 @@ function lookup(name) {
 
 const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
 
-function tile(label, value, sub) {
+// Per-card saltiness → the extension's A–D rating tier (high = bad), so the value
+// is colored on the global ramp (a=red … d=green) instead of plain grey.
+function saltTier(salt) {
+  if (typeof salt !== 'number') return null;
+  if (salt >= 5) return 'a';
+  if (salt >= 3) return 'b';
+  if (salt >= 1.5) return 'c';
+  return 'd';
+}
+
+function tile(label, value, sub, valueTier) {
+  const valCls = valueTier ? `solring-num solring-tier-${valueTier}` : 'solring-num';
   return el('div', { class: 'solring-tile' }, [
     el('div', { class: 'solring-tile-label', text: label }),
-    el('div', { class: 'solring-tile-value' }, [el('span', { class: 'solring-num', text: value })]),
+    el('div', { class: 'solring-tile-value' }, [el('span', { class: valCls, text: value })]),
     sub ? el('div', { class: 'solring-tile-sub', text: sub }) : null,
   ]);
 }
@@ -75,8 +86,8 @@ function buildBody(card) {
   const body = el('div', { class: 'solring-panel-body' });
 
   body.append(el('div', { class: 'solring-tiles' }, [
-    tile('Saltiness', num(card.salt), 'card salt'),
-    tile('Total', typeof card.total === 'number' ? num(card.total) : '—', 'category score'),
+    tile('Saltiness', num(card.salt), 'card salt', saltTier(card.salt)),
+    tile('Power', num(card.powerTotal), 'contribution'),
   ]));
 
   if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));
