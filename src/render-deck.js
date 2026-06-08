@@ -8,7 +8,7 @@ import { parseDeckId } from './moxfield.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
-import { el, claim, guard, tierFromGrade, isDark } from './dom.js';
+import { el, tierFromGrade, isDark } from './dom.js';
 
 const GRADES = [
   ['Threat', 'threat', 'threatRating'],
@@ -77,10 +77,19 @@ export async function mount({ waitFor }) {
   const publicId = parseDeckId(location.href);
   if (!publicId) return;
 
-  // Anchor below the whole header block (clears the hero art); fall back to .deckheader.
-  const header = await waitFor('.deckheader-wrapper, .deckheader');
-  if (!header) return; // private/404 page with no deck header → stay silent
-  if (!claim(header, 'deck-panel')) return; // already injected this pass
+  // Anchor in the slot below the "Support us on Patreon" banner and above the
+  // Primer/Playtest toolbar — i.e. just before the deck-body container. The
+  // toolbar is the container's previous sibling (a div containing Primer/Playtest).
+  const deckview = await waitFor('section.deckview');
+  if (!deckview) return; // private/404 page with no decklist → stay silent
+  const container = deckview.closest('.container') || deckview;
+  // Toolbar = the container's previous sibling whose text contains the deck
+  // actions (Moxfield concatenates them without spaces, so no \b boundaries).
+  const prev = container.previousElementSibling;
+  const toolbar = prev && /Playtest|Primer/i.test(prev.textContent || '') ? prev : null;
+  const anchor = toolbar || container;
+  const parent = anchor.parentElement;
+  if (!parent || parent.querySelector(':scope > .solring-container')) return; // already injected
 
   const md5 = deckMd5(canonicalDeckUrl(publicId));
 
@@ -91,10 +100,9 @@ export async function mount({ waitFor }) {
     attrs: { type: 'button', 'aria-expanded': 'false' },
   }, [el('span', { class: 'solring-wordmark', text: 'CommanderSalt' }), chevron]);
 
-  const panel = el('div', {
-    class: `solring-panel${isDark() ? ' solring-dark' : ''}`,
-    attrs: { 'data-solring-root': '' },
-  }, [titleBar, body]);
+  const panel = el('div', { class: `solring-panel${isDark() ? ' solring-dark' : ''}` }, [titleBar, body]);
+  // Wrap in a Bootstrap .container so the panel aligns with the deck body width.
+  const wrap = el('div', { class: 'container mt-3 solring-container', attrs: { 'data-solring-root': '' } }, [panel]);
 
   function setOpen(open) {
     panel.classList.toggle('solring-open', open);
@@ -103,8 +111,8 @@ export async function mount({ waitFor }) {
   }
   titleBar.addEventListener('click', () => setOpen(!panel.classList.contains('solring-open')));
 
-  // insert below the header
-  header.insertAdjacentElement('afterend', panel);
+  // insert just above the Primer/Playtest toolbar (the orange slot)
+  parent.insertBefore(wrap, anchor);
 
   renderMessage(body, 'Loading CommanderSalt…');
   setOpen(false);
@@ -113,8 +121,7 @@ export async function mount({ waitFor }) {
   if (!res || res.error) {
     const retry = el('button', { class: 'solring-btn', text: 'Retry' });
     retry.addEventListener('click', () => {
-      panel.remove();
-      claimReset(header);
+      wrap.remove();
       mount({ waitFor });
     });
     renderMessage(body, 'Couldn’t reach CommanderSalt.', retry);
@@ -131,9 +138,4 @@ export async function mount({ waitFor }) {
   // stub / un-indexed → closed; expand to Analyze
   renderAnalyze(body, canonicalDeckUrl(publicId), md5, (fields) => { renderBody(body, fields); setOpen(true); });
   setOpen(false);
-}
-
-function claimReset(node) {
-  const set = (node.dataset.solring || '').split(' ').filter((k) => k !== 'deck-panel');
-  node.dataset.solring = set.join(' ');
 }
