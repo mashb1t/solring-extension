@@ -130,10 +130,11 @@
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
-/* Per-combo toggle: the whole header row expands the collapsible body; a chevron
+/* Per-combo toggle: the whole combo card expands the collapsible body; a chevron
    (rotated 180° when closed, like the metric tiles) sits at the end of the meta. */
-.solring-combo-head[role='button'] { cursor: pointer; }
-.solring-combo-head:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 2px; border-radius: 4px; }
+.solring-combo[role='button'] { cursor: pointer; }
+.solring-combo[role='button']:hover { border-color: var(--solring-accent); }
+.solring-combo[role='button']:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 2px; }
 .solring-combo-chev {
   align-self: center;
   display: inline-flex; align-items: center; justify-content: center;
@@ -141,7 +142,7 @@
   transform: rotate(180deg);
 }
 .solring-combo-chev svg { width: 100%; height: 100%; display: block; }
-.solring-combo-head[role='button']:hover .solring-combo-chev { color: var(--solring-text); }
+.solring-combo[role='button']:hover .solring-combo-chev { color: var(--solring-text); }
 .solring-combo.solring-open .solring-combo-chev { transform: rotate(0deg); }
 .solring-combo-body[hidden] { display: none; }
 .solring-combos { display: grid; gap: 0.6rem; margin-top: 0.2rem; }

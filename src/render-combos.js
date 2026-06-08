@@ -90,18 +90,18 @@ function comboCard(combo) {
   const card = el('div', { class: 'solring-combo' }, [head, tagChips(combo), body]);
 
   if (body) {
-    head.setAttribute('role', 'button');
-    head.setAttribute('tabindex', '0');
-    head.setAttribute('aria-expanded', 'false');
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-expanded', 'false');
     const toggle = () => {
       const open = body.hasAttribute('hidden');
       if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
       card.classList.toggle('solring-open', open);
-      head.setAttribute('aria-expanded', String(open));
+      card.setAttribute('aria-expanded', String(open));
     };
     // Clicking the Spellbook link should follow the link, not toggle.
-    head.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
-    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    card.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   }
 
   return card;
