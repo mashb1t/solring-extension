@@ -45,35 +45,14 @@ function saltTier(salt) {
   return 'd';
 }
 
-const clampPct = (n) => Math.max(0, Math.min(100, n || 0));
-
-// Per-card power has no fixed ceiling (it's an unbounded sum of category scores),
-// so the tile bars are normalized against the deck's own strongest card — a full
-// bar = the highest-contributing / saltiest card in this deck.
-function deckRanges(fields) {
-  let maxPower = 0;
-  let maxSalt = 0;
-  for (const c of Object.values((fields && fields.cards) || {})) {
-    if (typeof c.powerTotal === 'number' && c.powerTotal > maxPower) maxPower = c.powerTotal;
-    if (typeof c.salt === 'number' && c.salt > maxSalt) maxSalt = c.salt;
-  }
-  return { maxPower, maxSalt };
-}
-
-// opts: { valueTier, bar: { pct, tier } } — bar adds a stacked progress track
-// under the value; tier colors the fill on the rating ramp (else accent).
-function tile(label, value, sub, opts = {}) {
-  const valCls = opts.valueTier ? `solring-num solring-tier-${opts.valueTier}` : 'solring-num';
-  const children = [
+// valueTier colors the value on the A–D rating ramp (used for saltiness severity).
+function tile(label, value, sub, valueTier) {
+  const valCls = valueTier ? `solring-num solring-tier-${valueTier}` : 'solring-num';
+  return el('div', { class: 'solring-tile' }, [
     el('div', { class: 'solring-tile-label', text: label }),
     el('div', { class: 'solring-tile-value' }, [el('span', { class: valCls, text: value })]),
     sub ? el('div', { class: 'solring-tile-sub', text: sub }) : null,
-  ];
-  if (opts.bar) {
-    const barCls = `solring-pl-bar solring-tile-bar${opts.bar.tier ? ` solring-bar-tier-${opts.bar.tier}` : ''}`;
-    children.push(el('span', { class: barCls }, [el('span', { style: `width:${clampPct(opts.bar.pct)}%` })]));
-  }
-  return el('div', { class: 'solring-tile' }, children);
+  ]);
 }
 
 // Stacked bar row (narrow column): label + value on one line, full-width bar below.
@@ -104,17 +83,12 @@ function bars(title, arr) {
   return sectionBlock(title, arr.map((x) => stackRow(prettifyStat(x.cat), num(x.score), (x.score / max) * 100)));
 }
 
-function buildBody(card, ranges) {
+function buildBody(card) {
   const body = el('div', { class: 'solring-panel-body' });
 
-  const st = saltTier(card.salt);
-  const saltBar = typeof card.salt === 'number' && ranges.maxSalt > 0
-    ? { pct: (card.salt / ranges.maxSalt) * 100, tier: st } : null;
-  const powerBar = typeof card.powerTotal === 'number' && ranges.maxPower > 0
-    ? { pct: (card.powerTotal / ranges.maxPower) * 100 } : null;
   body.append(el('div', { class: 'solring-tiles' }, [
-    tile('Saltiness', num(card.salt), 'card salt', { valueTier: st, bar: saltBar }),
-    tile('Power', num(card.powerTotal), 'contribution', { bar: powerBar }),
+    tile('Saltiness', num(card.salt), 'card salt', saltTier(card.salt)),
+    tile('Power', num(card.powerTotal), 'contribution'),
   ]));
 
   if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));
@@ -136,14 +110,14 @@ function buildBody(card, ranges) {
   return body;
 }
 
-function buildPanel(card, key, ranges) {
+function buildPanel(card, key) {
   const bar = el('div', { class: 'solring-panel-bar solring-cm-bar' }, [
     el('span', { class: 'solring-wordmark', text: 'Solring' }),
   ]);
   return el('div', {
     class: `solring-panel solring-open solring-card-modal${isDark() ? ' solring-dark' : ''}`,
     attrs: { 'data-card': key },
-  }, [bar, buildBody(card, ranges)]);
+  }, [bar, buildBody(card)]);
 }
 
 // Re-fit the panel to the currently shown card. Idempotent: if the panel already
@@ -163,7 +137,7 @@ function apply() {
   const card = lookup(name);
   if (existing) existing.remove();
   if (!card) return;
-  const panel = buildPanel(card, key, deckRanges(getFields()));
+  const panel = buildPanel(card, key);
   // Cap the panel to the card image's width. The container is inline-block, so it
   // shrink-wraps to its widest child — without a cap a long tag/synergy list lays
   // out on a single line and stretches the whole modal. Measure the image BEFORE

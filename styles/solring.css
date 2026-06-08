@@ -269,12 +269,5 @@
 .solring-cm-row { margin: 0.3rem 0; }
 .solring-cm-row-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.72rem; margin-bottom: 0.15rem; }
 .solring-cm-note { font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.35rem; }
-/* Tile progress bar: magnitude relative to the deck's strongest card. Fill is
-   accent by default; the salt tile tints it on the rating ramp to match its value. */
-.solring-tile-bar { margin-top: 0.45rem; }
-.solring-bar-tier-a > span { background: var(--solring-rating-a); }
-.solring-bar-tier-b > span { background: var(--solring-rating-b); }
-.solring-bar-tier-c > span { background: var(--solring-rating-c); }
-.solring-bar-tier-d > span { background: var(--solring-rating-d); }
 
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
