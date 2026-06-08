@@ -101,13 +101,13 @@
 .solring-clickable:hover { border-color: var(--solring-accent); }
 .solring-clickable:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 
-/* Big toggle chevron on the Combos tile. */
-.solring-combos-tile { position: relative; padding-right: 2.4rem; }
-.solring-combos-chev {
+/* Expandable tile: big static chevron (glyph swaps ⌄/⌃ in JS, no rotation). */
+.solring-expandable { position: relative; padding-right: 2.4rem; }
+.solring-tile-chev {
   position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%);
   font-size: 1.8rem; line-height: 1; color: var(--solring-text-2);
 }
-.solring-combos-tile:hover .solring-combos-chev { color: var(--solring-text); }
+.solring-expandable:hover .solring-tile-chev { color: var(--solring-text); }
 
 /* Per-combo Details toggle + collapsible body. */
 .solring-combo-details {

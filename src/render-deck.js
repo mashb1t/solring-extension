@@ -135,6 +135,27 @@ function comboSizeBreakdown(combos) {
   return parts.join(' · ');
 }
 
+// Make a tile expand/collapse a detail section (appended to `body`, hidden by
+// default). The chevron swaps glyph on toggle (⌄ closed / ⌃ open) — no rotation.
+function makeExpandable(tile, section, body) {
+  body.append(section);
+  tile.classList.add('solring-clickable', 'solring-expandable');
+  tile.setAttribute('role', 'button');
+  tile.setAttribute('tabindex', '0');
+  tile.setAttribute('aria-expanded', 'false');
+  const chev = el('span', { class: 'solring-tile-chev', text: '⌄', attrs: { 'aria-hidden': 'true' } });
+  tile.append(chev);
+  const toggle = () => {
+    const willOpen = section.hasAttribute('hidden');
+    if (willOpen) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
+    chev.textContent = willOpen ? '⌃' : '⌄';
+    tile.classList.toggle('solring-open', willOpen);
+    tile.setAttribute('aria-expanded', String(willOpen));
+  };
+  tile.addEventListener('click', toggle);
+  tile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+}
+
 function renderBody(body, f) {
   body.replaceChildren();
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
@@ -165,24 +186,7 @@ function renderBody(body, f) {
   body.append(mainTiles, gradeTiles);
 
   // The combo list is hidden until the Combos tile is clicked.
-  if (hasCombos) {
-    const section = buildCombosSection(f.combos);
-    body.append(section);
-    comboTile.classList.add('solring-clickable', 'solring-combos-tile');
-    comboTile.setAttribute('role', 'button');
-    comboTile.setAttribute('tabindex', '0');
-    comboTile.setAttribute('aria-expanded', 'false');
-    const chevron = el('span', { class: 'solring-combos-chev', text: '⌄', attrs: { 'aria-hidden': 'true' } });
-    comboTile.append(chevron); // big toggle affordance (the subline shows the size breakdown)
-    const toggle = () => {
-      const open = section.hasAttribute('hidden');
-      if (open) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
-      comboTile.classList.toggle('solring-open', open);
-      comboTile.setAttribute('aria-expanded', String(open));
-    };
-    comboTile.addEventListener('click', toggle);
-    comboTile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-  }
+  if (hasCombos) makeExpandable(comboTile, buildCombosSection(f.combos), body);
 }
 
 function renderMessage(body, text, action) {
