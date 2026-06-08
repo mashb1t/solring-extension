@@ -247,7 +247,10 @@
 
 /* ---- per-card Info panel (card-detail modal sidebar, ~220px wide) ---- */
 .solring-card-modal {
-  width: 100%; box-sizing: border-box; text-align: left;
+  /* width is capped to the card image's pixel width in JS; this is the fallback
+     ceiling if that measurement is unavailable, so a long tag/synergy list wraps
+     instead of stretching the inline-block container and breaking the modal. */
+  width: 100%; max-width: 20rem; box-sizing: border-box; text-align: left;
   margin-top: 1rem; font-size: 0.85rem;
 }
 .solring-card-modal .solring-panel-bar.solring-cm-bar { cursor: default; }

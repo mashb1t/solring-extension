@@ -135,7 +135,16 @@ function apply() {
   if (existing && existing.getAttribute('data-card') === key) return; // already current
   const card = lookup(name);
   if (existing) existing.remove();
-  if (card) box.appendChild(buildPanel(card, key));
+  if (!card) return;
+  const panel = buildPanel(card, key);
+  // Cap the panel to the card image's width. The container is inline-block, so it
+  // shrink-wraps to its widest child — without a cap a long tag/synergy list lays
+  // out on a single line and stretches the whole modal. Measure the image BEFORE
+  // inserting, since afterwards our own content may already have widened the box.
+  const img = box.querySelector('.deckview-image-wrapper') || box.querySelector('img.deckview-image');
+  const w = img ? Math.round(img.getBoundingClientRect().width) : 0;
+  if (w > 40) panel.style.maxWidth = `${w}px`;
+  box.appendChild(panel);
 }
 
 function schedule() {
