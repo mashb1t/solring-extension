@@ -8,7 +8,7 @@
   --solring-rating-b: #d2691e;
   --solring-rating-c: #b8860b;
   --solring-rating-d: #1a7f37;
-  --solring-accent: #ff6600;
+  --solring-accent: #731fa1;
   /* Surfaces / borders / text inherit Moxfield's Bootstrap theme variables so
      the injected UI matches in both light and dark; the hex values are only
      fallbacks if those vars are ever absent. */
@@ -25,6 +25,7 @@
   --solring-rating-b: #f0883e;
   --solring-rating-c: #e3b341;
   --solring-rating-d: #3fb950;
+  --solring-accent: #c999e6;
 }
 
 .solring-tier-a { color: var(--solring-rating-a); }
@@ -66,7 +67,14 @@
 /*  content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px;*/
 /*  border-radius: 50%; background: var(--solring-accent); vertical-align: middle;*/
 /*}*/
-.solring-chevron { color: var(--solring-text-2); }
+/* Panel-bar chevron: same big ⌃ as the expandable tiles — rotated 180° when the
+   panel is collapsed, upright when open. */
+.solring-chevron {
+  font-size: 1.8rem; line-height: 1; color: var(--solring-text-2);
+  transform: rotate(180deg); transition: transform 0.15s ease;
+}
+.solring-panel.solring-open .solring-chevron { transform: rotate(0deg); }
+@media (prefers-reduced-motion: reduce) { .solring-chevron { transition: none; } }
 .solring-panel-body { display: none; padding: 0.85rem; background: var(--solring-surface); }
 .solring-panel.solring-open .solring-panel-body { display: block; }
 

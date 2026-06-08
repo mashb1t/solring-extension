@@ -240,7 +240,7 @@ export async function mount({ waitFor }) {
   const md5 = deckMd5(canonicalDeckUrl(publicId));
 
   const body = el('div', { class: 'solring-panel-body' });
-  const chevron = el('span', { class: 'solring-chevron', text: '▸' });
+  const chevron = el('span', { class: 'solring-chevron', text: '⌃', attrs: { 'aria-hidden': 'true' } });
   const synced = el('span', { class: 'solring-synced' });
   const refreshBtn = el('button', {
     class: 'solring-refresh', text: '↻',
@@ -259,7 +259,6 @@ export async function mount({ waitFor }) {
   function setOpen(open) {
     panel.classList.toggle('solring-open', open);
     titleBar.setAttribute('aria-expanded', String(open));
-    chevron.textContent = open ? '▾' : '▸';
   }
   const toggle = () => setOpen(!panel.classList.contains('solring-open'));
   titleBar.addEventListener('click', toggle);
