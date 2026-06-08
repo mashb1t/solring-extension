@@ -11,6 +11,7 @@
 import { el, isDark } from './dom.js';
 import { prettifyStat } from './labels.js';
 import { normName } from './render-cards.js';
+import { saltTier, powerTier, deckAvgPower } from './ratings.js';
 
 const MODAL_SEL = '.modal.show';
 // The sticky image/price/buy container; we append the panel inside it (last child,
@@ -38,18 +39,8 @@ function lookup(name) {
 
 const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
 
-// Per-card saltiness → the extension's A–D rating tier (high = bad), so the value
-// is colored on the global ramp (a=red … d=green) instead of plain grey.
-function saltTier(salt) {
-  if (typeof salt !== 'number') return null;
-  if (salt >= 5) return 'a';
-  if (salt >= 3) return 'b';
-  if (salt >= 1.5) return 'c';
-  return 'd';
-}
-
-// valueClass colors the value (e.g. solring-tier-* for salt severity, or
-// solring-power-high for above-average power).
+// valueClass colors the value (e.g. solring-tier-* — 'a' is red for high salt /
+// above-2×-average power; saltTier/powerTier live in ratings.js).
 function tile(label, value, sub, valueClass) {
   const valCls = `solring-num${valueClass ? ` ${valueClass}` : ''}`;
   return el('div', { class: 'solring-tile' }, [
@@ -69,8 +60,7 @@ function deckStats(fields) {
   let saltSum = 0;
   for (const k of ids) { powerSum += cards[k].powerTotal || 0; saltSum += cards[k].salt || 0; }
   const powerTotal = (fields && fields.powerScoreTotal) || powerSum;
-  const count = ids.length || 1;
-  return { powerTotal, saltTotal: saltSum, avgPower: powerTotal / count };
+  return { powerTotal, saltTotal: saltSum, avgPower: deckAvgPower(cards, fields && fields.powerScoreTotal) };
 }
 
 const pct = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}% contribution` : 'contribution');
@@ -106,14 +96,13 @@ function bars(title, arr) {
 function buildBody(card, stats) {
   const body = el('div', { class: 'solring-panel-body' });
 
+  // Both tiers map to solring-tier-*: salt on the full A–D ramp, power only ever
+  // 'a' (red) when above 2× the deck average — otherwise unmarked.
   const st = saltTier(card.salt);
-  // Highlight power only when it's a standout — above 1.5× the deck average
-  // (one-directional, like salt's high-salt accent: low power is never "bad").
-  const powerHigh = typeof card.powerTotal === 'number' && stats.avgPower > 0
-    && card.powerTotal > stats.avgPower * 1.5;
+  const pt = powerTier(card.powerTotal, stats.avgPower);
   body.append(el('div', { class: 'solring-tiles' }, [
     tile('Saltiness', num(card.salt), pct(card.salt, stats.saltTotal), st ? `solring-tier-${st}` : null),
-    tile('Power', num(card.powerTotal), pct(card.powerTotal, stats.powerTotal), powerHigh ? 'solring-power-high' : null),
+    tile('Power', num(card.powerTotal), pct(card.powerTotal, stats.powerTotal), pt ? `solring-tier-${pt}` : null),
   ]));
 
   if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));

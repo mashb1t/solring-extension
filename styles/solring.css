@@ -216,11 +216,11 @@
   font-variant-numeric: tabular-nums; color: var(--solring-text-2);
   padding-left: 0.5rem; white-space: nowrap;
 }
-.solring-salt-cell.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
-/* Power highlighted only when above 1.5× the deck average (one-directional, like
-   high-salt). Works on the deck-page cell and the modal tile value. */
-.solring-power-high,
-.solring-power-cell.solring-power-high { color: var(--solring-accent); font-weight: 600; }
+/* Red flag for standout cards: salt in the salty cluster (>=5) or power above 2×
+   the deck average (thresholds in ratings.js). --solring-rating-a is theme-aware;
+   the cell also carries .solring-dark in dark mode so it picks up the bright red. */
+.solring-salt-cell.solring-card-red,
+.solring-power-cell.solring-card-red { color: var(--solring-rating-a); font-weight: 600; }
 /* Annotated rows wrap so our sub-lines can sit below the columns. The name cell
    is Bootstrap .w-100 (width:100%!important) — with wrap that would claim the
    whole first line and push the other columns down. Override it to flex-fill so

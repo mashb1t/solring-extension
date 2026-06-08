@@ -5,6 +5,7 @@
 
 import { el, isDark } from './dom.js';
 import { prettifyStat } from './labels.js';
+import { saltTier, powerTier, deckAvgPower } from './ratings.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
 
@@ -65,13 +66,9 @@ export function annotate(fields, prefs) {
   if (!fields || !fields.cards || !isTextView()) return;
   const dark = isDark();
 
-  // Color power like salt: highlight only standouts — above 1.5× the deck average
-  // (deck total power ÷ card count). Computed once for all rows.
-  const ids = Object.keys(fields.cards);
-  let powerSum = 0;
-  for (const k of ids) powerSum += fields.cards[k].powerTotal || 0;
-  const deckPowerTotal = fields.powerScoreTotal || powerSum;
-  const powerThreshold = ids.length ? (deckPowerTotal / ids.length) * 1.5 : Infinity;
+  // Red flags (ratings.js): salt in the salty cluster (>=5) and power above 2× the
+  // deck average. The average is computed once for all rows.
+  const avgPower = deckAvgPower(fields.cards, fields.powerScoreTotal);
 
   document.querySelectorAll(ROW_SEL).forEach((link) => {
     const li = link.closest('li');
@@ -88,18 +85,19 @@ export function annotate(fields, prefs) {
 
     // 1) Power + Salt value — trailing columns that stay on the first line (before
     // the wrapping rows). Power sits to the left of salt (it is appended first).
+    // Red flag classes carry solring-dark in dark mode so --solring-rating-a
+    // resolves to its bright variant (these cells sit outside any .solring-dark root).
+    const redFlag = (on) => (on ? ` solring-card-red${dark ? ' solring-dark' : ''}` : '');
     if (prefs.power && typeof card.powerTotal === 'number') {
-      const high = card.powerTotal > powerThreshold;
       li.append(el('span', {
-        class: `solring-power-cell text-end solring-card-anno${high ? ' solring-power-high' : ''}`,
+        class: `solring-power-cell text-end solring-card-anno${redFlag(powerTier(card.powerTotal, avgPower) === 'a')}`,
         text: card.powerTotal.toFixed(1),
         title: 'CommanderSalt power contribution',
       }));
     }
     if (prefs.saltValue && typeof card.salt === 'number') {
-      const high = card.salt >= 5;
       li.append(el('span', {
-        class: `solring-salt-cell text-end solring-card-anno${high ? ' solring-salt-high' : ''}`,
+        class: `solring-salt-cell text-end solring-card-anno${redFlag(saltTier(card.salt) === 'a')}`,
         text: card.salt.toFixed(1),
         title: 'CommanderSalt saltiness',
       }));
