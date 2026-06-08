@@ -167,10 +167,13 @@ function renderBody(body, f) {
   const gradeTile = (label, key, field) =>
     tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `raw ${num(f[key])}` : '—');
 
-  // Row 1: the headline tiles.
-  const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
-    typeof f.power === 'number' ? String(f.power) : null);
-  const bracketTile = tile('Bracket', bracketValue(f), 'realistic');
+  // Row 1: the headline tiles. Power subline shows the precise 0–10 rating and the
+  // deck's raw total power score (scoring.total) — what per-card contributions sum to.
+  const powerSub = typeof f.power === 'number'
+    ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
+    : null;
+  const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
+  const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
   const saltTile = gradeTile('Saltiness', 'salt', 'saltRating');
   const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
