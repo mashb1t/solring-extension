@@ -5,7 +5,7 @@
 const CARD_KEY = 'prefs:cardData';
 const SORT_KEY = 'prefs:sort';
 
-const CARD_DEFAULT = { saltValue: true, tags: true, stats: false };
+const CARD_DEFAULT = { saltValue: true, tags: true, stats: true, combos: true };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
 
 export async function getCardPrefs() {

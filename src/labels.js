@@ -30,8 +30,13 @@ export const BRACKET_FLAG_LABELS = {
 
 // Salt-scoring category labels (details.salt.scoring). Power categories reuse TAG_LABELS.
 const STAT_LABELS = {
-  cedhMetashare: 'cEDH meta',
+  cedhMetashare: 'CEDH',
   edhrec: 'EDHREC',
+  payTheOne: 'pay the 1?',
+  groupSlug: 'group slug',
+  boardwipes: 'boardwipe',
+  cantGainLife: 'no lifegain',
+  infiniteCombos: 'combos',
   cardPrice: 'price',
   manabase: 'manabase',
 };

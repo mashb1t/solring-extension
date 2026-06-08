@@ -45,7 +45,15 @@ test('extractDeck enriches cards with bracket flags + power/salt breakdowns', ()
   const powerCats = jw.power.map((x) => x.cat);
   assert.ok(powerCats.includes('draw') && powerCats.includes('fastmana'), `power cats: ${powerCats}`);
   assert.ok(jw.saltBreakdown.length > 0);
+  assert.ok(!jw.saltBreakdown.some((x) => x.cat === 'cardPrice'), 'cardPrice excluded from salt');
   assert.ok(jw.power.every((x) => typeof x.score === 'number'));
+});
+
+test('extractDeck attaches synergy combos (anchors) to cards that have them', () => {
+  const d = extractDeck(deck);
+  const withCombos = Object.values(d.cards).filter((c) => c.combos && c.combos.total > 0);
+  assert.ok(withCombos.length > 0, 'expected at least one card with synergy combos');
+  assert.ok(Array.isArray(withCombos[0].combos.anchors));
 });
 
 test('power breakdown de-duplicates wincon_X into X (no doubles)', () => {

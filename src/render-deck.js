@@ -123,24 +123,21 @@ function gradeChip(grade) {
 function renderBody(body, f) {
   body.replaceChildren();
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
+  // grade-style tile: big colored letter grade + raw score sub (like Saltiness)
+  const gradeTile = (label, key, field) =>
+    tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `raw ${num(f[key])}` : '—');
 
   const tiles = el('div', { class: 'solring-tiles' }, [
     tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
       typeof f.power === 'number' ? String(f.power) : null),
     tile('Bracket', el('span', { class: 'solring-num', text: f.bracketRealistic != null ? String(f.bracketRealistic) : '—' }), 'realistic'),
     tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' })),
-    tile('Saltiness', gradeChip(csRatingGrade(f.salt, 'saltRating')), `raw ${num(f.salt)}`),
+    gradeTile('Saltiness', 'salt', 'saltRating'),
+    ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
     tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' })),
   ]);
 
-  const grades = el('div', { class: 'solring-grades' },
-    GRADES.map(([label, key, field]) => el('div', { class: 'solring-grade-row' }, [
-      el('span', { class: 'solring-grade-label', text: label }),
-      gradeChip(csRatingGrade(f[key], field)),
-      el('span', { class: 'solring-grade-score', text: typeof f[key] === 'number' ? num(f[key]) : '—' }),
-    ])));
-
-  body.append(tiles, grades);
+  body.append(tiles);
 }
 
 function renderMessage(body, text, action) {

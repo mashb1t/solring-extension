@@ -25,6 +25,33 @@ function scoringFor(scoring, id) {
   return out.sort((a, b) => b.score - a.score);
 }
 
+function titleCase(id) {
+  return String(id).split('_').filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// CommanderSalt synergy ("Outgoing Impact"): what a card enables, and the anchor
+// cards its effects feed. synergy.list[id] is keyed by effect type (abilities /
+// triggers / statics / …), each a map of effects with cardsOfSupportingType.
+function cardCombos(synergy, id) {
+  const node = g(synergy, 'list', id);
+  if (!node || typeof node !== 'object') return null;
+  const anchors = new Set();
+  let total = 0;
+  for (const effects of Object.values(node)) {
+    if (!effects || typeof effects !== 'object') continue;
+    for (const eff of Object.values(effects)) {
+      if (!eff || typeof eff !== 'object') continue;
+      total += 1;
+      for (const s of eff.cardsOfSupportingType || []) {
+        if (s && s.id) anchors.add(s.id);
+      }
+    }
+  }
+  if (!total || anchors.size === 0) return null;
+  return { total, anchors: [...anchors].slice(0, 8).map(titleCase) };
+}
+
 // Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.
 function cardStats(details, id) {
   const cats = g(details, 'brackets', 'categories') || {};
@@ -43,10 +70,16 @@ function cardStats(details, id) {
   const power = [...byBase.entries()].map(([cat, score]) => ({ cat, score }))
     .sort((a, b) => b.score - a.score).slice(0, 4);
 
+  // Salt breakdown: drop cardPrice — it is NOT part of the salt score (the rest
+  // sum to the card's saltiness). Show all components so they add up.
+  const saltBreakdown = scoringFor(g(details, 'salt', 'scoring'), id)
+    .filter((x) => x.cat !== 'cardPrice');
+
   return {
     flags,
     power,
-    saltBreakdown: scoringFor(g(details, 'salt', 'scoring'), id).slice(0, 4),
+    saltBreakdown,
+    combos: cardCombos(g(details, 'synergy'), id),
   };
 }
 

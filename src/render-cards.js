@@ -28,19 +28,24 @@ function detailLine(label, body) {
 }
 const scoreText = (arr) => arr.map((x) => `${prettifyStat(x.cat)} ${x.score.toFixed(1)}`).join('  ·  ');
 
-// The Stats detail shows what the Tags toggle does NOT: bracket flags, the card's
-// power contribution by dimension, and the breakdown of its salt score.
-function statsDetail(card) {
+// The detail shows what the Tags toggle does NOT: (Stats) bracket flags, power
+// contribution, salt breakdown; and (Combos) the synergy "Outgoing Impact".
+function statsDetail(card, prefs) {
   const rows = [];
-  if (card.flags && card.flags.length) {
-    rows.push(detailLine('Bracket:', el('span', { class: 'solring-flags' },
-      card.flags.map((f) => el('span', { class: 'solring-flag', text: f })))));
+  if (prefs.stats) {
+    if (card.flags && card.flags.length) {
+      rows.push(detailLine('Bracket:', el('span', { class: 'solring-flags' },
+        card.flags.map((f) => el('span', { class: 'solring-flag', text: f })))));
+    }
+    if (card.power && card.power.length) {
+      rows.push(detailLine('Power:', document.createTextNode(scoreText(card.power))));
+    }
+    if (card.saltBreakdown && card.saltBreakdown.length) {
+      rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
+    }
   }
-  if (card.power && card.power.length) {
-    rows.push(detailLine('Power:', document.createTextNode(scoreText(card.power))));
-  }
-  if (card.saltBreakdown && card.saltBreakdown.length) {
-    rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
+  if (prefs.combos && card.combos) {
+    rows.push(detailLine('Combos:', document.createTextNode(card.combos.anchors.join(', '))));
   }
   if (!rows.length) {
     rows.push(detailLine('Stats:', document.createTextNode('no extra CommanderSalt data for this card')));
@@ -69,9 +74,10 @@ export function annotate(fields, prefs) {
     const card = fields.cards[name];
     if (!card) return;
     const nameCell = li.querySelector('.w-100') || li;
+    const wantsDetail = prefs.stats || prefs.combos;
 
-    // 1) Stats toggle — inline right after the card name (same line as the title).
-    if (prefs.stats) {
+    // 1) Expander toggle — inline right after the card name (same line as the title).
+    if (wantsDetail) {
       const toggle = el('button', {
         class: 'solring-stats-toggle solring-card-anno',
         attrs: { type: 'button', 'aria-label': 'Toggle card stats' },
@@ -91,9 +97,9 @@ export function annotate(fields, prefs) {
         card.tags.map((t) => el('span', { class: 'solring-tag', text: t }))));
     }
 
-    // 3) Stats detail — below the tags, shown when expanded; restore prior state.
-    if (prefs.stats) {
-      nameCell.append(statsDetail(card));
+    // 3) Detail (stats + combos) — below the tags, shown when expanded; restore prior state.
+    if (wantsDetail) {
+      nameCell.append(statsDetail(card, prefs));
       if (open.has(name)) li.classList.add('solring-stats-open');
     }
 
