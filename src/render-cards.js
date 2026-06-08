@@ -65,6 +65,14 @@ export function annotate(fields, prefs) {
   if (!fields || !fields.cards || !isTextView()) return;
   const dark = isDark();
 
+  // Color power like salt: highlight only standouts — above 1.5× the deck average
+  // (deck total power ÷ card count). Computed once for all rows.
+  const ids = Object.keys(fields.cards);
+  let powerSum = 0;
+  for (const k of ids) powerSum += fields.cards[k].powerTotal || 0;
+  const deckPowerTotal = fields.powerScoreTotal || powerSum;
+  const powerThreshold = ids.length ? (deckPowerTotal / ids.length) * 1.5 : Infinity;
+
   document.querySelectorAll(ROW_SEL).forEach((link) => {
     const li = link.closest('li');
     if (!li) return;
@@ -81,8 +89,9 @@ export function annotate(fields, prefs) {
     // 1) Power + Salt value — trailing columns that stay on the first line (before
     // the wrapping rows). Power sits to the left of salt (it is appended first).
     if (prefs.power && typeof card.powerTotal === 'number') {
+      const high = card.powerTotal > powerThreshold;
       li.append(el('span', {
-        class: 'solring-power-cell text-end solring-card-anno',
+        class: `solring-power-cell text-end solring-card-anno${high ? ' solring-power-high' : ''}`,
         text: card.powerTotal.toFixed(1),
         title: 'CommanderSalt power contribution',
       }));

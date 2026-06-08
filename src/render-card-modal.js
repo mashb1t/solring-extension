@@ -48,15 +48,32 @@ function saltTier(salt) {
   return 'd';
 }
 
-// valueTier colors the value on the A–D rating ramp (used for saltiness severity).
-function tile(label, value, sub, valueTier) {
-  const valCls = valueTier ? `solring-num solring-tier-${valueTier}` : 'solring-num';
+// valueClass colors the value (e.g. solring-tier-* for salt severity, or
+// solring-power-high for above-average power).
+function tile(label, value, sub, valueClass) {
+  const valCls = `solring-num${valueClass ? ` ${valueClass}` : ''}`;
   return el('div', { class: 'solring-tile' }, [
     el('div', { class: 'solring-tile-label', text: label }),
     el('div', { class: 'solring-tile-value' }, [el('span', { class: valCls, text: value })]),
     sub ? el('div', { class: 'solring-tile-sub', text: sub }) : null,
   ]);
 }
+
+// Deck-wide power/salt totals + the average per-card power. The power total is the
+// authoritative scoring.total (falls back to summing cards for older cached decks);
+// salt has no single field, so we sum the per-card values.
+function deckStats(fields) {
+  const cards = (fields && fields.cards) || {};
+  const ids = Object.keys(cards);
+  let powerSum = 0;
+  let saltSum = 0;
+  for (const k of ids) { powerSum += cards[k].powerTotal || 0; saltSum += cards[k].salt || 0; }
+  const powerTotal = (fields && fields.powerScoreTotal) || powerSum;
+  const count = ids.length || 1;
+  return { powerTotal, saltTotal: saltSum, avgPower: powerTotal / count };
+}
+
+const pct = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}% contribution` : 'contribution');
 
 // Stacked bar row (narrow column): label + value on one line, full-width bar below.
 function stackRow(label, valText, pct) {
@@ -86,12 +103,17 @@ function bars(title, arr) {
   return sectionBlock(title, arr.map((x) => stackRow(prettifyStat(x.cat), num(x.score), (x.score / max) * 100)));
 }
 
-function buildBody(card) {
+function buildBody(card, stats) {
   const body = el('div', { class: 'solring-panel-body' });
 
+  const st = saltTier(card.salt);
+  // Highlight power only when it's a standout — above 1.5× the deck average
+  // (one-directional, like salt's high-salt accent: low power is never "bad").
+  const powerHigh = typeof card.powerTotal === 'number' && stats.avgPower > 0
+    && card.powerTotal > stats.avgPower * 1.5;
   body.append(el('div', { class: 'solring-tiles' }, [
-    tile('Saltiness', num(card.salt), 'card salt', saltTier(card.salt)),
-    tile('Power', num(card.powerTotal), 'contribution'),
+    tile('Saltiness', num(card.salt), pct(card.salt, stats.saltTotal), st ? `solring-tier-${st}` : null),
+    tile('Power', num(card.powerTotal), pct(card.powerTotal, stats.powerTotal), powerHigh ? 'solring-power-high' : null),
   ]));
 
   if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));
@@ -113,14 +135,14 @@ function buildBody(card) {
   return body;
 }
 
-function buildPanel(card, key) {
+function buildPanel(card, key, stats) {
   const bar = el('div', { class: 'solring-panel-bar solring-cm-bar' }, [
     el('span', { class: 'solring-wordmark', text: 'Solring' }),
   ]);
   return el('div', {
     class: `solring-panel solring-open solring-card-modal${isDark() ? ' solring-dark' : ''}`,
     attrs: { 'data-card': key },
-  }, [bar, buildBody(card)]);
+  }, [bar, buildBody(card, stats)]);
 }
 
 // Re-fit the panel to the currently shown card. Idempotent: if the panel already
@@ -140,7 +162,7 @@ function apply() {
   const card = lookup(name);
   if (existing) existing.remove();
   if (!card) return;
-  const panel = buildPanel(card, key);
+  const panel = buildPanel(card, key, deckStats(getFields()));
   // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
   // list would stretch the whole modal. Cap the panel to the card image's width
   // (measured before inserting, since our content could otherwise widen the box). On

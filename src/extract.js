@@ -223,6 +223,9 @@ export function extractDeck(p) {
     commander: (p.commanders || [])[0],
     colorIdentity: p.colorIdentity,
     power: p.powerLevelRating,
+    // Deck's total power score (sum of all per-card contributions); basis for each
+    // card's "% contribution" and the deck-average colouring threshold.
+    powerScoreTotal: parseFloat(g(p, 'details', 'powerLevel', 'scoring', 'total')) || 0,
     bracketRealistic: g(p, 'details', 'brackets', 'csBracket'),
     bracketBaseline: g(p, 'details', 'brackets', 'wotcBracket'), // for the delta arrow only (not displayed as a number)
     commanderTier: g(p, 'details', 'powerLevel', 'ratings', 'commanderTier'),

@@ -20,6 +20,7 @@ test('extractDeck pulls the displayed metrics', () => {
   assert.equal(d.archetype, 'MIDRANGE / COMBO');
   assert.equal(d.commander, 'Ojer Axonil, Deepest Might // Temple of Power');
   assert.equal(d.combosCount, 1); // deck-level Spellbook combo count (5th row-2 tile)
+  assert.equal(d.powerScoreTotal, 789.8); // scoring.total — basis for per-card % + avg
 });
 
 test('extractDeck drops deck value; keeps both brackets (baseline only for the delta arrow)', () => {
