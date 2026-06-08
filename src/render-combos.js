@@ -2,7 +2,7 @@
 // default; toggled by the Combos tile in the deck panel. All text via
 // textContent (data is third-party). Mirrors CommanderSalt's combo card.
 
-import { el } from './dom.js';
+import { el, chevronSvg } from './dom.js';
 
 const SECTION_LABELS = {
   easyPrerequisites: 'Easy prereqs',
@@ -68,19 +68,9 @@ function comboCard(combo) {
   ].filter(Boolean);
   const body = blocks.length ? el('div', { class: 'solring-combo-body', attrs: { hidden: '' } }, blocks) : null;
 
-  let details = null;
-  if (body) {
-    details = el('button', {
-      class: 'solring-combo-details', text: 'Details ▾',
-      attrs: { type: 'button', 'aria-expanded': 'false' },
-    });
-    details.addEventListener('click', () => {
-      const open = body.hasAttribute('hidden');
-      if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
-      details.setAttribute('aria-expanded', String(open));
-      details.textContent = open ? 'Details ▴' : 'Details ▾';
-    });
-  }
+  // The whole header row toggles the body; a chevron (rotated 180° when closed,
+  // like the metric tiles) replaces the old "Details" button.
+  const chev = body ? el('span', { class: 'solring-combo-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]) : null;
 
   const meta = el('div', { class: 'solring-combo-meta' }, [
     combo.score != null ? stat('score', String(combo.score)) : null,
@@ -90,17 +80,31 @@ function comboCard(combo) {
       class: 'solring-combo-link', text: 'Spellbook ↗',
       attrs: { href: combo.spellbookUri, target: '_blank', rel: 'noopener' },
     }) : null,
-    details,
+    chev,
   ]);
 
-  return el('div', { class: 'solring-combo' }, [
-    el('div', { class: 'solring-combo-head' }, [
-      el('div', { class: 'solring-combo-pieces', text: combo.pieces.join('  +  ') }),
-      meta,
-    ]),
-    tagChips(combo),
-    body,
+  const head = el('div', { class: 'solring-combo-head' }, [
+    el('div', { class: 'solring-combo-pieces', text: combo.pieces.join('  +  ') }),
+    meta,
   ]);
+  const card = el('div', { class: 'solring-combo' }, [head, tagChips(combo), body]);
+
+  if (body) {
+    head.setAttribute('role', 'button');
+    head.setAttribute('tabindex', '0');
+    head.setAttribute('aria-expanded', 'false');
+    const toggle = () => {
+      const open = body.hasAttribute('hidden');
+      if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
+      card.classList.toggle('solring-open', open);
+      head.setAttribute('aria-expanded', String(open));
+    };
+    // Clicking the Spellbook link should follow the link, not toggle.
+    head.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
+    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  }
+
+  return card;
 }
 
 /** Build the hidden combos section for a deck's combos array. */
