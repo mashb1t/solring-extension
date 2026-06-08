@@ -70,11 +70,10 @@
 /* Panel-bar chevron: same big ⌃ as the expandable tiles — rotated 180° when the
    panel is collapsed, upright when open. */
 .solring-chevron {
-  font-size: 1.8rem; line-height: 1; color: var(--solring-text-2);
-  transform: rotate(180deg); transition: transform 0.15s ease;
+  font-size: 1.8rem; line-height: 1; font-weight: 400; color: var(--solring-text-2);
+  transform: rotate(180deg);
 }
 .solring-panel.solring-open .solring-chevron { transform: rotate(0deg); }
-@media (prefers-reduced-motion: reduce) { .solring-chevron { transition: none; } }
 .solring-panel-body { display: none; padding: 0.85rem; background: var(--solring-surface); }
 .solring-panel.solring-open .solring-panel-body { display: block; }
 
@@ -110,12 +109,10 @@
 .solring-tile-chev {
   position: absolute; right: 0.7rem; top: 50%;
   transform: translateY(-50%) rotate(180deg);
-  font-size: 1.8rem; line-height: 1; color: var(--solring-text-2);
-  transition: transform 0.15s ease;
+  font-size: 1.8rem; line-height: 1; font-weight: 400; color: var(--solring-text-2);
 }
 .solring-expandable:hover .solring-tile-chev { color: var(--solring-text); }
 .solring-expandable.solring-open .solring-tile-chev { transform: translateY(-50%) rotate(0deg); }
-@media (prefers-reduced-motion: reduce) { .solring-tile-chev { transition: none; } }
 
 /* Deck-level detail panels (Saltiness / Power / Bracket / Archetype / Synergy). */
 .solring-panel-section {
