@@ -39,13 +39,16 @@ function lookup(name) {
 
 const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
 
-// valueClass colors the value (e.g. solring-tier-* — 'a' is red for high salt /
-// above-2×-average power; saltTier/powerTier live in ratings.js).
+// value is a string (wrapped in .solring-num + optional valueClass for color) or a
+// prebuilt node. valueClass uses solring-tier-* — 'a' is red for high salt /
+// above-2×-average power; saltTier/powerTier live in ratings.js.
 function tile(label, value, sub, valueClass) {
-  const valCls = `solring-num${valueClass ? ` ${valueClass}` : ''}`;
+  const node = typeof value === 'string'
+    ? el('span', { class: `solring-num${valueClass ? ` ${valueClass}` : ''}`, text: value })
+    : value;
   return el('div', { class: 'solring-tile' }, [
     el('div', { class: 'solring-tile-label', text: label }),
-    el('div', { class: 'solring-tile-value' }, [el('span', { class: valCls, text: value })]),
+    el('div', { class: 'solring-tile-value' }, [].concat(node)),
     sub ? el('div', { class: 'solring-tile-sub', text: sub }) : null,
   ]);
 }
@@ -98,11 +101,17 @@ function buildBody(card, stats) {
 
   // Both tiers map to solring-tier-*: salt on the full A–D ramp, power only ever
   // 'a' (red) when above 2× the deck average — otherwise unmarked.
-  const st = saltTier(card.salt);
   const pt = powerTier(card.powerTotal, stats.avgPower);
+  const st = saltTier(card.salt);
+  // Power value shows the card's contribution next to the deck total ("19.6 / 789.8"),
+  // mirroring the deck panel's "x / 10" tile; only the card's number takes the red.
+  const powerVal = el('span', { class: 'solring-num' }, [
+    el('span', { class: pt ? `solring-tier-${pt}` : undefined, text: num(card.powerTotal) }),
+    el('span', { class: 'solring-tile-total', text: ` / ${num(stats.powerTotal)}` }),
+  ]);
   body.append(el('div', { class: 'solring-tiles' }, [
+    tile('Power', powerVal, pct(card.powerTotal, stats.powerTotal)),
     tile('Saltiness', num(card.salt), pct(card.salt, stats.saltTotal), st ? `solring-tier-${st}` : null),
-    tile('Power', num(card.powerTotal), pct(card.powerTotal, stats.powerTotal), pt ? `solring-tier-${pt}` : null),
   ]));
 
   if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));

@@ -281,6 +281,8 @@
   grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0;
 }
 .solring-card-modal .solring-tile-value { font-size: 1.15rem; }
+/* The "/ <deck total>" after the card's power number — muted, lighter, smaller. */
+.solring-tile-total { color: var(--solring-text-2); font-weight: 400; font-size: 0.8em; }
 .solring-cm-section { margin-top: 0.75rem; }
 .solring-cm-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 /* Stacked bar row: label/value line over a full-width bar (the deck panel's
