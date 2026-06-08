@@ -9,6 +9,75 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
 import { el, tierFromGrade, isDark } from './dom.js';
+import { getCardPrefs, onPrefChange } from './prefs.js';
+import { annotate, clearAnnotations, toggleAllStats } from './render-cards.js';
+import { installCustomizeViewToggles } from './customize-view.js';
+import { installCommanderSaltLink } from './links-menu.js';
+
+// ---- per-card annotation orchestration (module-scoped, set up once) ----
+let currentFields = null;
+let deckObserver = null;
+let dvRef = null;
+let installedOnce = false;
+let panelBodyRef = null;
+let statsAllOpen = false;
+
+function connectObserver() {
+  if (deckObserver && dvRef) deckObserver.observe(dvRef, { childList: true, subtree: true });
+}
+
+// Global "expand/collapse all card stats" control, shown in the panel body when
+// the Stats pref is on.
+function refreshStatsToggleAll(prefs) {
+  if (!panelBodyRef) return;
+  const existing = panelBodyRef.querySelector('.solring-toggle-all');
+  if (existing) existing.remove();
+  if (!prefs.stats) return;
+  const label = () => (statsAllOpen ? 'Collapse all card stats' : 'Expand all card stats');
+  const btn = el('button', { class: 'solring-btn solring-toggle-all', text: label() });
+  btn.addEventListener('click', () => { statsAllOpen = !statsAllOpen; toggleAllStats(statsAllOpen); btn.textContent = label(); });
+  panelBodyRef.append(btn);
+}
+
+async function reannotate() {
+  if (!currentFields) return;
+  const prefs = await getCardPrefs();
+  if (deckObserver) deckObserver.disconnect(); // ignore our own mutations
+  annotate(currentFields, prefs);
+  connectObserver();
+  refreshStatsToggleAll(prefs);
+}
+
+function observeDecklist() {
+  dvRef = document.querySelector('section.deckview');
+  if (!dvRef) return;
+  if (!deckObserver) {
+    let raf = null;
+    deckObserver = new MutationObserver(() => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = null; reannotate(); });
+    });
+  } else {
+    deckObserver.disconnect();
+  }
+  connectObserver();
+}
+
+function installOnce() {
+  if (installedOnce) return;
+  installedOnce = true;
+  installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
+  onPrefChange((which) => { if (which === 'card') reannotate(); });
+}
+
+// Begin annotating card rows for this deck: store fields, watch the decklist for
+// Moxfield re-renders, and do the first pass.
+function startAnnotations(fields, body) {
+  currentFields = fields;
+  panelBodyRef = body;
+  observeDecklist();
+  reannotate();
+}
 
 const GRADES = [
   ['Threat', 'threat', 'threatRating'],
@@ -114,6 +183,10 @@ export async function mount({ waitFor }) {
   // insert just above the Primer/Playtest toolbar (the orange slot)
   parent.insertBefore(wrap, anchor);
 
+  // always-on integrations (independent of whether the deck is analyzed)
+  installOnce();
+  installCommanderSaltLink(md5);
+
   renderMessage(body, 'Loading CommanderSalt…');
   setOpen(false);
 
@@ -130,12 +203,25 @@ export async function mount({ waitFor }) {
   }
   if (res.fields) {
     const f = res.fields;
-    if (f.isPrivate || f.isIllegal) { renderMessage(body, 'Private/illegal — CommanderSalt can’t analyze it.'); setOpen(false); return; }
+    if (f.isPrivate || f.isIllegal) {
+      renderMessage(body, 'Private/illegal — CommanderSalt can’t analyze it.');
+      setOpen(false);
+      currentFields = null;
+      clearAnnotations();
+      return;
+    }
     renderBody(body, f);
     setOpen(true); // analyzed/cached → default open
+    startAnnotations(f, body);
     return;
   }
   // stub / un-indexed → closed; expand to Analyze
-  renderAnalyze(body, canonicalDeckUrl(publicId), md5, (fields) => { renderBody(body, fields); setOpen(true); });
+  currentFields = null;
+  clearAnnotations();
+  renderAnalyze(body, canonicalDeckUrl(publicId), md5, (fields) => {
+    renderBody(body, fields);
+    setOpen(true);
+    startAnnotations(fields, body);
+  });
   setOpen(false);
 }

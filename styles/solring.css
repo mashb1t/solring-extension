@@ -108,13 +108,28 @@
 .solring-btn:disabled { opacity: 0.6; cursor: default; }
 .solring-btn:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 
-/* ---- per-card annotations (Text view) — wired in Task 14 ---- */
-.solring-salt { font-variant-numeric: tabular-nums; color: var(--solring-text-2); margin-left: 0.5rem; }
-.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
-.solring-tags { display: inline-flex; gap: 0.25rem; margin-left: 0.4rem; flex-wrap: wrap; }
+/* ---- per-card annotations (Text view) ---- */
+.solring-salt-cell {
+  font-variant-numeric: tabular-nums; color: var(--solring-text-2);
+  padding-left: 0.5rem; white-space: nowrap;
+}
+.solring-salt-cell.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
+.solring-tags { display: inline-flex; gap: 0.25rem; margin-left: 0.4rem; flex-wrap: wrap; vertical-align: middle; }
 .solring-tag {
-  font-size: 0.68rem; padding: 0.02rem 0.35rem; border-radius: 4px;
+  font-size: 0.68rem; line-height: 1.45; padding: 0.02rem 0.35rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
 }
+.solring-stats-toggle {
+  border: 0; background: transparent; color: var(--solring-text-2);
+  cursor: pointer; padding: 0 0.35rem 0 0; font-size: 0.8rem;
+}
+.solring-card-detail {
+  display: none; flex-basis: 100%; width: 100%; margin: 0.15rem 0 0.3rem;
+  font-size: 0.74rem; color: var(--solring-text-2);
+}
+.solring-stats-open .solring-card-detail { display: block; }
+.solring-detail-item { margin-right: 1rem; }
+.solring-toggle-all { margin-top: 0.6rem; font-size: 0.78rem; padding: 0.2rem 0.6rem; }
+.solring-cs-link { font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
