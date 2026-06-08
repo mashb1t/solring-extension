@@ -16,12 +16,15 @@ A Chrome extension that, on Moxfield pages, fetches the matching CommanderSalt a
 it inline, styled to **blend into Moxfield's native look**:
 
 - **Deck page** (`/decks/{id}`): a **collapsible** report-card panel below the deck header (default open
-  when analyzed/cached, closed when not yet analyzed) — power, baseline/realistic
-  bracket, commander tier, saltiness, deck value, archetype, plus the four letter grades (threat,
-  interaction, wincons, synergy). **Plus per-card annotations** (salt value, tags, expandable stats)
+  when analyzed/cached, closed when not yet analyzed) — power, **real** bracket, commander tier,
+  saltiness, archetype, plus the four letter grades (threat, interaction, wincons, synergy). (No deck
+  value, no baseline bracket.) **Plus per-card annotations** (salt value, tags, expandable stats)
   inlined into Moxfield's own decklist rows, controlled by toggles added to Moxfield's Customize View.
 - **User page** (`/users/{name}`): per-deck metric columns added to the deck table, an averages block
   appended to the profile sidebar, and a per-row expander that loads the full profile on demand.
+- **Personal deck manager** (`/decks/personal` + folder views): the same per-deck metric columns and
+  bulk sync, plus a **"Sort by score"** control that reorders the decks in the current folder by a chosen
+  metric (power, bracket, salt, …).
 
 All data is cached persistently so revisits are instant and offline-tolerant.
 
@@ -29,7 +32,7 @@ All data is cached persistently so revisits are instant and offline-tolerant.
 
 | # | Decision | Choice |
 |---|---|---|
-| 1 | User-page data depth | **Full, on-demand** — search-hit metrics for every row immediately; full per-deck profile/tier/value fetched + cached when a row is expanded (or when its deck page was visited). |
+| 1 | User-page data depth | **Full, on-demand** — search-hit metrics for every row immediately; full per-deck profile/tier/real-bracket fetched + cached when a row is expanded (or when its deck page was visited). |
 | 2 | Un-indexed decks | **Manual Analyze button** — user-initiated POST import only; never auto-import. |
 | 3 | Visual style | **Blend into Moxfield** — native card/badge look, follows Moxfield light/dark, no orange branding. |
 | 4 | Link entry | **On-page only** — no popup/input surface; the extension reacts to the current Moxfield page. |
@@ -41,6 +44,10 @@ All data is cached persistently so revisits are instant and offline-tolerant.
 | 10 | Combos | **Deferred** — show combos via Commander Spellbook in a later iteration; not implemented now. |
 | 11 | Bulk sync (user page) | Two buttons — **Scan all** (warm indexed + import un-indexed) and **Re-scan all** (re-import all) — over the user's **non-private** decks; throttled, single POST attempt, progress. Last-sync timestamp persisted + shown; Moxfield-style tooltip notes private decks can't be synced. |
 | 12 | Syncability | Decided by each deck's **Moxfield visibility**: **Private → excluded**; **Unlisted + Public → syncable** (CommanderSalt can fetch an unlisted deck by URL). |
+| 13 | Personal deck manager | Per-deck metrics, below-line detail, bulk sync, and score sorting also apply to `/decks/personal` (+ folder views); same engine as the user profile. |
+| 14 | Per-line layout | Rich metrics shown in a **detail strip below each deck line** (not extra columns); reuses the prototype's rating-color bars + A–F grades as data accents. |
+| 15 | Metrics shown | **Drop deck value and baseline bracket everywhere**; show **real bracket only**. (Matches the original brief: power, real bracket, tier, archetype, saltiness, threat, interaction, wincons, synergy.) |
+| 16 | Score sorting | A dedicated injected **"Sort by score"** control reorders deck rows **within the current folder** (folders / "up a level" pinned; unsynced last); persisted globally; yields to Moxfield's native sort. |
 
 ## Data sources (hard constraint)
 
@@ -75,8 +82,10 @@ Two halves communicating over `chrome.runtime` messages:
   Owns all caching, TTL, stale-while-revalidate, and in-flight request de-duplication.
 
 - **Content script** (`src/content.js` + render modules) — runs at `document_idle` on
-  `*://*.moxfield.com/*`. Detects page type, survives SPA navigation, requests data by message,
-  injects/renders UI. Never fetches cross-origin itself; never throws into Moxfield's page.
+  `*://*.moxfield.com/*`. Detects page type — **deck** (`/decks/{id}`), **user profile**
+  (`/users/{name}`), and **personal deck manager** (`/decks/personal` + folders) — survives SPA
+  navigation, requests data by message, injects/renders UI. Never fetches cross-origin itself; never
+  throws into Moxfield's page.
 
 **Shared modules** (importable by both contexts):
 
@@ -123,9 +132,9 @@ parseUsername(location.href)
        → extract hits (power, bracketRating, salt, synergy, archetype, commander, colors, deckId)
   → inject columns into the deck table (one row per hit; matched by deckId === md5 of the row's deck URL)
   → append averages block to the profile sidebar (ø power / ø bracket / ø saltiness / ø synergy)
-  → per-row expander (on demand):
+  → per-row detail strip (below the line; full metrics fetched on demand):
        message bg getDeck({ md5: hit.deckId })
-       → fill Thr/Int/Win/Syn profile, commander tier, baseline/realistic bracket, value
+       → fill Thr/Int/Win/Syn profile, commander tier, real bracket  (no value, no base bracket)
        → enrich the threat/interaction/wincons/tier sidebar averages (coverage hint: "from N decks")
   → "load more" → getUserDecks({ username, cursor })
 ```
@@ -143,8 +152,7 @@ then a fixed 12-step ladder (`D–` … `A+`, no `F`).
 | Display | Source path | Ceiling | Avail. in search hit? |
 |---|---|---|---|
 | Power | `powerLevelRating` → `X.X / 10` | — | ✅ (`powerLevelRating`/`displayValue`) |
-| Bracket baseline | `details.brackets.wotcBracket` | — | ⚠️ only `bracketRating` (float) |
-| Bracket realistic | `details.brackets.csBracket` (↑/↓ arrow vs baseline) | — | ❌ |
+| Bracket (real) | `details.brackets.csBracket` (realistic only) | — | ⚠️ only `bracketRating` (float) as a proxy |
 | Commander tier | `details.powerLevel.ratings.commanderTier` → `T{n}` | — | ❌ |
 | Saltiness | `saltRating` (raw shown alongside grade) | 300 | ✅ |
 | Threat | `threatRating` | 500 | ❌ |
@@ -152,14 +160,16 @@ then a fixed 12-step ladder (`D–` … `A+`, no `F`).
 | Wincons | `comboRating` | 300 | ❌ |
 | Synergy | `synergyRating` | 2500 | ✅ |
 | Archetype | `archetypeLabel` (else `archetypeMajor`/`archetypeMinor`) | — | ✅ |
-| Deck value | `price.usd` | — | ❌ |
 
-Baseline/realistic use the **real** `wotcBracket`/`csBracket` (both `3` in the fixture). The prototype's
-hardcoded "2 realistic" is demo data and is **not** replicated; the up/down arrow is data-driven.
+**Dropped on purpose** (per the original brief): **deck value** and the **baseline (WOTC) bracket** are
+**not shown anywhere** — only the **realistic** bracket (`csBracket`). No base/realistic split and no
+up/down delta arrow. (`price.usd` and `wotcBracket` are not extracted for display.) Full-payload metrics
+(real bracket, tier, threat, interaction, wincons) need `GET /decks?id=`; the row's bracket proxy is the
+hit's `bracketRating` until the full payload is cached.
 
 `extract.js` returns:
 - `HitFields` (from a search hit): `{ deckId, title, commander, colorIdentity, power, bracketRating, salt, synergy, archetypeMajor, archetypeMinor, isPrivate, isIllegal }`.
-- `DeckFields` (from a full payload): the above plus `{ bracketBaseline, bracketRealistic, commanderTier, threat, interaction, wincons, value, fingerprint, reportCard, cards }`.
+- `DeckFields` (from a full payload): the above plus `{ bracketRealistic, commanderTier, threat, interaction, wincons, fingerprint, reportCard, cards }`.
   - `cards`: a per-card map keyed by normalized card name → `{ salt: number, tags: string[], stats: { …flags }, total: number, scoring?: { power, salt, synergy } }`, derived from each entry in the payload's top-level `cards` object.
 
 ## Per-card annotations (deck page, Text view only)
@@ -210,10 +220,61 @@ view state). Defaults: `saltValue: true, tags: true, stats: false`.
   **always shown** — not gated on the EDHREC link or 100-card legality (alongside EDHREC when present, on
   its own otherwise).
 
-## Bulk sync (user page)
+## Deck-list surfaces & score sorting
 
-Two controls injected next to the sidebar averages block on the user profile, operating over the user's
-**non-private** decks:
+Per-deck metrics, the below-line detail, bulk sync, and score sorting apply to **both** Moxfield deck-list
+surfaces, sharing one engine (`src/decklist.js`):
+- the public **user profile** `/users/{name}`;
+- the **personal deck manager** `/decks/personal` (and its folder sub-views) — the signed-in user's own
+  decks in folders, with visibility badges. Folders, the "Up a level" row, and the Most-Recent / Favorites
+  sidebar are never annotated.
+
+Rows are joined to CommanderSalt data by **deck md5** (cached `deck:{md5}` or a `/search` hit). Private or
+not-yet-indexed decks show no scores until synced (**Scan all** fills them).
+
+### Below-line detail strip
+
+Rather than crowd Moxfield's narrow rows with columns, the extension appends a compact **detail strip
+beneath each deck line** with the CommanderSalt metrics, laid out like the reference scores table but
+horizontally under the row:
+
+- **commander tier** (`T{n}`), **power** (`X.X/10` + bar), **saltiness** (raw), the **profile** —
+  **THR / INT / WIN / SYN** as bars + letter grades — **real bracket**, **archetype**, and the
+  CommanderSalt / Moxfield link icons.
+- **Excluded:** the **deck name** (Moxfield already shows it), **deck value**, and the **baseline
+  bracket** — **real bracket only**.
+- The metric viz reuses the prototype's rating-color scheme (orange/green/… bars + A–F grades) as
+  meaningful data accents; everything else matches Moxfield's surfaces/typography (no Solring branding).
+- **Availability (Full, on-demand):** hit metrics (power, salt, synergy, archetype) render immediately;
+  tier / THR / INT / WIN / SYN / real bracket fill in once the deck's full payload is cached (via the
+  row's expand affordance or **Scan all**). Unsynced rows show a quiet "— · Scan all" placeholder.
+
+### Sorting decks in the current folder by a score
+
+A dedicated **"Sort by score"** control is injected into the current view's toolbar (next to Moxfield's own
+Sort / filter), **independent of Moxfield's native Name/Colors/Format/Updated sort** so the two never fight
+its React state:
+
+- Keys: **Power, Bracket (real), Saltiness, Synergy** (always available from hits) and **Threat,
+  Interaction, Wincons, Commander tier** (available once a deck's full payload is cached). Click toggles
+  **descending/ascending**; an arrow marks the active key + direction.
+- It **reorders only the deck rows in the current folder** (DOM reordering, reusing the prototype's sort
+  engine); each row moves **together with its below-line detail strip**. Subfolders and the "Up a level"
+  row stay pinned in their original order.
+- Decks **missing the chosen metric** (private / not yet synced) sort to the **bottom**, marked subtly,
+  with a "Scan all to fill scores" hint.
+- The chosen key/direction **persists globally** (`prefs:sort = { key, dir }`) and is **re-applied on
+  folder navigation and after Moxfield re-renders** (MutationObserver). Choosing one of Moxfield's own
+  sorts **yields control back** (detected → we stop overriding).
+
+**Why a separate control, not clickable column headers:** hijacking Moxfield's header-click sort means
+fighting its re-render state on every change; an independent control is robust and unambiguous. (Clickable
+metric headers remain a possible later refinement.)
+
+## Bulk sync (deck-list surfaces)
+
+Two controls injected next to the scores UI on **both** the user profile and the personal deck manager,
+operating over the user's **non-private** decks:
 
 - **Scan all** — for each syncable deck: GET + cache if CommanderSalt already has it (skipping entries
   still fresh within TTL); **POST-import** (~5 s) any deck CommanderSalt hasn't indexed yet. Result:
@@ -252,7 +313,7 @@ private decks are excluded before any CommanderSalt request.
 
 - Keys: `deck:{md5}` → `{ fetchedAt, fields }` (now includes the per-card `cards` map); `search:{username}`
   → `{ fetchedAt, hits, cursor }`; `prefs:cardData` → `{ saltValue, tags, stats }` (global, no TTL);
-  `sync:{username}` → `{ lastScanAt, lastRescanAt }` (no TTL).
+  `sync:{username}` → `{ lastScanAt, lastRescanAt }` (no TTL); `prefs:sort` → `{ key, dir }` (global, no TTL).
 - **TTL** 7 days (configurable constant). **Stale-while-revalidate:** serve cached value immediately,
   refetch in the background when older than TTL.
 - **Refresh** affordance per block forces a refetch and rewrites the cache entry.
@@ -312,7 +373,8 @@ extension/
     content.js                  # bootstrap: page-type router, SPA nav hooks
     router.js                   # idempotent inject/teardown per page type
     render-deck.js              # report-card block
-    render-user.js              # table columns + sidebar averages + expanders
+    decklist.js                 # shared deck-list engine: below-line detail strip + score sort (users + personal)
+    render-user.js              # user-profile sidebar averages (uses decklist.js)
     sync.js                     # bulk Scan all / Re-scan all (throttled, progress, timestamp)
     render-cards.js             # per-card salt/tags/stats annotations (Text view)
     customize-view.js           # inject Salt Value/Tags/Stats checkboxes into Moxfield's modal
@@ -338,8 +400,10 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
 - **Unit (Node, no browser):** md5 join key, extraction against both fixtures, grade ladder against the
   values verified in `ratings.js`.
 - **Manual load-unpacked checklist:** deck page (indexed), un-indexed deck (Analyze flow), private deck
-  (silent + owner-view note), user page (columns + averages + expander + load more), SPA navigation
-  deck→user→deck, light/dark theme, offline (cache), refresh, **per-card salt/tags/stats in Text view
+  (silent + owner-view note), user page + **personal deck manager** (below-line detail strip, averages,
+  expander, load more), **score sort within a folder (folders pinned, unsynced last, persists, yields to
+  Moxfield's sort)**, SPA navigation deck→user→personal, light/dark theme, offline (cache), refresh,
+  **per-card salt/tags/stats in Text view
   (and their absence in other views), Customize View checkboxes persist globally, toggle-all stats, and
   the CommanderSalt link always appearing**, and **Scan all / Re-scan all over non-private decks
   (private excluded with tooltip, progress, last-sync timestamp persisted)**.
@@ -347,7 +411,7 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
 ## Assumptions to confirm at implementation time
 
 1. Moxfield's user deck list is a real `<table>` (injection adapts to a flex/grid list otherwise).
-2. CommanderSalt search hits do not include threat/interaction/wincons/tier/value (confirmed against
+2. CommanderSalt search hits do not include threat/interaction/wincons/tier/real-bracket (confirmed against
    `search_mashb1t.json`); full payloads are required for those.
 3. Threat/interaction/wincons/tier sidebar averages are **partial** under on-demand — averaged over the
    decks opened so far, with a coverage hint. (Alternative: hide until all loaded — not chosen.)
@@ -357,6 +421,9 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
    All confirmed against the live DOM at implementation time (anchored by content, not hashed class names).
 5. CommanderSalt cards match Moxfield rows by normalized name. (Deck-page URL form `/details/deck/{md5}`
    and API hosts/paths are already confirmed against the live site — see Data sources.)
+6. The personal deck manager `/decks/personal` (login-gated, so confirmed from the signed-in DOM at
+   implementation time) exposes deck rows with deck links + visibility badges, distinguishable from folder
+   rows / the "Up a level" row, and a toolbar to host the "Sort by score" control.
 
 ## Roadmap (not implemented now)
 
