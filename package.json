@@ -1,0 +1,10 @@
+{
+  "name": "solring-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension showing CommanderSalt deck metrics on Moxfield.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Solring — CommanderSalt for Moxfield",
+  "version": "0.1.0",
+  "description": "Shows CommanderSalt deck metrics (power, bracket, tier, archetype, saltiness, threat/interaction/wincons/synergy) on Moxfield.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.commandersalt.com/*"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.moxfield.com/*"],
+      "js": ["src/content.js"],
+      "css": ["styles/solring.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*.js", "fixtures/*.json"],
+      "matches": ["*://*.moxfield.com/*"]
+    }
+  ]
+}
