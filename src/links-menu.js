@@ -22,7 +22,7 @@ export function installCommanderSaltLink(md5) {
       text: 'CommanderSalt',
       attrs: { href: CS_URL(md5), target: '_blank', rel: 'noopener', 'data-solring-root': '' },
     });
-    const sep = el('span', { class: 'solring-cs-sep', text: ' · ', attrs: { 'data-solring-root': '' } });
+    const sep = el('span', { class: 'mx-2', text: '·', attrs: { 'data-solring-root': '' } });
     anchor.insertAdjacentElement('afterend', link);
     link.insertAdjacentElement('beforebegin', sep); // "EDHRecs · CommanderSalt"
     return true;

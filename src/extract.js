@@ -115,6 +115,7 @@ export function extractDeck(p) {
     colorIdentity: p.colorIdentity,
     power: p.powerLevelRating,
     bracketRealistic: g(p, 'details', 'brackets', 'csBracket'),
+    bracketBaseline: g(p, 'details', 'brackets', 'wotcBracket'), // for the delta arrow only (not displayed as a number)
     commanderTier: g(p, 'details', 'powerLevel', 'ratings', 'commanderTier'),
     salt: p.saltRating,
     threat: p.threatRating,

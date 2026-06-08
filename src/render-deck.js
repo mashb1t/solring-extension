@@ -120,6 +120,23 @@ function gradeChip(grade) {
   return el('span', { class: 'solring-grade', text: grade, attrs: { 'data-tier': tierFromGrade(grade) } });
 }
 
+// Bracket value = realistic bracket number, plus an arrow if it differs from the
+// baseline (WOTC) bracket: red ↑ when it plays above (high = bad), grey ↓ below.
+function bracketValue(f) {
+  const real = f.bracketRealistic;
+  const base = f.bracketBaseline;
+  const node = el('span', { class: 'solring-num', text: real != null ? String(real) : '—' });
+  if (real != null && base != null && real !== base) {
+    const up = real > base;
+    node.append(el('span', {
+      class: `solring-bracket-arrow ${up ? 'solring-bracket-up' : 'solring-bracket-down'}`,
+      text: up ? ' ↑' : ' ↓',
+      title: `${up ? 'Plays above' : 'Plays below'} its baseline bracket (${base} → ${real})`,
+    }));
+  }
+  return node;
+}
+
 function renderBody(body, f) {
   body.replaceChildren();
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
@@ -127,17 +144,21 @@ function renderBody(body, f) {
   const gradeTile = (label, key, field) =>
     tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `raw ${num(f[key])}` : '—');
 
-  const tiles = el('div', { class: 'solring-tiles' }, [
+  // Row 1: the headline tiles.
+  const mainTiles = el('div', { class: 'solring-tiles' }, [
     tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
       typeof f.power === 'number' ? String(f.power) : null),
-    tile('Bracket', el('span', { class: 'solring-num', text: f.bracketRealistic != null ? String(f.bracketRealistic) : '—' }), 'realistic'),
+    tile('Bracket', bracketValue(f), 'realistic'),
     tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' })),
     gradeTile('Saltiness', 'salt', 'saltRating'),
-    ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
     tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' })),
   ]);
 
-  body.append(tiles);
+  // Row 2: the report-card grades.
+  const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
+    GRADES.map(([label, key, field]) => gradeTile(label, key, field)));
+
+  body.append(mainTiles, gradeTiles);
 }
 
 function renderMessage(body, text, action) {

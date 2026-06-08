@@ -21,10 +21,11 @@ test('extractDeck pulls the displayed metrics', () => {
   assert.equal(d.commander, 'Ojer Axonil, Deepest Might // Temple of Power');
 });
 
-test('extractDeck drops deck value and baseline bracket on purpose', () => {
+test('extractDeck drops deck value; keeps both brackets (baseline only for the delta arrow)', () => {
   const d = extractDeck(deck);
   assert.equal(d.value, undefined);
-  assert.equal(d.bracketBaseline, undefined);
+  assert.equal(d.bracketRealistic, 3); // csBracket — the displayed number
+  assert.equal(d.bracketBaseline, 3); // wotcBracket — drives the up/down arrow
 });
 
 test('extractDeck builds a per-card map (salt + prettified tags)', () => {
