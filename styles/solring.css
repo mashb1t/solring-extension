@@ -48,8 +48,10 @@
   background: var(--solring-surface-2); border: 0; cursor: pointer;
   color: var(--solring-text); font-weight: 600;
 }
-.modal-body .solring-panel-body,
 .modal-body .solring-panel-bar {
+  background-color: var(--solring-surface);
+}
+.modal-body .solring-panel-body {
   background-color: var(--bs-modal-bg);
 }
 .solring-panel-bar:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
