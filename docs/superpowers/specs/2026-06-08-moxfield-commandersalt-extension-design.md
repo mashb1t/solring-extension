@@ -15,7 +15,8 @@ commander tier, archetype, saltiness, and the threat/interaction/wincons/synergy
 A Chrome extension that, on Moxfield pages, fetches the matching CommanderSalt analysis and injects
 it inline, styled to **blend into Moxfield's native look**:
 
-- **Deck page** (`/decks/{id}`): a report-card block below the deck header — power, baseline/realistic
+- **Deck page** (`/decks/{id}`): a **collapsible** report-card panel below the deck header (default open
+  when analyzed/cached, closed when not yet analyzed) — power, baseline/realistic
   bracket, commander tier, saltiness, deck value, archetype, plus the four letter grades (threat,
   interaction, wincons, synergy). **Plus per-card annotations** (salt value, tags, expandable stats)
   inlined into Moxfield's own decklist rows, controlled by toggles added to Moxfield's Customize View.
@@ -36,7 +37,7 @@ All data is cached persistently so revisits are instant and offline-tolerant.
 | 6 | Per-card annotations | Salt value + tags + stats inlined into Moxfield decklist rows; shown in **Text view only**. |
 | 7 | "Stats" control | A **per-card expander** (detailed breakdown) **plus a global "toggle all"** to expand/collapse every card at once. |
 | 8 | Card-pref persistence | **Global** preference, shared across all decks (`chrome.storage.local`), applied immediately. |
-| 9 | CommanderSalt menu link | Injected into Moxfield's external-links menu, **visible only when the EDHREC link is visible** (i.e. a legal 100-card Commander deck). |
+| 9 | CommanderSalt menu link | Injected into Moxfield's external-links menu, **always shown** (not gated on EDHREC / 100-card legality). |
 | 10 | Combos | **Deferred** — show combos via Commander Spellbook in a later iteration; not implemented now. |
 
 ## Data sources (hard constraint)
@@ -99,10 +100,17 @@ parseDeckId(location.href)
        cache hit (fresh)  → return fields           (instant)
        cache hit (stale)  → return fields + revalidate in background
        miss               → GET /decks?id={md5} → extract → cache → return
-  → render report-card block below the deck header
-       stub / un-indexed  → "Analyze on CommanderSalt" button (manual importDeck)
-       isPrivate/isIllegal→ "Private/illegal — can't analyze" note
+  → render report-card block below the deck header, inside a COLLAPSIBLE panel
+       analyzed / cached  → panel default OPEN, showing the full report card
+       stub / un-indexed  → panel default CLOSED; header bar expands to an "Analyze on CommanderSalt" button (manual importDeck)
+       isPrivate/isIllegal→ panel default CLOSED; "Private/illegal — can't analyze" note on expand
 ```
+
+The deck-scores panel sits **below the deck header** and is **collapsible**. Its **default** state is
+data-driven: **open** when the deck is already analyzed/cached, **closed** when it isn't yet analyzed
+(stub/un-indexed) — so an un-analyzed deck shows only a quiet collapsed header bar until expanded. A
+manual toggle is allowed at runtime and is not persisted, so the data-driven default re-applies on each
+load.
 
 ### User page (`/users/{username}`)
 
@@ -194,11 +202,11 @@ view state). Defaults: `saltValue: true, tags: true, stats: false`.
 - **Customize View modal:** a MutationObserver detects the modal opening and injects the three checkboxes
   into the "Include Extra Data" group, styled to match Moxfield's native checkboxes and wired to the global
   prefs. Idempotent (sentinel-guarded) so re-opening doesn't duplicate them.
-- **External-links menu — CommanderSalt link:** Moxfield shows an **EDHREC** link in the deck's
-  tools/links menu only for legal 100-card Commander decks. The extension injects a sibling **"CommanderSalt"**
-  link into that menu **only when the EDHREC link is present**, pointing at the deck's CommanderSalt page
-  **`https://commandersalt.com/details/deck/{md5}`** (URL form confirmed against the live site). When EDHREC
-  is absent, no CommanderSalt link is added.
+- **External-links menu — CommanderSalt link:** the extension injects a **"CommanderSalt"** link into the
+  deck's tools/links menu, pointing at the deck's CommanderSalt page
+  **`https://commandersalt.com/details/deck/{md5}`** (URL form confirmed against the live site). It is
+  **always shown** — not gated on the EDHREC link or 100-card legality (alongside EDHREC when present, on
+  its own otherwise).
 
 ## Caching
 
