@@ -105,9 +105,10 @@
 .solring-combos-tile { position: relative; padding-right: 2.4rem; }
 .solring-combos-chev {
   position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%);
-  font-size: 2rem; line-height: 1; font-weight: 700; color: var(--solring-accent);
+  font-size: 1.5rem; line-height: 1; color: var(--solring-text-2);
   transition: transform 0.15s ease;
 }
+.solring-combos-tile:hover .solring-combos-chev { color: var(--solring-text); }
 .solring-combos-tile.solring-open .solring-combos-chev { transform: translateY(-50%) rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .solring-combos-chev { transition: none; } }
 
@@ -131,6 +132,9 @@
   font-size: 0.78rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums;
 }
 .solring-combo-link { font-weight: 600; white-space: nowrap; }
+.solring-combo-stat { display: inline-flex; gap: 0.3rem; align-items: baseline; }
+.solring-combo-stat-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--solring-text-2); }
+.solring-combo-stat-val { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--solring-text); }
 .solring-combo-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.4rem 0; }
 .solring-combo-tag {
   font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.03em;

@@ -14,6 +14,14 @@ const SECTION_LABELS = {
 
 const pct = (n) => `${Math.round((n || 0) * 100)}%`;
 
+// labelled stat for the combo header (e.g. "score 25", "complexity 46%")
+function stat(label, value) {
+  return el('span', { class: 'solring-combo-stat' }, [
+    el('span', { class: 'solring-combo-stat-label', text: label }),
+    el('span', { class: 'solring-combo-stat-val', text: value }),
+  ]);
+}
+
 function tagChips(combo) {
   const tags = [];
   if (combo.type) tags.push(combo.type);
@@ -75,9 +83,9 @@ function comboCard(combo) {
   }
 
   const meta = el('div', { class: 'solring-combo-meta' }, [
-    combo.score != null ? el('span', { title: 'Score', text: `★ ${combo.score}` }) : null,
-    combo.complexity != null ? el('span', { title: 'Complexity', text: pct(combo.complexity) }) : null,
-    combo.extraMana ? el('span', { title: 'Extra mana', text: `+${combo.extraMana} mana` }) : null,
+    combo.score != null ? stat('score', String(combo.score)) : null,
+    combo.complexity != null ? stat('complexity', pct(combo.complexity)) : null,
+    combo.extraMana ? stat('extra mana', `+${combo.extraMana}`) : null,
     combo.spellbookUri ? el('a', {
       class: 'solring-combo-link', text: 'Spellbook ↗',
       attrs: { href: combo.spellbookUri, target: '_blank', rel: 'noopener' },
