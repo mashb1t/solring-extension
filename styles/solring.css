@@ -9,22 +9,22 @@
   --solring-rating-c: #b8860b;
   --solring-rating-d: #1a7f37;
   --solring-accent: #ff6600;
-  --solring-surface: #ffffff;
-  --solring-surface-2: #f6f7f8;
-  --solring-border: #e2e5e9;
-  --solring-text: #1b1f24;
-  --solring-text-2: #6b7280;
+  /* Surfaces / borders / text inherit Moxfield's Bootstrap theme variables so
+     the injected UI matches in both light and dark; the hex values are only
+     fallbacks if those vars are ever absent. */
+  --solring-surface: var(--bs-body-bg, #ffffff);
+  --solring-surface-2: color-mix(in srgb, var(--bs-body-color, #1b1f24) 7%, transparent);
+  --solring-border: var(--bs-border-color, #e2e5e9);
+  --solring-text: var(--bs-body-color, #1b1f24);
+  --solring-text-2: color-mix(in srgb, var(--bs-body-color, #1b1f24) 62%, transparent);
 }
+/* Only the rating ramp needs explicit dark values (brighter on dark); the
+   surfaces/text/borders above already follow Moxfield's --bs-* vars. */
 [data-bs-theme='dark'], .solring-dark {
   --solring-rating-a: #ff6b6b;
   --solring-rating-b: #f0883e;
   --solring-rating-c: #e3b341;
   --solring-rating-d: #3fb950;
-  --solring-surface: #1c2128;
-  --solring-surface-2: #22272e;
-  --solring-border: #373e47;
-  --solring-text: #e6edf3;
-  --solring-text-2: #9aa4af;
 }
 
 .solring-tier-a { color: var(--solring-rating-a); }
