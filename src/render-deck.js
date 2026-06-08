@@ -14,7 +14,7 @@ import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
 import { buildCombosSection } from './render-combos.js';
-import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel } from './render-panels.js';
+import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -194,6 +194,7 @@ function renderBody(body, f) {
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
   if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);
   if (f.synergyAnchors && f.synergyAnchors.length) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors), body);
+  if (f.interactionParts && f.interactionParts.length) makeExpandable(interactionTile, buildInteractionPanel(f.interactionParts), body);
 }
 
 function renderMessage(body, text, action) {

@@ -1,0 +1,177 @@
+- generic [ref=e7]:
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - link "CommanderSalt.com - Your new source of inspiration for degenerate MtG Commander/EDH decks! COMMANDERSALT.COM" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e13]:
+            - img "CommanderSalt.com - Your new source of inspiration for degenerate MtG Commander/EDH decks!" [ref=e14]
+            - text: COMMANDERSALT.COM
+        - generic [ref=e15]:
+          - separator [ref=e16]
+          - link "cEDH META" [ref=e17] [cursor=pointer]:
+            - /url: /meta
+          - link "COMMANDERS" [ref=e18] [cursor=pointer]:
+            - /url: /commanders
+          - link "USERS" [ref=e19] [cursor=pointer]:
+            - /url: /users
+          - link "ARCHETYPES" [ref=e20] [cursor=pointer]:
+            - /url: /archetypes
+          - separator [ref=e21]
+          - link "CHANGELOG" [ref=e22] [cursor=pointer]:
+            - /url: /changelog
+          - link "FAQ" [ref=e23] [cursor=pointer]:
+            - /url: /faq
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - button "Support us on Patreon!" [ref=e26] [cursor=pointer]:
+            - img "Patreon" [ref=e27]
+          - button "Follow us on BlueSky!" [ref=e28] [cursor=pointer]:
+            - img "BlueSky" [ref=e29]
+          - button "Join our Discord!" [ref=e30] [cursor=pointer]:
+            - img "Discord" [ref=e31]
+        - button [ref=e34] [cursor=pointer]:
+          - img
+    - generic [ref=e35]:
+      - generic [ref=e36]: Leaderboard
+      - img "Table flip":
+        - generic: (╯°□°）╯︵ ┻━┻
+  - generic [ref=e39]:
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]: The saltiest commander decks on the planet
+        - heading "Analyse your deck" [level=1] [ref=e51]
+        - paragraph [ref=e52]: Paste a Commander decklist and get a seasoned report card — bracket, power level, saltiness grade, win conditions, and the cards most likely to make your play group hate you.
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - generic [ref=e56]:
+              - img
+            - textbox "Decklist URL" [active] [ref=e57]:
+              - /placeholder: https://www.moxfield.com/decks/…
+            - button "Information" [ref=e59]:
+              - img
+          - button "Submit deck for analysis" [disabled] [ref=e60]:
+            - generic [ref=e62]: Get salty!
+        - button "How are power level scores determined?" [ref=e63] [cursor=pointer]:
+          - generic [ref=e64]: How are power level scores determined?
+          - img
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - generic [ref=e67]: Decks indexed
+          - generic [ref=e68]: —
+          - generic [ref=e69]: tracked and seasoned
+        - generic [ref=e70]:
+          - generic [ref=e71]: Meta refresh
+          - generic [ref=e72]: —
+          - generic [ref=e73]: last ingest
+        - generic [ref=e74]:
+          - generic [ref=e75]: Status
+          - generic [ref=e76]: Extra Salty
+          - generic [ref=e78]: live — new decks flowing in
+    - generic [ref=e83]:
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - button "Toggle filters" [ref=e88] [cursor=pointer]:
+            - text: Filters
+            - img
+            - generic [ref=e89]:
+              - img
+          - generic [ref=e91]:
+            - generic [ref=e92]: SORT //
+            - button "Power" [ref=e93] [cursor=pointer]
+            - button "Sort descending — toggle to ascending" [ref=e94] [cursor=pointer]:
+              - img
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - text: Search
+                - generic:
+                  - generic:
+                    - searchbox
+                    - img
+              - generic:
+                - text: Filter by
+                - tablist:
+                  - tab [selected]: Power level
+                  - tab: Bracket
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: 1 – 10
+                    - group:
+                      - generic:
+                        - slider: "1"
+                      - generic:
+                        - slider: "10"
+                    - generic:
+                      - button:
+                        - text: Casual
+                        - generic: 1–4
+                      - button:
+                        - text: Focused
+                        - generic: 5–7
+                      - button:
+                        - text: High
+                        - generic: 8–10
+                      - button:
+                        - text: Any
+                        - generic: 1–10
+              - generic:
+                - text: Salt rating
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: 0 – 500+
+                    - group:
+                      - generic:
+                        - slider: "0"
+                      - generic:
+                        - slider: "500"
+              - generic:
+                - generic:
+                  - text: Archetype
+                  - generic: Any
+                - generic:
+                  - button: ANY
+                  - generic: /
+                  - button: ANY
+              - generic:
+                - generic:
+                  - text: Color identity
+                  - generic: Any
+                - generic:
+                  - generic:
+                    - button
+                    - button
+                    - button
+                    - button
+                    - button
+                    - separator
+                    - button
+                - generic:
+                  - button: All five
+                  - button [disabled]: Clear
+            - generic:
+              - button: Reset all
+              - generic:
+                - button: Cancel
+                - button: Apply
+      - button "Load more" [disabled] [ref=e96]:
+        - progressbar [ref=e98]
+  - generic [ref=e108]:
+    - generic [ref=e109]:
+      - generic [ref=e110]: SALTY ASS DECKS
+      - generic [ref=e111]: "0"
+    - generic [ref=e112]: /
+    - generic [ref=e113]:
+      - generic [ref=e114]: META
+      - generic [ref=e115]: 08.03.24
+    - generic [ref=e116]: /
+    - generic [ref=e119]: EXTRA SALTY
+    - link "PRIVACY" [ref=e120] [cursor=pointer]:
+      - /url: /privacy
+    - button "Info" [ref=e122] [cursor=pointer]:
+      - generic [ref=e123]:
+        - generic [ref=e124]: Info
+        - img [ref=e126]

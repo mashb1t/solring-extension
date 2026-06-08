@@ -182,6 +182,17 @@ function archetypeMajors(dt) {
     .slice(0, 4)
     .map((m) => ({ name: m.major, pct: m.percentage }));
 }
+// Interaction breakdown: the score's own subCategories (spotRemoval, boardWipes,
+// counters, …), each scored at the deck level in powerLevel.scoring.
+function interactionParts(dt) {
+  const scoring = g(dt, 'powerLevel', 'scoring') || {};
+  const subs = g(scoring, 'interaction', 'subCategories');
+  if (!Array.isArray(subs)) return [];
+  return subs
+    .map((cat) => ({ cat, score: typeof (scoring[cat] && scoring[cat].score) === 'number' ? scoring[cat].score : 0 }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
 function synergyAnchors(dt, idToName) {
   return (g(dt, 'synergy', 'profile', 'anchors') || [])
     .filter((a) => a && a.cardId)
@@ -201,6 +212,7 @@ export function extractDeck(p) {
     bracketCategories: bracketCategories(dt),
     archetypeMajors: archetypeMajors(dt),
     synergyAnchors: synergyAnchors(dt, idToName),
+    interactionParts: interactionParts(dt),
     deckId: p.id,
     commander: (p.commanders || [])[0],
     colorIdentity: p.colorIdentity,
