@@ -53,9 +53,10 @@ function tile(label, value, sub, valueClass) {
   ]);
 }
 
-// Deck-wide power/salt totals + the average per-card power. The power total is the
-// authoritative scoring.total (falls back to summing cards for older cached decks);
-// salt has no single field, so we sum the per-card values.
+// Deck-wide totals (denominators for each card's "/ total") + the average power.
+// Both use the deck's authoritative totals: power's scoring.total (powerScoreTotal)
+// and salt's saltRating (fields.salt IS the deck total saltiness). Summed per-card
+// values are a fallback for older cached decks.
 function deckStats(fields) {
   const cards = (fields && fields.cards) || {};
   const ids = Object.keys(cards);
@@ -63,7 +64,8 @@ function deckStats(fields) {
   let saltSum = 0;
   for (const k of ids) { powerSum += cards[k].powerTotal || 0; saltSum += cards[k].salt || 0; }
   const powerTotal = (fields && fields.powerScoreTotal) || powerSum;
-  return { powerTotal, saltTotal: saltSum, avgPower: deckAvgPower(cards, fields && fields.powerScoreTotal) };
+  const saltTotal = (fields && fields.salt) || saltSum;
+  return { powerTotal, saltTotal, avgPower: deckAvgPower(cards, fields && fields.powerScoreTotal) };
 }
 
 const pct = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}% contribution` : 'contribution');
@@ -103,15 +105,16 @@ function buildBody(card, stats) {
   // 'a' (red) when above 2× the deck average — otherwise unmarked.
   const pt = powerTier(card.powerTotal, stats.avgPower);
   const st = saltTier(card.salt);
-  // Power value shows the card's contribution next to the deck total ("19.6 / 789.8"),
-  // mirroring the deck panel's "x / 10" tile; only the card's number takes the red.
-  const powerVal = el('span', { class: 'solring-num' }, [
-    el('span', { class: pt ? `solring-tier-${pt}` : undefined, text: num(card.powerTotal) }),
-    el('span', { class: 'solring-tile-total', text: ` / ${num(stats.powerTotal)}` }),
+  // Each value shows the card's contribution next to the deck total ("19.6 / 789.8"),
+  // mirroring the deck panel's "x / 10" tile; only the card's number takes the color,
+  // the "/ total" stays muted.
+  const withTotal = (value, tier, total) => el('span', { class: 'solring-num' }, [
+    el('span', { class: tier ? `solring-tier-${tier}` : undefined, text: value }),
+    el('span', { class: 'solring-tile-total', text: ` / ${total}` }),
   ]);
   body.append(el('div', { class: 'solring-tiles' }, [
-    tile('Power', powerVal, pct(card.powerTotal, stats.powerTotal)),
-    tile('Saltiness', num(card.salt), pct(card.salt, stats.saltTotal), st ? `solring-tier-${st}` : null),
+    tile('Power', withTotal(num(card.powerTotal), pt, num(stats.powerTotal)), pct(card.powerTotal, stats.powerTotal)),
+    tile('Saltiness', withTotal(num(card.salt), st, num(stats.saltTotal)), pct(card.salt, stats.saltTotal)),
   ]));
 
   if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));
