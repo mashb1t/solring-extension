@@ -13,7 +13,10 @@ import { prettifyStat } from './labels.js';
 import { normName } from './render-cards.js';
 
 const MODAL_SEL = '.modal.show';
-const IMG_BOX_SEL = '.deckviewmodal-image-container'; // last child = below price/buy/settings
+// The sticky image/price/buy container; we append the panel inside it (last child,
+// below the buy buttons) so it scrolls with the sticky image instead of being
+// covered by it. On mobile a media query widens this container to the full column.
+const IMG_BOX_SEL = '.deckviewmodal-image-container';
 
 let getFields = () => null;
 let observer = null;
@@ -138,10 +141,10 @@ function apply() {
   if (existing) existing.remove();
   if (!card) return;
   const panel = buildPanel(card, key);
-  // Cap the panel to the card image's width. The container is inline-block, so it
-  // shrink-wraps to its widest child — without a cap a long tag/synergy list lays
-  // out on a single line and stretches the whole modal. Measure the image BEFORE
-  // inserting, since afterwards our own content may already have widened the box.
+  // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
+  // list would stretch the whole modal. Cap the panel to the card image's width
+  // (measured before inserting, since our content could otherwise widen the box). On
+  // mobile a media query widens the container to the full column and lifts this cap.
   const img = box.querySelector('.deckview-image-wrapper') || box.querySelector('img.deckview-image');
   const w = img ? Math.round(img.getBoundingClientRect().width) : 0;
   if (w > 40) panel.style.maxWidth = `${w}px`;

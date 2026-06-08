@@ -48,6 +48,10 @@
   background: var(--solring-surface-2); border: 0; cursor: pointer;
   color: var(--solring-text); font-weight: 600;
 }
+.modal-body .solring-panel-body,
+.modal-body .solring-panel-bar {
+  background-color: var(--bs-modal-bg);
+}
 .solring-panel-bar:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
 .solring-bar-right { display: inline-flex; align-items: center; gap: 0.6rem; }
 .solring-synced { font-size: 0.7rem; font-weight: 400; color: var(--solring-text-2); }
@@ -251,9 +255,18 @@
 .solring-card-modal {
   /* width is capped to the card image's pixel width in JS; this is the fallback
      ceiling if that measurement is unavailable, so a long tag/synergy list wraps
-     instead of stretching the inline-block container and breaking the modal. */
+     instead of stretching the shrink-to-content column and breaking the modal. */
   width: 100%; max-width: 20rem; box-sizing: border-box; text-align: left;
   margin-top: 1rem; font-size: 0.85rem;
+}
+/* On mobile the modal columns stack and the image column becomes full-width. Widen
+   the (normally image-width, inline-block) container to fill it so the panel can use
+   the full modal-body width like the oracle text / rulings below — the card image
+   stays centered at its own width (mx-auto), it does not stretch. Lift the desktop
+   image-width cap on the panel (the !important beats the inline max-width set in JS). */
+@media (max-width: 575.98px) {
+  .modal-body .deckviewmodal-image-container { width: 100%; }
+  .solring-card-modal { max-width: none !important; }
 }
 .solring-card-modal .solring-panel-bar.solring-cm-bar { cursor: default; }
 .solring-card-modal .solring-panel-bar.solring-cm-bar:focus-visible { outline: 0; }
