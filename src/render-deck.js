@@ -10,7 +10,7 @@ import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
 import { el, tierFromGrade, isDark } from './dom.js';
 import { getCardPrefs, onPrefChange } from './prefs.js';
-import { annotate, clearAnnotations, toggleAllStats } from './render-cards.js';
+import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
 
@@ -19,24 +19,9 @@ let currentFields = null;
 let deckObserver = null;
 let dvRef = null;
 let installedOnce = false;
-let panelBodyRef = null;
-let statsAllOpen = false;
 
 function connectObserver() {
   if (deckObserver && dvRef) deckObserver.observe(dvRef, { childList: true, subtree: true });
-}
-
-// Global "expand/collapse all card stats" control, shown in the panel body when
-// the Stats pref is on.
-function refreshStatsToggleAll(prefs) {
-  if (!panelBodyRef) return;
-  const existing = panelBodyRef.querySelector('.solring-toggle-all');
-  if (existing) existing.remove();
-  if (!prefs.stats) return;
-  const label = () => (statsAllOpen ? 'Collapse all card stats' : 'Expand all card stats');
-  const btn = el('button', { class: 'solring-btn solring-toggle-all', text: label() });
-  btn.addEventListener('click', () => { statsAllOpen = !statsAllOpen; toggleAllStats(statsAllOpen); btn.textContent = label(); });
-  panelBodyRef.append(btn);
 }
 
 async function reannotate() {
@@ -45,7 +30,6 @@ async function reannotate() {
   if (deckObserver) deckObserver.disconnect(); // ignore our own mutations
   annotate(currentFields, prefs);
   connectObserver();
-  refreshStatsToggleAll(prefs);
 }
 
 // Is this node one the extension injected? (so the observer ignores our own churn)
@@ -53,7 +37,7 @@ function isOurNode(n) {
   if (!n || n.nodeType !== 1) return false;
   const cls = typeof n.className === 'string' ? n.className : '';
   if (cls.includes('solring')) return true;
-  return !!(n.closest && n.closest('[data-solring-root], .solring-card-anno, .solring-tags, .solring-salt-cell, .solring-card-detail, .solring-stats-toggle'));
+  return !!(n.closest && n.closest('[data-solring-root], .solring-card-anno, .solring-tags, .solring-salt-cell, .solring-card-detail'));
 }
 
 // Only a genuine Moxfield re-render of the card rows should trigger re-annotate.
@@ -94,9 +78,8 @@ function installOnce() {
 
 // Begin annotating card rows for this deck: store fields, watch the decklist for
 // Moxfield re-renders, and do the first pass.
-function startAnnotations(fields, body) {
+function startAnnotations(fields) {
   currentFields = fields;
-  panelBodyRef = body;
   observeDecklist();
   reannotate();
 }
@@ -286,7 +269,7 @@ export async function mount({ waitFor }) {
     }
     renderBody(body, f);
     setOpen(true); // analyzed/cached → default open
-    startAnnotations(f, body);
+    startAnnotations(f);
     shown = f;
   }
 

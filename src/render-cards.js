@@ -44,8 +44,13 @@ function statsDetail(card, prefs) {
       rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
     }
   }
-  if (prefs.combos && card.combos) {
-    rows.push(detailLine('Combos:', document.createTextNode(card.combos.anchors.join(', '))));
+  if (prefs.combos) {
+    const parts = [];
+    if (card.deckCombos) parts.push(`${card.deckCombos} in deck`);
+    if (card.combos && card.combos.anchors && card.combos.anchors.length) {
+      parts.push(`feeds ${card.combos.anchors.slice(0, 6).join(', ')}`);
+    }
+    if (parts.length) rows.push(detailLine('Combos:', document.createTextNode(parts.join('  ·  '))));
   }
   if (!rows.length) {
     rows.push(detailLine('Stats:', document.createTextNode('no extra CommanderSalt data for this card')));
@@ -55,14 +60,6 @@ function statsDetail(card, prefs) {
 
 /** Annotate every matched text row. Removes prior annotations first (idempotent). */
 export function annotate(fields, prefs) {
-  // Remember which cards are expanded so a rebuild (Moxfield re-render) doesn't
-  // collapse them.
-  const open = new Set();
-  document.querySelectorAll(ROW_SEL).forEach((link) => {
-    const li = link.closest('li');
-    if (li && li.classList.contains('solring-stats-open')) open.add(rowName(link));
-  });
-
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
   const dark = isDark();
@@ -70,11 +67,8 @@ export function annotate(fields, prefs) {
   document.querySelectorAll(ROW_SEL).forEach((link) => {
     const li = link.closest('li');
     if (!li) return;
-    const name = rowName(link);
-    const card = fields.cards[name];
+    const card = fields.cards[rowName(link)];
     if (!card) return;
-    const nameCell = li.querySelector('.w-100') || li;
-    const wantsDetail = prefs.stats || prefs.combos;
 
     // The row is flex(row nowrap). Let it wrap so our full-width sub-lines (tags,
     // detail) sit below the columns, indented to start under the name (2nd col)
@@ -83,22 +77,7 @@ export function annotate(fields, prefs) {
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
 
-    // 1) Expander toggle — inline right after the card name (same line as the title).
-    if (wantsDetail) {
-      const toggle = el('button', {
-        class: 'solring-stats-toggle solring-card-anno',
-        attrs: { type: 'button', 'aria-label': 'Toggle card stats' },
-      });
-      // Arrow is CSS (::before keyed off .solring-stats-open), so the click only
-      // flips a class — never a childList mutation that would wake the observer.
-      toggle.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        li.classList.toggle('solring-stats-open');
-      });
-      link.insertAdjacentElement('afterend', toggle);
-    }
-
-    // 2) Salt value — trailing column, stays on the first line (before the wrapping rows).
+    // 1) Salt value — trailing column, stays on the first line (before the wrapping rows).
     if (prefs.saltValue && typeof card.salt === 'number') {
       const high = card.salt >= 5;
       li.append(el('span', {
@@ -108,16 +87,15 @@ export function annotate(fields, prefs) {
       }));
     }
 
-    // 3) Tags — full-width sub-line below, spanning name-column → row end.
+    // 2) Tags — full-width sub-line below, spanning name-column → row end.
     if (prefs.tags && card.tags && card.tags.length) {
       li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` },
         card.tags.map((t) => el('span', { class: 'solring-tag', text: t })))));
     }
 
-    // 4) Detail (stats + combos) — full-width sub-line below the tags; restore state.
-    if (wantsDetail) {
+    // 3) Detail (stats + combos) — full-width sub-line, shown directly (no toggle).
+    if (prefs.stats || prefs.combos) {
       li.append(span(statsDetail(card, prefs)));
-      if (open.has(name)) li.classList.add('solring-stats-open');
     }
   });
 }
@@ -125,15 +103,5 @@ export function annotate(fields, prefs) {
 export function clearAnnotations(root = document) {
   root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell')
     .forEach((n) => n.remove());
-  root.querySelectorAll('.solring-stats-open').forEach((n) => n.classList.remove('solring-stats-open'));
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
-}
-
-/** Expand/collapse every per-card stats panel at once. */
-export function toggleAllStats(open) {
-  document.querySelectorAll(ROW_SEL).forEach((link) => {
-    const li = link.closest('li');
-    if (!li || !li.querySelector('.solring-card-detail')) return;
-    li.classList.toggle('solring-stats-open', open);
-  });
 }

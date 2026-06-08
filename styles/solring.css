@@ -136,12 +136,9 @@
    all 6 columns (qty, name, mana, legality, menu, salt) stay on one line and
    only our full-width sub-lines (tags, detail) wrap below. */
 .solring-row { flex-wrap: wrap; }
-/* Name cell becomes a flex row so the card name (shrinks, ellipsis) and our
-   stats toggle stay side-by-side on the title line instead of the toggle
-   wrapping under the name. */
-.solring-row > .w-100 { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
-/* Name truncates to one line so the toggle stays beside it instead of wrapping. */
-.solring-row > .w-100 > a { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Name cell flex-fills the leftover width (instead of claiming 100%) so the
+   columns stay on one line; the name truncates rather than wrapping. */
+.solring-row > .w-100 { flex: 1 1 0; min-width: 0; }
 /* Tags + detail are full-width sub-lines spanning name-column → row end; the
    inline padding-left (set in JS = quantity-column width) starts them under the
    title. Pills are left-packed and wrap, not stretched across the width. */
@@ -153,18 +150,11 @@
   font-size: 0.68rem; line-height: 1.45; padding: 0.02rem 0.35rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
 }
-.solring-stats-toggle {
-  border: 0; background: transparent; color: var(--solring-text-2);
-  cursor: pointer; padding: 0 0.5rem; font-size: 0.8rem; line-height: 1;
-  flex: 0 0 auto; align-self: center;
-}
-.solring-stats-toggle::before { content: '▸'; }
-.solring-stats-open .solring-stats-toggle::before { content: '▾'; }
+/* Per-card detail (stats + combos) — always shown (no toggle), full-width sub-line. */
 .solring-card-detail {
-  display: none; box-sizing: border-box; margin: 0.15rem 0 0.3rem;
+  flex: 0 0 100%; box-sizing: border-box; margin: 0.15rem 0 0.3rem;
   font-size: 0.74rem; color: var(--solring-text-2);
 }
-.solring-stats-open .solring-card-detail { display: block; flex: 0 0 100%; }
 .solring-detail-line { margin: 0.1rem 0; }
 .solring-detail-line b { color: var(--solring-text); font-weight: 600; }
 .solring-flags { display: inline-flex; gap: 0.25rem; flex-wrap: wrap; }
@@ -173,7 +163,6 @@
   background: color-mix(in srgb, var(--solring-accent) 14%, transparent);
   color: var(--solring-accent); border: 1px solid color-mix(in srgb, var(--solring-accent) 40%, transparent);
 }
-.solring-toggle-all { margin-top: 0.6rem; font-size: 0.78rem; padding: 0.2rem 0.6rem; }
 /* CommanderSalt links-menu entry matches its siblings (no bold); the separator
    uses Bootstrap's mx-2 spacing, so no custom rule is needed. */
 

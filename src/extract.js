@@ -88,11 +88,22 @@ export function isStub(p) {
   return !p || p.name == null || (p._cardCount || 0) === 0;
 }
 
-/** Per-card map keyed by normalized card name → { salt, tags, total, flags, power, saltBreakdown }. */
+// How many of the deck's actual combos (details.combos — Commander Spellbook)
+// this card is a piece of. Matches the card's id/container/front-face against
+// the combo's card ids (prefix-aware to cover DFC ids).
+function countDeckCombos(comboList, c) {
+  const ids = [c.id, c.containerId, c.frontFaceId].filter(Boolean);
+  return comboList.filter((combo) => Array.isArray(combo.cards) && combo.cards.some(
+    (x) => ids.some((id) => x === id || x.startsWith(`${id}_`) || id.startsWith(`${x}_`)),
+  )).length;
+}
+
+/** Per-card map keyed by normalized card name → { salt, tags, total, flags, power, saltBreakdown, combos, deckCombos }. */
 function extractCards(p) {
   const out = {};
   const cards = p.cards || {};
   const details = p.details || {};
+  const comboList = g(details, 'combos', 'list') || [];
   for (const c of Object.values(cards)) {
     if (!c || !c.name) continue;
     const stats = g(c, 'categories', 'stats') || {};
@@ -102,6 +113,7 @@ function extractCards(p) {
       tags,
       total: g(c, 'categories', 'total') || 0,
       ...cardStats(details, c.id),
+      deckCombos: countDeckCombos(comboList, c),
     };
   }
   return out;
