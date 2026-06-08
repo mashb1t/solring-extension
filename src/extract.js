@@ -155,11 +155,52 @@ function extractCombos(p) {
   });
 }
 
+// Deck-level detail panels (each surfaced behind an expandable tile).
+function saltSources(dt) {
+  return Object.entries(g(dt, 'salt', 'scoring') || {})
+    .filter(([k, v]) => k !== 'cardPrice' && v && typeof v === 'object' && typeof v.score === 'number' && v.score > 0)
+    .map(([cat, v]) => ({ cat, score: v.score }))
+    .sort((a, b) => b.score - a.score);
+}
+function powerPillars(dt) {
+  const s = g(dt, 'powerLevel', 'ratings', 'spike') || {};
+  const out = {};
+  for (const k of ['consistency', 'efficiency', 'interaction', 'winConditions', 'manabase']) {
+    if (typeof s[k] === 'number') out[k] = s[k];
+  }
+  return out;
+}
+function bracketCategories(dt) {
+  const cats = g(dt, 'brackets', 'categories') || {};
+  return Object.keys(BRACKET_FLAG_LABELS)
+    .map((key) => ({ key, count: (cats[key] && cats[key].count) || 0 }))
+    .filter((c) => c.count > 0);
+}
+function archetypeMajors(dt) {
+  return (g(dt, 'archetypes', 'profile', 'majors') || [])
+    .filter((m) => m && m.major != null && typeof m.percentage === 'number')
+    .slice(0, 4)
+    .map((m) => ({ name: m.major, pct: m.percentage }));
+}
+function synergyAnchors(dt, idToName) {
+  return (g(dt, 'synergy', 'profile', 'anchors') || [])
+    .filter((a) => a && a.cardId)
+    .slice(0, 6)
+    .map((a) => ({ name: idToName[a.cardId] || titleCase(a.cardId), share: a.share, score: a.score }));
+}
+
 /** Full deck payload → DeckFields. */
 export function extractDeck(p) {
   const combos = extractCombos(p);
+  const dt = p.details || {};
+  const idToName = buildIdToName(p.cards);
   return {
     combos,
+    saltSources: saltSources(dt),
+    powerPillars: powerPillars(dt),
+    bracketCategories: bracketCategories(dt),
+    archetypeMajors: archetypeMajors(dt),
+    synergyAnchors: synergyAnchors(dt, idToName),
     deckId: p.id,
     commander: (p.commanders || [])[0],
     colorIdentity: p.colorIdentity,

@@ -14,6 +14,7 @@ import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
 import { buildCombosSection } from './render-combos.js';
+import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -164,29 +165,35 @@ function renderBody(body, f) {
     tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `raw ${num(f[key])}` : '—');
 
   // Row 1: the headline tiles.
-  const mainTiles = el('div', { class: 'solring-tiles' }, [
-    tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
-      typeof f.power === 'number' ? String(f.power) : null),
-    tile('Bracket', bracketValue(f), 'realistic'),
-    tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' })),
-    gradeTile('Saltiness', 'salt', 'saltRating'),
-    tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' })),
-  ]);
+  const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
+    typeof f.power === 'number' ? String(f.power) : null);
+  const bracketTile = tile('Bracket', bracketValue(f), 'realistic');
+  const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
+  const saltTile = gradeTile('Saltiness', 'salt', 'saltRating');
+  const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
+  const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, saltTile, archTile]);
 
   // Row 2: the report-card grades + a Combos count (5th tile, keeps both rows at 5).
+  const threatTile = gradeTile('Threat', 'threat', 'threatRating');
+  const interactionTile = gradeTile('Interaction', 'interaction', 'interactionRating');
+  const winconsTile = gradeTile('Wincons', 'wincons', 'comboRating');
+  const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
   const hasCombos = !!(f.combos && f.combos.length);
   const comboTile = tile('Combos',
     el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
     hasCombos ? comboSizeBreakdown(f.combos) : null);
-  const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' }, [
-    ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
-    comboTile,
-  ]);
+  const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
+    [threatTile, interactionTile, winconsTile, synergyTile, comboTile]);
 
   body.append(mainTiles, gradeTiles);
 
-  // The combo list is hidden until the Combos tile is clicked.
+  // Each tile expands its own detail panel (hidden until clicked).
   if (hasCombos) makeExpandable(comboTile, buildCombosSection(f.combos), body);
+  if (f.powerPillars && Object.keys(f.powerPillars).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars), body);
+  if (f.bracketCategories && f.bracketCategories.length) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories), body);
+  if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
+  if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);
+  if (f.synergyAnchors && f.synergyAnchors.length) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors), body);
 }
 
 function renderMessage(body, text, action) {
