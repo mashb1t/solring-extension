@@ -126,8 +126,13 @@
   padding-left: 0.5rem; white-space: nowrap;
 }
 .solring-salt-cell.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
-/* Annotated rows wrap so our sub-lines can sit below the columns. */
+/* Annotated rows wrap so our sub-lines can sit below the columns. The name cell
+   is Bootstrap .w-100 (width:100%!important) — with wrap that would claim the
+   whole first line and push the other columns down. Override it to flex-fill so
+   all 6 columns (qty, name, mana, legality, menu, salt) stay on one line and
+   only our full-width sub-lines (tags, detail) wrap below. */
 .solring-row { flex-wrap: wrap; }
+.solring-row > .w-100 { flex: 1 1 0; min-width: 0; }
 /* Tags + detail are full-width sub-lines spanning name-column → row end; the
    inline padding-left (set in JS = quantity-column width) starts them under the
    title. Pills are left-packed and wrap, not stretched across the width. */
