@@ -218,27 +218,39 @@ export async function mount({ waitFor }) {
     setOpen(true);
     return;
   }
-  if (res.fields) {
-    const f = res.fields;
+  let shown = null;
+  function showFields(f) {
     if (f.isPrivate || f.isIllegal) {
       renderMessage(body, 'Private/illegal — CommanderSalt can’t analyze it.');
       setOpen(false);
       currentFields = null;
       clearAnnotations();
+      shown = f;
       return;
     }
     renderBody(body, f);
     setOpen(true); // analyzed/cached → default open
     startAnnotations(f, body);
+    shown = f;
+  }
+
+  // A deck's analysis can change anytime, so an instant cached paint is followed
+  // by a foreground revalidation that re-renders only if the values changed.
+  async function revalidate() {
+    const fresh = await guardAsync(() => getDeck(md5, true));
+    if (fresh && fresh.fields && JSON.stringify(fresh.fields) !== JSON.stringify(shown)) {
+      showFields(fresh.fields);
+    }
+  }
+
+  if (res.fields) {
+    showFields(res.fields);
+    if (res.cached) revalidate();
     return;
   }
   // stub / un-indexed → closed; expand to Analyze
   currentFields = null;
   clearAnnotations();
-  renderAnalyze(body, canonicalDeckUrl(publicId), md5, (fields) => {
-    renderBody(body, fields);
-    setOpen(true);
-    startAnnotations(fields, body);
-  });
+  renderAnalyze(body, canonicalDeckUrl(publicId), md5, showFields);
   setOpen(false);
 }

@@ -18,14 +18,13 @@ async function fetchAndCacheDeck(md5) {
   });
 }
 
-async function getDeck({ md5 }) {
+async function getDeck({ md5, force }) {
   const key = `deck:${md5}`;
-  const entry = await getEntry(key);
-  if (entry) {
-    if (!isFresh(entry)) fetchAndCacheDeck(md5).catch(() => {}); // revalidate in background
-    return { fields: entry.data, cached: true };
+  if (!force) {
+    const entry = await getEntry(key);
+    if (entry) return { fields: entry.data, cached: true }; // instant; caller revalidates with force
   }
-  return fetchAndCacheDeck(md5);
+  return fetchAndCacheDeck(md5); // fetch fresh + cache (deck analysis can change anytime)
 }
 
 async function getUserDecks({ username, cursor }) {
