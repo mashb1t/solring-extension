@@ -39,6 +39,26 @@ All data is cached persistently so revisits are instant and offline-tolerant.
 | 9 | CommanderSalt menu link | Injected into Moxfield's external-links menu, **visible only when the EDHREC link is visible** (i.e. a legal 100-card Commander deck). |
 | 10 | Combos | **Deferred** — show combos via Commander Spellbook in a later iteration; not implemented now. |
 
+## Data sources (hard constraint)
+
+The extension is a **pure client**. All data is fetched **directly from the third-party APIs**, never
+through the solring backend (`solri.ng`) or any proxy — the extension must work standalone with nothing
+of ours deployed.
+
+- **CommanderSalt** — `https://api.commandersalt.com`
+  - `GET /decks?id={md5}` — full deck payload.
+  - `GET /search?type=decks&authorIndexId={username}` — a user's decks (the **user page hits this** —
+    CommanderSalt, *not* solring).
+  - `POST /decks?url={moxfieldUrl}` — manual import (the only write).
+  - Verified by capturing the live site's own network calls: the CommanderSalt frontend itself calls
+    `api.commandersalt.com/decks?id=…` and `api.commandersalt.com/search?…`. These public read endpoints
+    respond **anonymously** (no auth token needed; the site's Cognito/Firebase calls are for logged-in
+    features we don't use).
+- **Commander Spellbook** — direct client calls for combos (roadmap; not implemented now).
+
+`host_permissions` therefore lists `https://api.commandersalt.com/*` (and, when combos land, the Commander
+Spellbook API host). **`solri.ng` never appears anywhere in the extension.**
+
 ## Architecture
 
 Two halves communicating over `chrome.runtime` messages:
@@ -177,8 +197,8 @@ view state). Defaults: `saltValue: true, tags: true, stats: false`.
 - **External-links menu — CommanderSalt link:** Moxfield shows an **EDHREC** link in the deck's
   tools/links menu only for legal 100-card Commander decks. The extension injects a sibling **"CommanderSalt"**
   link into that menu **only when the EDHREC link is present**, pointing at the deck's CommanderSalt page
-  (`https://commandersalt.com/deck/{md5}` — exact URL form confirmed at implementation time). When EDHREC is
-  absent, no CommanderSalt link is added.
+  **`https://commandersalt.com/details/deck/{md5}`** (URL form confirmed against the live site). When EDHREC
+  is absent, no CommanderSalt link is added.
 
 ## Caching
 
@@ -286,8 +306,8 @@ A `MOCK` flag lets the content script render from the bundled fixtures (no netwo
    current View Style is detectable from the DOM; and the EDHREC external link is detectable in the deck's
    links menu. All confirmed against the live DOM at implementation time (anchored by content, not hashed
    class names).
-5. CommanderSalt cards match Moxfield rows by normalized name; the deck-page CommanderSalt URL form
-   (`/deck/{md5}` vs a slug) is confirmed against the live site.
+5. CommanderSalt cards match Moxfield rows by normalized name. (Deck-page URL form `/details/deck/{md5}`
+   and API hosts/paths are already confirmed against the live site — see Data sources.)
 
 ## Roadmap (not implemented now)
 
