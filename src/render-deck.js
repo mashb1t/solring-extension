@@ -144,12 +144,12 @@ function makeExpandable(tile, section, body) {
   tile.setAttribute('role', 'button');
   tile.setAttribute('tabindex', '0');
   tile.setAttribute('aria-expanded', 'false');
-  const chev = el('span', { class: 'solring-tile-chev', text: '⌄', attrs: { 'aria-hidden': 'true' } });
+  // Always the ⌃ glyph; CSS rotates it 180° when closed (renders cleaner than ⌄).
+  const chev = el('span', { class: 'solring-tile-chev', text: '⌃', attrs: { 'aria-hidden': 'true' } });
   tile.append(chev);
   const toggle = () => {
     const willOpen = section.hasAttribute('hidden');
     if (willOpen) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
-    chev.textContent = willOpen ? '⌃' : '⌄';
     tile.classList.toggle('solring-open', willOpen);
     tile.setAttribute('aria-expanded', String(willOpen));
   };

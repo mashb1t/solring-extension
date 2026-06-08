@@ -101,13 +101,18 @@
 .solring-clickable:hover { border-color: var(--solring-accent); }
 .solring-clickable:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 
-/* Expandable tile: big static chevron (glyph swaps ⌄/⌃ in JS, no rotation). */
+/* Expandable tile: ⌃ chevron, rotated 180° when closed (points down), upright
+   when open. (⌃ renders cleaner than ⌄.) */
 .solring-expandable { position: relative; padding-right: 2.4rem; }
 .solring-tile-chev {
-  position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 0.7rem; top: 50%;
+  transform: translateY(-50%) rotate(180deg);
   font-size: 1.8rem; line-height: 1; color: var(--solring-text-2);
+  transition: transform 0.15s ease;
 }
 .solring-expandable:hover .solring-tile-chev { color: var(--solring-text); }
+.solring-expandable.solring-open .solring-tile-chev { transform: translateY(-50%) rotate(0deg); }
+@media (prefers-reduced-motion: reduce) { .solring-tile-chev { transition: none; } }
 
 /* Deck-level detail panels (Saltiness / Power / Bracket / Archetype / Synergy). */
 .solring-panel-section {
