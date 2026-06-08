@@ -51,6 +51,29 @@ function breakdownBlock(breakdown) {
 }
 
 function comboCard(combo) {
+  // Collapsible detail (prereqs / steps / produces / difficulty) — hidden by default.
+  const blocks = [
+    listBlock('Prerequisites', combo.prerequisites),
+    listBlock('Step-by-step', combo.steps, true),
+    listBlock('Produces', combo.produces),
+    breakdownBlock(combo.breakdown),
+  ].filter(Boolean);
+  const body = blocks.length ? el('div', { class: 'solring-combo-body', attrs: { hidden: '' } }, blocks) : null;
+
+  let details = null;
+  if (body) {
+    details = el('button', {
+      class: 'solring-combo-details', text: 'Details ▾',
+      attrs: { type: 'button', 'aria-expanded': 'false' },
+    });
+    details.addEventListener('click', () => {
+      const open = body.hasAttribute('hidden');
+      if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
+      details.setAttribute('aria-expanded', String(open));
+      details.textContent = open ? 'Details ▴' : 'Details ▾';
+    });
+  }
+
   const meta = el('div', { class: 'solring-combo-meta' }, [
     combo.score != null ? el('span', { title: 'Score', text: `★ ${combo.score}` }) : null,
     combo.complexity != null ? el('span', { title: 'Complexity', text: pct(combo.complexity) }) : null,
@@ -59,17 +82,16 @@ function comboCard(combo) {
       class: 'solring-combo-link', text: 'Spellbook ↗',
       attrs: { href: combo.spellbookUri, target: '_blank', rel: 'noopener' },
     }) : null,
+    details,
   ]);
+
   return el('div', { class: 'solring-combo' }, [
     el('div', { class: 'solring-combo-head' }, [
       el('div', { class: 'solring-combo-pieces', text: combo.pieces.join('  +  ') }),
       meta,
     ]),
     tagChips(combo),
-    listBlock('Prerequisites', combo.prerequisites),
-    listBlock('Step-by-step', combo.steps, true),
-    listBlock('Produces', combo.produces),
-    breakdownBlock(combo.breakdown),
+    body,
   ]);
 }
 

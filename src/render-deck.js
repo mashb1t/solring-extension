@@ -142,7 +142,7 @@ function renderBody(body, f) {
   const hasCombos = !!(f.combos && f.combos.length);
   const comboTile = tile('Combos',
     el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
-    hasCombos ? 'show ▾' : null);
+    hasCombos ? 'show' : null);
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' }, [
     ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
     comboTile,
@@ -154,16 +154,19 @@ function renderBody(body, f) {
   if (hasCombos) {
     const section = buildCombosSection(f.combos);
     body.append(section);
-    comboTile.classList.add('solring-clickable');
+    comboTile.classList.add('solring-clickable', 'solring-combos-tile');
     comboTile.setAttribute('role', 'button');
     comboTile.setAttribute('tabindex', '0');
     comboTile.setAttribute('aria-expanded', 'false');
+    const chevron = el('span', { class: 'solring-combos-chev', text: '⌄', attrs: { 'aria-hidden': 'true' } });
+    comboTile.append(chevron); // big toggle affordance
     const sub = comboTile.querySelector('.solring-tile-sub');
     const toggle = () => {
       const open = section.hasAttribute('hidden');
       if (open) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
+      comboTile.classList.toggle('solring-open', open);
       comboTile.setAttribute('aria-expanded', String(open));
-      if (sub) sub.textContent = open ? 'hide ▴' : 'show ▾';
+      if (sub) sub.textContent = open ? 'hide' : 'show';
     };
     comboTile.addEventListener('click', toggle);
     comboTile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });

@@ -100,6 +100,25 @@
 .solring-clickable { cursor: pointer; }
 .solring-clickable:hover { border-color: var(--solring-accent); }
 .solring-clickable:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+
+/* Big toggle chevron on the Combos tile. */
+.solring-combos-tile { position: relative; padding-right: 2.4rem; }
+.solring-combos-chev {
+  position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%);
+  font-size: 2rem; line-height: 1; font-weight: 700; color: var(--solring-accent);
+  transition: transform 0.15s ease;
+}
+.solring-combos-tile.solring-open .solring-combos-chev { transform: translateY(-50%) rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .solring-combos-chev { transition: none; } }
+
+/* Per-combo Details toggle + collapsible body. */
+.solring-combo-details {
+  border: 1px solid var(--solring-border); background: transparent; cursor: pointer;
+  color: var(--solring-accent); font-size: 0.66rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 0.1rem 0.45rem; border-radius: 4px;
+}
+.solring-combo-details:hover { border-color: var(--solring-accent); }
+.solring-combo-body[hidden] { display: none; }
 .solring-combos { display: grid; gap: 0.6rem; margin-top: 0.2rem; }
 .solring-combo {
   border: 1px solid var(--solring-border); border-radius: 6px;
