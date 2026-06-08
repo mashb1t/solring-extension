@@ -126,7 +126,9 @@
   padding-left: 0.5rem; white-space: nowrap;
 }
 .solring-salt-cell.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
-.solring-tags { display: flex; flex-wrap: nowrap; gap: 0.25rem; margin-top: 0.15rem; width: 100%; overflow: hidden; }
+/* Own line below the title, but only as wide as the tags (left-packed, wraps if
+   many) — not stretched across the whole column. */
+.solring-tags { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0.25rem; margin-top: 0.15rem; }
 .solring-tag {
   font-size: 0.68rem; line-height: 1.45; padding: 0.02rem 0.35rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
