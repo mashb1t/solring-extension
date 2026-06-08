@@ -50,6 +50,14 @@ function statsDetail(card) {
 
 /** Annotate every matched text row. Removes prior annotations first (idempotent). */
 export function annotate(fields, prefs) {
+  // Remember which cards are expanded so a rebuild (Moxfield re-render) doesn't
+  // collapse them.
+  const open = new Set();
+  document.querySelectorAll(ROW_SEL).forEach((link) => {
+    const li = link.closest('li');
+    if (li && li.classList.contains('solring-stats-open')) open.add(rowName(link));
+  });
+
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
   const dark = isDark();
@@ -57,31 +65,39 @@ export function annotate(fields, prefs) {
   document.querySelectorAll(ROW_SEL).forEach((link) => {
     const li = link.closest('li');
     if (!li) return;
-    const card = fields.cards[rowName(link)];
+    const name = rowName(link);
+    const card = fields.cards[name];
     if (!card) return;
     const nameCell = li.querySelector('.w-100') || li;
 
+    // 1) Stats toggle — inline right after the card name (same line as the title).
     if (prefs.stats) {
-      const detail = statsDetail(card);
-      // Arrow is drawn via CSS (::before) keyed off .solring-stats-open, so the
-      // click only flips a class (an attribute change) — never a childList
-      // mutation that would wake the decklist observer and rebuild the row.
       const toggle = el('button', {
-        class: 'solring-stats-toggle', attrs: { type: 'button', 'aria-label': 'Toggle card stats' },
+        class: 'solring-stats-toggle solring-card-anno',
+        attrs: { type: 'button', 'aria-label': 'Toggle card stats' },
       });
+      // Arrow is CSS (::before keyed off .solring-stats-open), so the click only
+      // flips a class — never a childList mutation that would wake the observer.
       toggle.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
         li.classList.toggle('solring-stats-open');
       });
-      nameCell.append(el('span', { class: `solring-card-anno${dark ? ' solring-dark' : ''}` }, [toggle]));
-      nameCell.append(detail);
+      link.insertAdjacentElement('afterend', toggle);
     }
 
+    // 2) Tags — one full-width line directly below the title.
     if (prefs.tags && card.tags && card.tags.length) {
-      nameCell.append(el('span', { class: 'solring-tags' },
+      nameCell.append(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` },
         card.tags.map((t) => el('span', { class: 'solring-tag', text: t }))));
     }
 
+    // 3) Stats detail — below the tags, shown when expanded; restore prior state.
+    if (prefs.stats) {
+      nameCell.append(statsDetail(card));
+      if (open.has(name)) li.classList.add('solring-stats-open');
+    }
+
+    // 4) Salt value — at the row's trailing edge.
     if (prefs.saltValue && typeof card.salt === 'number') {
       const high = card.salt >= 5;
       li.append(el('span', {

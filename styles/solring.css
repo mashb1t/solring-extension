@@ -126,7 +126,7 @@
   padding-left: 0.5rem; white-space: nowrap;
 }
 .solring-salt-cell.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
-.solring-tags { display: inline-flex; gap: 0.25rem; margin-left: 0.4rem; flex-wrap: wrap; vertical-align: middle; }
+.solring-tags { display: flex; flex-wrap: nowrap; gap: 0.25rem; margin-top: 0.15rem; width: 100%; overflow: hidden; }
 .solring-tag {
   font-size: 0.68rem; line-height: 1.45; padding: 0.02rem 0.35rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
@@ -151,6 +151,7 @@
   color: var(--solring-accent); border: 1px solid color-mix(in srgb, var(--solring-accent) 40%, transparent);
 }
 .solring-toggle-all { margin-top: 0.6rem; font-size: 0.78rem; padding: 0.2rem 0.6rem; }
-.solring-cs-link { font-weight: 600; }
+/* CommanderSalt links-menu entry: match its siblings (no bold). */
+.solring-cs-sep { white-space: pre; }
 
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }

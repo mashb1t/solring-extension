@@ -56,12 +56,17 @@ function isOurNode(n) {
   return !!(n.closest && n.closest('[data-solring-root], .solring-card-anno, .solring-tags, .solring-salt-cell, .solring-card-detail, .solring-stats-toggle'));
 }
 
-// Only Moxfield re-rendering real rows should trigger a re-annotate — never our
-// own annotation/toggle mutations (which would wipe an expanded card instantly).
+// Only a genuine Moxfield re-render of the card rows should trigger re-annotate.
+// Hover previews/tooltips and our own mutations must be ignored, or an expanded
+// card collapses whenever you mouse over things.
+function isCardRow(n) {
+  return n.nodeType === 1 && !isOurNode(n)
+    && (n.matches?.('a.table-deck-row-link, li') || !!n.querySelector?.('a.table-deck-row-link'));
+}
 function mutationsAreRelevant(mutations) {
   return mutations.some((m) => {
     if (m.type !== 'childList' || isOurNode(m.target)) return false;
-    return [...m.addedNodes, ...m.removedNodes].some((n) => n.nodeType === 1 && !isOurNode(n));
+    return [...m.addedNodes, ...m.removedNodes].some(isCardRow);
   });
 }
 
@@ -121,7 +126,7 @@ function renderBody(body, f) {
 
   const tiles = el('div', { class: 'solring-tiles' }, [
     tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }),
-      typeof f.power === 'number' ? num(f.power, 2) : null),
+      typeof f.power === 'number' ? String(f.power) : null),
     tile('Bracket', el('span', { class: 'solring-num', text: f.bracketRealistic != null ? String(f.bracketRealistic) : '—' }), 'realistic'),
     tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' })),
     tile('Saltiness', gradeChip(csRatingGrade(f.salt, 'saltRating')), `raw ${num(f.salt)}`),

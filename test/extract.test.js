@@ -48,6 +48,16 @@ test('extractDeck enriches cards with bracket flags + power/salt breakdowns', ()
   assert.ok(jw.power.every((x) => typeof x.score === 'number'));
 });
 
+test('power breakdown de-duplicates wincon_X into X (no doubles)', () => {
+  const d = extractDeck(deck);
+  const c = d.cards['agate instigator']; // appears in both `burn` and `wincon_burn`
+  assert.ok(c, 'expected Agate Instigator in the card map');
+  const cats = c.power.map((x) => x.cat);
+  assert.ok(cats.includes('burn'));
+  assert.ok(!cats.some((x) => x.startsWith('wincon')), `no wincon_ cats: ${cats}`);
+  assert.equal(cats.filter((x) => x === 'burn').length, 1, 'burn appears once');
+});
+
 test('extractHit pulls per-row metrics from a search hit', () => {
   const h = extractHit(search.hits.find((x) => /ojer/i.test(x.title)));
   assert.equal(h.deckId, '9bc8a6c2106583c1fd66e0492a3a5a26');

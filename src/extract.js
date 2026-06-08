@@ -31,9 +31,21 @@ function cardStats(details, id) {
   const flags = Object.keys(BRACKET_FLAG_LABELS)
     .filter((k) => Array.isArray(cats[k] && cats[k].list) && cats[k].list.includes(id))
     .map((k) => BRACKET_FLAG_LABELS[k]);
+  // Power categories include both a theme (e.g. `stompy`) and its win-condition
+  // mirror (`wincon_stompy`) with the same score — merge by base name (keep one,
+  // not summed) and drop the aggregate buckets so nothing shows twice.
+  const byBase = new Map();
+  for (const { cat, score } of scoringFor(g(details, 'powerLevel', 'scoring'), id)) {
+    if (cat === 'wincon' || cat === 'winConditions' || cat === 'total') continue;
+    const base = cat.replace(/^wincon_/, '');
+    byBase.set(base, Math.max(byBase.get(base) || 0, score));
+  }
+  const power = [...byBase.entries()].map(([cat, score]) => ({ cat, score }))
+    .sort((a, b) => b.score - a.score).slice(0, 4);
+
   return {
     flags,
-    power: scoringFor(g(details, 'powerLevel', 'scoring'), id).slice(0, 4),
+    power,
     saltBreakdown: scoringFor(g(details, 'salt', 'scoring'), id).slice(0, 4),
   };
 }
