@@ -76,6 +76,13 @@ export function annotate(fields, prefs) {
     const nameCell = li.querySelector('.w-100') || li;
     const wantsDetail = prefs.stats || prefs.combos;
 
+    // The row is flex(row nowrap). Let it wrap so our full-width sub-lines (tags,
+    // detail) sit below the columns, indented to start under the name (2nd col)
+    // and spanning to the row's end (last col).
+    li.classList.add('solring-row');
+    const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
+    const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
+
     // 1) Expander toggle — inline right after the card name (same line as the title).
     if (wantsDetail) {
       const toggle = el('button', {
@@ -91,19 +98,7 @@ export function annotate(fields, prefs) {
       link.insertAdjacentElement('afterend', toggle);
     }
 
-    // 2) Tags — one full-width line directly below the title.
-    if (prefs.tags && card.tags && card.tags.length) {
-      nameCell.append(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` },
-        card.tags.map((t) => el('span', { class: 'solring-tag', text: t }))));
-    }
-
-    // 3) Detail (stats + combos) — below the tags, shown when expanded; restore prior state.
-    if (wantsDetail) {
-      nameCell.append(statsDetail(card, prefs));
-      if (open.has(name)) li.classList.add('solring-stats-open');
-    }
-
-    // 4) Salt value — at the row's trailing edge.
+    // 2) Salt value — trailing column, stays on the first line (before the wrapping rows).
     if (prefs.saltValue && typeof card.salt === 'number') {
       const high = card.salt >= 5;
       li.append(el('span', {
@@ -112,6 +107,18 @@ export function annotate(fields, prefs) {
         title: 'CommanderSalt saltiness',
       }));
     }
+
+    // 3) Tags — full-width sub-line below, spanning name-column → row end.
+    if (prefs.tags && card.tags && card.tags.length) {
+      li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` },
+        card.tags.map((t) => el('span', { class: 'solring-tag', text: t })))));
+    }
+
+    // 4) Detail (stats + combos) — full-width sub-line below the tags; restore state.
+    if (wantsDetail) {
+      li.append(span(statsDetail(card, prefs)));
+      if (open.has(name)) li.classList.add('solring-stats-open');
+    }
   });
 }
 
@@ -119,6 +126,7 @@ export function clearAnnotations(root = document) {
   root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell')
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-stats-open').forEach((n) => n.classList.remove('solring-stats-open'));
+  root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
 }
 
 /** Expand/collapse every per-card stats panel at once. */

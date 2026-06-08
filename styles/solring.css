@@ -126,9 +126,15 @@
   padding-left: 0.5rem; white-space: nowrap;
 }
 .solring-salt-cell.solring-salt-high { color: var(--solring-accent); font-weight: 600; }
-/* Own line below the title, but only as wide as the tags (left-packed, wraps if
-   many) — not stretched across the whole column. */
-.solring-tags { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0.25rem; margin-top: 0.15rem; }
+/* Annotated rows wrap so our sub-lines can sit below the columns. */
+.solring-row { flex-wrap: wrap; }
+/* Tags + detail are full-width sub-lines spanning name-column → row end; the
+   inline padding-left (set in JS = quantity-column width) starts them under the
+   title. Pills are left-packed and wrap, not stretched across the width. */
+.solring-tags {
+  flex: 0 0 100%; box-sizing: border-box;
+  display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0.25rem; margin-top: 0.15rem;
+}
 .solring-tag {
   font-size: 0.68rem; line-height: 1.45; padding: 0.02rem 0.35rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
@@ -140,10 +146,10 @@
 .solring-stats-toggle::before { content: '▸'; }
 .solring-stats-open .solring-stats-toggle::before { content: '▾'; }
 .solring-card-detail {
-  display: none; flex-basis: 100%; width: 100%; margin: 0.15rem 0 0.3rem;
+  display: none; box-sizing: border-box; margin: 0.15rem 0 0.3rem;
   font-size: 0.74rem; color: var(--solring-text-2);
 }
-.solring-stats-open .solring-card-detail { display: block; }
+.solring-stats-open .solring-card-detail { display: block; flex: 0 0 100%; }
 .solring-detail-line { margin: 0.1rem 0; }
 .solring-detail-line b { color: var(--solring-text); font-weight: 600; }
 .solring-flags { display: inline-flex; gap: 0.25rem; flex-wrap: wrap; }
