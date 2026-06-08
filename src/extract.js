@@ -135,6 +135,8 @@ export function extractDeck(p) {
     wincons: p.comboRating,
     synergy: p.synergyRating,
     archetype: p.archetypeLabel,
+    combosCount: (g(p, 'details', 'combos', 'list') || []).length, // # of deck combos (Commander Spellbook)
+    combosScore: g(p, 'details', 'combos', 'score'),
     isPrivate: p.isPrivate,
     isIllegal: p.isIllegal,
     cards: extractCards(p),

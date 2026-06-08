@@ -137,9 +137,13 @@ function renderBody(body, f) {
     tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' })),
   ]);
 
-  // Row 2: the report-card grades.
-  const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
-    GRADES.map(([label, key, field]) => gradeTile(label, key, field)));
+  // Row 2: the report-card grades + a Combos count (5th tile, keeps both rows at 5).
+  const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' }, [
+    ...GRADES.map(([label, key, field]) => gradeTile(label, key, field)),
+    tile('Combos',
+      el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
+      f.combosCount ? 'via Spellbook' : null),
+  ]);
 
   body.append(mainTiles, gradeTiles);
 }
