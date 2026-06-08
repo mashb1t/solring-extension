@@ -51,13 +51,15 @@ export function annotate(fields, prefs) {
 
     if (prefs.stats) {
       const detail = statsDetail(card);
+      // Arrow is drawn via CSS (::before) keyed off .solring-stats-open, so the
+      // click only flips a class (an attribute change) — never a childList
+      // mutation that would wake the decklist observer and rebuild the row.
       const toggle = el('button', {
-        class: 'solring-stats-toggle', text: '▸', attrs: { type: 'button', 'aria-label': 'Toggle card stats' },
+        class: 'solring-stats-toggle', attrs: { type: 'button', 'aria-label': 'Toggle card stats' },
       });
       toggle.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
-        const open = li.classList.toggle('solring-stats-open');
-        toggle.textContent = open ? '▾' : '▸';
+        li.classList.toggle('solring-stats-open');
       });
       nameCell.append(el('span', { class: `solring-card-anno${dark ? ' solring-dark' : ''}` }, [toggle]));
       nameCell.append(detail);
@@ -87,11 +89,9 @@ export function clearAnnotations(root = document) {
 
 /** Expand/collapse every per-card stats panel at once. */
 export function toggleAllStats(open) {
-  document.querySelectorAll(`${ROW_SEL}`).forEach((link) => {
+  document.querySelectorAll(ROW_SEL).forEach((link) => {
     const li = link.closest('li');
     if (!li || !li.querySelector('.solring-card-detail')) return;
     li.classList.toggle('solring-stats-open', open);
-    const t = li.querySelector('.solring-stats-toggle');
-    if (t) t.textContent = open ? '▾' : '▸';
   });
 }

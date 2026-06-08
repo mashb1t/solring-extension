@@ -121,8 +121,10 @@
 }
 .solring-stats-toggle {
   border: 0; background: transparent; color: var(--solring-text-2);
-  cursor: pointer; padding: 0 0.35rem 0 0; font-size: 0.8rem;
+  cursor: pointer; padding: 0 0.35rem 0 0; font-size: 0.8rem; line-height: 1;
 }
+.solring-stats-toggle::before { content: '▸'; }
+.solring-stats-open .solring-stats-toggle::before { content: '▾'; }
 .solring-card-detail {
   display: none; flex-basis: 100%; width: 100%; margin: 0.15rem 0 0.3rem;
   font-size: 0.74rem; color: var(--solring-text-2);

@@ -48,13 +48,30 @@ async function reannotate() {
   refreshStatsToggleAll(prefs);
 }
 
+// Is this node one the extension injected? (so the observer ignores our own churn)
+function isOurNode(n) {
+  if (!n || n.nodeType !== 1) return false;
+  const cls = typeof n.className === 'string' ? n.className : '';
+  if (cls.includes('solring')) return true;
+  return !!(n.closest && n.closest('[data-solring-root], .solring-card-anno, .solring-tags, .solring-salt-cell, .solring-card-detail, .solring-stats-toggle'));
+}
+
+// Only Moxfield re-rendering real rows should trigger a re-annotate — never our
+// own annotation/toggle mutations (which would wipe an expanded card instantly).
+function mutationsAreRelevant(mutations) {
+  return mutations.some((m) => {
+    if (m.type !== 'childList' || isOurNode(m.target)) return false;
+    return [...m.addedNodes, ...m.removedNodes].some((n) => n.nodeType === 1 && !isOurNode(n));
+  });
+}
+
 function observeDecklist() {
   dvRef = document.querySelector('section.deckview');
   if (!dvRef) return;
   if (!deckObserver) {
     let raf = null;
-    deckObserver = new MutationObserver(() => {
-      if (raf) return;
+    deckObserver = new MutationObserver((mutations) => {
+      if (!mutationsAreRelevant(mutations) || raf) return;
       raf = requestAnimationFrame(() => { raf = null; reannotate(); });
     });
   } else {
