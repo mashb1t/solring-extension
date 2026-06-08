@@ -49,6 +49,9 @@ test('extractDeck enriches cards with bracket flags + power/salt breakdowns', ()
   assert.ok(jw.saltBreakdown.length > 0);
   assert.ok(!jw.saltBreakdown.some((x) => x.cat === 'cardPrice'), 'cardPrice excluded from salt');
   assert.ok(jw.power.every((x) => typeof x.score === 'number'));
+  // powerTotal = sum across every (deduped) category, so it's at least the top contributor.
+  assert.equal(typeof jw.powerTotal, 'number');
+  assert.ok(jw.powerTotal >= Math.max(...jw.power.map((x) => x.score)), `powerTotal ${jw.powerTotal}`);
 });
 
 test('extractDeck shapes the deck combo list for display', () => {

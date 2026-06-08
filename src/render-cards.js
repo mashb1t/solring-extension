@@ -38,7 +38,8 @@ function statsDetail(card, prefs) {
         card.flags.map((f) => el('span', { class: 'solring-flag', text: f })))));
     }
     if (card.power && card.power.length) {
-      rows.push(detailLine('Power:', document.createTextNode(scoreText(card.power))));
+      const total = typeof card.powerTotal === 'number' ? card.powerTotal.toFixed(1) : '';
+      rows.push(detailLine('Power:', document.createTextNode(`${total}  (${scoreText(card.power)})`)));
     }
     if (card.saltBreakdown && card.saltBreakdown.length) {
       rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));

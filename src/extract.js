@@ -67,6 +67,11 @@ function cardStats(details, id) {
     const base = cat.replace(/^wincon_/, '');
     byBase.set(base, Math.max(byBase.get(base) || 0, score));
   }
+  // Total power contribution = the sum across every (deduped) category; the
+  // displayed `power` keeps only the top contributors.
+  let powerTotal = 0;
+  for (const v of byBase.values()) powerTotal += v;
+  powerTotal = Math.round(powerTotal * 10) / 10;
   const power = [...byBase.entries()].map(([cat, score]) => ({ cat, score }))
     .sort((a, b) => b.score - a.score).slice(0, 4);
 
@@ -78,6 +83,7 @@ function cardStats(details, id) {
   return {
     flags,
     power,
+    powerTotal,
     saltBreakdown,
     combos: cardCombos(g(details, 'synergy'), id),
   };
@@ -98,7 +104,7 @@ function countDeckCombos(comboList, c) {
   )).length;
 }
 
-/** Per-card map keyed by normalized card name → { salt, tags, total, flags, power, saltBreakdown, combos, deckCombos }. */
+/** Per-card map keyed by normalized card name → { salt, tags, total, flags, power, powerTotal, saltBreakdown, combos, deckCombos }. */
 function extractCards(p) {
   const out = {};
   const cards = p.cards || {};
