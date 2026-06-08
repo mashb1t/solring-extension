@@ -3,12 +3,11 @@
    always paired with a letter/label. Light + dark via [data-bs-theme]. */
 
 :root {
-  --solring-rating-a: #1a7f37;
-  --solring-rating-b: #4f9d2b;
+  /* Grades run A–D (high = bad): A worst → red, D best → green. */
+  --solring-rating-a: #b00020;
+  --solring-rating-b: #d2691e;
   --solring-rating-c: #b8860b;
-  --solring-rating-d: #d2691e;
-  --solring-rating-e: #c1440e;
-  --solring-rating-f: #b00020;
+  --solring-rating-d: #1a7f37;
   --solring-accent: #ff6600;
   --solring-surface: #ffffff;
   --solring-surface-2: #f6f7f8;
@@ -17,12 +16,10 @@
   --solring-text-2: #6b7280;
 }
 [data-bs-theme='dark'], .solring-dark {
-  --solring-rating-a: #3fb950;
-  --solring-rating-b: #7ee787;
+  --solring-rating-a: #ff6b6b;
+  --solring-rating-b: #f0883e;
   --solring-rating-c: #e3b341;
-  --solring-rating-d: #f0883e;
-  --solring-rating-e: #ff7b55;
-  --solring-rating-f: #ff6b6b;
+  --solring-rating-d: #3fb950;
   --solring-surface: #1c2128;
   --solring-surface-2: #22272e;
   --solring-border: #373e47;
@@ -34,8 +31,6 @@
 .solring-tier-b { color: var(--solring-rating-b); }
 .solring-tier-c { color: var(--solring-rating-c); }
 .solring-tier-d { color: var(--solring-rating-d); }
-.solring-tier-e { color: var(--solring-rating-e); }
-.solring-tier-f { color: var(--solring-rating-f); }
 
 /* ---- deck-page report-card panel ---- */
 .solring-panel {
@@ -92,7 +87,7 @@
 .solring-tile-sub { font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.15rem; }
 .solring-num { font-variant-numeric: tabular-nums; }
 .solring-bracket-arrow { font-size: 0.8em; }
-.solring-bracket-up { color: var(--solring-rating-f); }   /* red — plays above its baseline */
+.solring-bracket-up { color: var(--solring-rating-a); }   /* red — plays above its baseline */
 .solring-bracket-down { color: var(--solring-text-2); }   /* grey — plays below its baseline */
 .solring-grade-tiles { margin-top: 0; }
 
@@ -183,8 +178,6 @@
 .solring-grade[data-tier='b'] { color: var(--solring-rating-b); }
 .solring-grade[data-tier='c'] { color: var(--solring-rating-c); }
 .solring-grade[data-tier='d'] { color: var(--solring-rating-d); }
-.solring-grade[data-tier='e'] { color: var(--solring-rating-e); }
-.solring-grade[data-tier='f'] { color: var(--solring-rating-f); }
 
 .solring-msg { color: var(--solring-text-2); padding: 0.25rem 0 0.6rem; }
 .solring-btn {

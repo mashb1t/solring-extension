@@ -47,11 +47,11 @@ export function isDark() {
   return false;
 }
 
-// CommanderSalt grades run A–D only (no E/F), and HIGH is bad — so the color
-// scale is inverted vs a school report card: A → red, B → orange, C → gold,
-// D → green.
+// CommanderSalt grades run A–D only (no E/F), HIGH is bad. The color tier is
+// just the grade letter (a–d); CSS colors a=red (worst) … d=green (best).
 export function tierFromGrade(grade) {
-  return ({ A: 'f', B: 'd', C: 'c', D: 'a' })[(grade.trim()[0] || '').toUpperCase()] || 'c';
+  const letter = (grade.trim()[0] || '').toLowerCase();
+  return ['a', 'b', 'c', 'd'].includes(letter) ? letter : 'c';
 }
 
 /** Run fn, swallowing+logging any error so Moxfield's page is never broken. */
