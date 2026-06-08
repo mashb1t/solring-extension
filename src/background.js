@@ -13,8 +13,8 @@ async function fetchAndCacheDeck(md5) {
     const raw = await getDeckById(md5);
     if (isStub(raw)) return { stub: true };
     const fields = extractDeck(raw);
-    await setEntry(key, fields);
-    return { fields };
+    const entry = await setEntry(key, fields);
+    return { fields, fetchedAt: entry.fetchedAt };
   });
 }
 
@@ -22,9 +22,9 @@ async function getDeck({ md5, force }) {
   const key = `deck:${md5}`;
   if (!force) {
     const entry = await getEntry(key);
-    if (entry) return { fields: entry.data, cached: true }; // instant; caller revalidates with force
+    if (entry) return { fields: entry.data, cached: true, fetchedAt: entry.fetchedAt };
   }
-  return fetchAndCacheDeck(md5); // fetch fresh + cache (deck analysis can change anytime)
+  return fetchAndCacheDeck(md5); // fetch fresh + cache
 }
 
 async function getUserDecks({ username, cursor }) {

@@ -12,7 +12,9 @@ export async function getEntry(key) {
 }
 
 export async function setEntry(key, data) {
-  await chrome.storage.local.set({ [key]: { fetchedAt: Date.now(), data } });
+  const entry = { fetchedAt: Date.now(), data };
+  await chrome.storage.local.set({ [key]: entry });
+  return entry;
 }
 
 export function isFresh(entry, ttl = TTL_MS) {

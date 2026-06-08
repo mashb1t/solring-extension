@@ -181,10 +181,16 @@ export async function mount({ waitFor }) {
 
   const body = el('div', { class: 'solring-panel-body' });
   const chevron = el('span', { class: 'solring-chevron', text: '▸' });
-  const titleBar = el('button', {
-    class: 'solring-panel-bar',
-    attrs: { type: 'button', 'aria-expanded': 'false' },
-  }, [el('span', { class: 'solring-wordmark', text: 'CommanderSalt' }), chevron]);
+  const synced = el('span', { class: 'solring-synced' });
+  const refreshBtn = el('button', {
+    class: 'solring-refresh', text: '↻',
+    attrs: { type: 'button', 'aria-label': 'Refresh from CommanderSalt', title: 'Refresh from CommanderSalt' },
+  });
+  // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
+  const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
+    el('span', { class: 'solring-wordmark', text: 'CommanderSalt' }),
+    el('span', { class: 'solring-bar-right' }, [synced, refreshBtn, chevron]),
+  ]);
 
   const panel = el('div', { class: `solring-panel${isDark() ? ' solring-dark' : ''}` }, [titleBar, body]);
   // Wrap in a Bootstrap .container so the panel aligns with the deck body width.
@@ -195,7 +201,32 @@ export async function mount({ waitFor }) {
     titleBar.setAttribute('aria-expanded', String(open));
     chevron.textContent = open ? '▾' : '▸';
   }
-  titleBar.addEventListener('click', () => setOpen(!panel.classList.contains('solring-open')));
+  const toggle = () => setOpen(!panel.classList.contains('solring-open'));
+  titleBar.addEventListener('click', toggle);
+  titleBar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  refreshBtn.addEventListener('click', (e) => { e.stopPropagation(); doRefresh(); });
+
+  function relTime(ts) {
+    if (!ts) return '';
+    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return 'just now';
+    const m = Math.round(s / 60);
+    if (m < 60) return `${m} min ago`;
+    const h = Math.round(m / 60);
+    return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
+  }
+  function setSynced(ts) {
+    synced.textContent = ts ? `synced ${relTime(ts)}` : '';
+    synced.title = ts ? new Date(ts).toLocaleString() : '';
+  }
+  async function doRefresh() {
+    refreshBtn.classList.add('solring-spin');
+    refreshBtn.disabled = true;
+    const fresh = await guardAsync(() => getDeck(md5, true));
+    refreshBtn.classList.remove('solring-spin');
+    refreshBtn.disabled = false;
+    if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
+  }
 
   // insert just above the Primer/Playtest toolbar (the orange slot)
   parent.insertBefore(wrap, anchor);
@@ -218,6 +249,7 @@ export async function mount({ waitFor }) {
     setOpen(true);
     return;
   }
+  const SOFT_TTL_MS = 10 * 60 * 1000; // trust cache within 10 min; auto-revalidate when older
   let shown = null;
   function showFields(f) {
     if (f.isPrivate || f.isIllegal) {
@@ -238,14 +270,17 @@ export async function mount({ waitFor }) {
   // by a foreground revalidation that re-renders only if the values changed.
   async function revalidate() {
     const fresh = await guardAsync(() => getDeck(md5, true));
-    if (fresh && fresh.fields && JSON.stringify(fresh.fields) !== JSON.stringify(shown)) {
-      showFields(fresh.fields);
+    if (fresh && fresh.fields) {
+      if (JSON.stringify(fresh.fields) !== JSON.stringify(shown)) showFields(fresh.fields);
+      setSynced(fresh.fetchedAt || Date.now());
     }
   }
 
   if (res.fields) {
     showFields(res.fields);
-    if (res.cached) revalidate();
+    setSynced(res.fetchedAt);
+    const stale = !res.fetchedAt || (Date.now() - res.fetchedAt) > SOFT_TTL_MS;
+    if (res.cached && stale) revalidate(); // soft-TTL auto-refresh; otherwise trust cache
     return;
   }
   // stub / un-indexed → closed; expand to Analyze

@@ -54,6 +54,18 @@
   color: var(--solring-text); font-weight: 600;
 }
 .solring-panel-bar:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
+.solring-bar-right { display: inline-flex; align-items: center; gap: 0.6rem; }
+.solring-synced { font-size: 0.7rem; font-weight: 400; color: var(--solring-text-2); }
+.solring-refresh {
+  border: 0; background: transparent; color: var(--solring-text-2);
+  cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.15rem; border-radius: 4px;
+}
+.solring-refresh:hover { color: var(--solring-text); }
+.solring-refresh:disabled { opacity: 0.5; cursor: default; }
+.solring-refresh:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+.solring-refresh.solring-spin { animation: solring-spin 0.8s linear infinite; }
+@keyframes solring-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .solring-refresh.solring-spin { animation: none; } }
 .solring-wordmark { letter-spacing: 0.01em; }
 .solring-wordmark::before {
   content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px;
