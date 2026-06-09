@@ -116,6 +116,15 @@ function viewFor(entry) {
   return mergeView(entry.hit, fullByMd5.get(entry.md5) || null);
 }
 
+// A deck row belongs to THIS list only if it lives in the main content column
+// (.flex-grow-1). Moxfield's sidebar widgets ("Most Recent Deck" / "Favorite
+// Decks" / …) are deck links too, but they aren't the user's listed decks — so
+// columns, averages, and bulk sync must all ignore them. Mirrors reconcileColumns'
+// table-level predicate, and is re-checked live at read time because Moxfield
+// briefly reparents a sidebar table THROUGH .flex-grow-1 (see sweepStrayCols),
+// which can otherwise leave a stale sidebar entry in rowEntries.
+const inMainList = (row) => !!(row && row.isConnected && row.closest('.flex-grow-1'));
+
 /** Subscribe to deck-list changes (initial load, per-row expand, bulk sync).
     Returns an unsubscribe fn. Used by the profile averages + sync surfaces. */
 export function onDeckListChange(cb) {
@@ -132,6 +141,7 @@ export function getViews() {
   const seen = new Set();
   const out = [];
   for (const e of rowEntries) {
+    if (!inMainList(e.row)) continue; // skip sidebar widgets (and reparented rows)
     if (seen.has(e.md5)) continue;
     seen.add(e.md5);
     out.push(viewFor(e));
@@ -143,6 +153,7 @@ export function getEntries() {
   const seen = new Set();
   const out = [];
   for (const e of rowEntries) {
+    if (!inMainList(e.row)) continue; // skip sidebar widgets (and reparented rows)
     if (seen.has(e.md5)) continue;
     seen.add(e.md5);
     out.push(e);
@@ -197,9 +208,9 @@ function deckRows() {
   const rows = [];
   for (const a of document.querySelectorAll('a[href*="/decks/"]')) {
     if (!isDeckLink(a)) continue;
-    const publicId = parseDeckId(a.href);
     const row = rowOf(a);
-    if (!row || seen.has(row)) continue;
+    if (!row || seen.has(row) || !inMainList(row)) continue; // main list only — not sidebar widgets
+    const publicId = parseDeckId(a.href);
     seen.add(row);
     rows.push({ row, publicId, link: a });
   }
