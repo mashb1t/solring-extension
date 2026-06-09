@@ -5,6 +5,6 @@ export function send(msg) {
   return chrome.runtime.sendMessage(msg);
 }
 
-export const getDeck = (md5, force = false) => send({ type: 'getDeck', md5, force });
+export const getDeck = (md5, opts = {}) => send({ type: 'getDeck', md5, ...opts });
 export const getUserDecks = (username, cursor) => send({ type: 'getUserDecks', username, cursor });
 export const importDeck = (canonicalUrl, md5, oldDeckId) => send({ type: 'importDeck', canonicalUrl, md5, oldDeckId });

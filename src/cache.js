@@ -21,6 +21,28 @@ export function isFresh(entry, ttl = TTL_MS) {
   return !!entry && Date.now() - entry.fetchedAt < ttl;
 }
 
+// Cached analyses only — deck:* and search:* entries (not prefs:* / sync:*).
+function isCacheKey(k) {
+  return k.startsWith('deck:') || k.startsWith('search:');
+}
+
+/** Total storage footprint of cached analyses → { bytes, count }. */
+export async function cachedBytes() {
+  const all = await chrome.storage.local.get(null);
+  const keys = Object.keys(all).filter(isCacheKey);
+  if (!keys.length) return { bytes: 0, count: 0 };
+  const bytes = await chrome.storage.local.getBytesInUse(keys);
+  return { bytes, count: keys.length };
+}
+
+/** Remove all cached analyses (keeps prefs + per-user sync timestamps). */
+export async function clearCached() {
+  const all = await chrome.storage.local.get(null);
+  const keys = Object.keys(all).filter(isCacheKey);
+  if (keys.length) await chrome.storage.local.remove(keys);
+  return { cleared: keys.length };
+}
+
 /** Share one Promise for concurrent requests of the same key. */
 export function dedupe(key, fn) {
   if (inFlight.has(key)) return inFlight.get(key);

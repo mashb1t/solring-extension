@@ -18,13 +18,17 @@ async function fetchAndCacheDeck(md5) {
   });
 }
 
-async function getDeck({ md5, force }) {
+// allowFetch=false → cache-only (returns {miss:true} on a cold miss). maxAgeMs>0 →
+// entries older than that count as stale: re-GET when allowFetch, else returned with
+// {stale:true}. Defaults preserve the old behavior (cache-or-GET).
+async function getDeck({ md5, allowFetch = true, maxAgeMs = 0 }) {
   const key = `deck:${md5}`;
-  if (!force) {
-    const entry = await getEntry(key);
-    if (entry) return { fields: entry.data, cached: true, fetchedAt: entry.fetchedAt };
-  }
-  return fetchAndCacheDeck(md5); // fetch fresh + cache
+  const entry = await getEntry(key);
+  const fresh = entry && (!maxAgeMs || Date.now() - entry.fetchedAt < maxAgeMs);
+  if (entry && fresh) return { fields: entry.data, cached: true, fetchedAt: entry.fetchedAt };
+  if (allowFetch) return fetchAndCacheDeck(md5); // cold miss or stale → GET + cache
+  if (entry) return { fields: entry.data, cached: true, stale: true, fetchedAt: entry.fetchedAt };
+  return { miss: true };
 }
 
 async function getUserDecks({ username, cursor }) {
