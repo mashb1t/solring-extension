@@ -83,15 +83,17 @@ export function annotate(fields, prefs) {
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
 
-    // 1) Power + Salt value — columns on the first line (before the wrapping rows),
-    // power to the left of salt. Placed just before the collection toggle
-    // (a[id^="collection_"], logged-in); if absent, before the row's control icon
-    // (the fa-stack dropdown); else appended at the row end. Standouts
-    // (salt >=5 / power >2× avg) are flagged in the accent color.
+    // 1) Power + Salt value — columns on the first line (power left of salt). Placed
+    // right after the price column (the cell carrying the currency text) so they sit
+    // after the price and before the set symbol. Fallbacks when there's no price cell
+    // (prices hidden / logged out): before the collection toggle, then the control
+    // icon, else append. Standouts (salt >=5 / power >2× avg) flagged in the accent.
     const flag = (on) => (on ? ' solring-card-flag' : '');
     const columnOf = (node) => { let n = node; while (n && n.parentElement !== li) n = n.parentElement; return n; };
-    const beforeEl = li.querySelector('a[id^="collection_"]') || li.querySelector('a.fa-stack');
-    const anchorCol = beforeEl ? columnOf(beforeEl) : null;
+    const priceCol = [...li.children].find((c) => /[€$£¥]/.test(c.textContent || ''));
+    const anchorCol = priceCol
+      ? priceCol.nextElementSibling // after price → before the set symbol
+      : columnOf(li.querySelector('a[id^="collection_"]') || li.querySelector('a.fa-stack'));
     const place = (node) => (anchorCol ? li.insertBefore(node, anchorCol) : li.append(node));
     if (prefs.power && typeof card.powerTotal === 'number') {
       place(el('span', {
