@@ -85,19 +85,18 @@ export function annotate(fields, prefs) {
 
     // 1) Power + Salt value — trailing columns that stay on the first line (before
     // the wrapping rows). Power sits to the left of salt (it is appended first).
-    // Red flag classes carry solring-dark in dark mode so --solring-rating-a
-    // resolves to its bright variant (these cells sit outside any .solring-dark root).
-    const redFlag = (on) => (on ? ` solring-card-red${dark ? ' solring-dark' : ''}` : '');
+    // Standouts (salt >=5 / power >2× avg) are flagged in the accent color.
+    const flag = (on) => (on ? ' solring-card-flag' : '');
     if (prefs.power && typeof card.powerTotal === 'number') {
       li.append(el('span', {
-        class: `solring-power-cell text-end solring-card-anno${redFlag(powerTier(card.powerTotal, avgPower) === 'a')}`,
+        class: `solring-power-cell text-end solring-card-anno${flag(powerTier(card.powerTotal, avgPower) === 'a')}`,
         text: card.powerTotal.toFixed(1),
         title: 'CommanderSalt power contribution',
       }));
     }
     if (prefs.saltValue && typeof card.salt === 'number') {
       li.append(el('span', {
-        class: `solring-salt-cell text-end solring-card-anno${redFlag(saltTier(card.salt) === 'a')}`,
+        class: `solring-salt-cell text-end solring-card-anno${flag(saltTier(card.salt) === 'a')}`,
         text: card.salt.toFixed(1),
         title: 'CommanderSalt saltiness',
       }));
