@@ -324,6 +324,21 @@
 .solring-col-scan .solring-num { opacity: 0.45; }
 .solring-col-scan:hover .solring-num { opacity: 1; color: var(--solring-accent); }
 
+/* "Stats columns" toggle dropdown injected into the deck-list toolbar. */
+.solring-colmenu { position: relative; display: inline-block; }
+.solring-colmenu-caret { font-size: 0.7em; }
+.solring-colmenu-panel {
+  position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 2147483000;
+  background: var(--solring-surface); color: var(--solring-text);
+  border: 1px solid var(--solring-border); border-radius: 6px; padding: 0.35rem;
+  min-width: 12rem; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
+}
+.solring-colmenu-item {
+  display: flex; align-items: center; gap: 0.45rem; margin: 0;
+  padding: 0.22rem 0.35rem; font-size: 0.8rem; white-space: nowrap; cursor: pointer;
+}
+.solring-colmenu-item:hover { background: var(--solring-surface-2); border-radius: 4px; }
+
 /* compact inline "label · bar · value" — shared by the profile averages (T18) */
 .solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }
 .solring-mini-label { font-size: 0.64rem; color: var(--solring-text-2); }

@@ -20,7 +20,7 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { parseDeckId } from './moxfield.js';
 import { getUserDecks, getDeck } from './messaging.js';
 import { csRatingGrade } from './ratings.js';
-import { getListColumns, onPrefChange } from './prefs.js';
+import { getListColumns, setListColumns, onPrefChange } from './prefs.js';
 import { el, guard } from './dom.js';
 import { gradeChip, bracketValue } from './components.js';
 
@@ -283,6 +283,66 @@ function reconcileColumns() {
   }
 }
 
+// ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
+
+const COLUMN_NAMES = {
+  power: 'Power', bracket: 'Bracket', salt: 'Saltiness', synergy: 'Synergy',
+  threat: 'Threat', interaction: 'Interaction', wincons: 'Wincons',
+  tier: 'Commander tier', combos: 'Combos', archetype: 'Archetype',
+};
+
+let outsideCloseInstalled = false;
+function installOutsideClose() {
+  if (outsideCloseInstalled) return;
+  outsideCloseInstalled = true;
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.solring-colmenu').forEach((wrap) => {
+      if (!wrap.contains(e.target)) {
+        const p = wrap.querySelector('.solring-colmenu-panel');
+        if (p) p.setAttribute('hidden', '');
+      }
+    });
+  });
+}
+
+// A dropdown of per-metric checkboxes, persisted to prefs:listColumns (which fires
+// onPrefChange('listColumns') → reconcileColumns). Mirrors the deck page's Customize
+// View, but as our own control since the list toolbar exposes no extra-data group.
+function buildColumnMenu() {
+  const wrap = el('div', { class: 'solring-colmenu', attrs: { 'data-solring-root': '' } });
+  const panel = el('div', { class: 'solring-colmenu-panel', attrs: { hidden: '' } });
+  const btn = el('button', {
+    class: 'btn btn-sm btn-outline-primary text-nowrap solring-colmenu-btn',
+    attrs: { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
+  }, ['Stats ', el('span', { class: 'solring-colmenu-caret', text: '▾' })]);
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const open = panel.hasAttribute('hidden');
+    panel.toggleAttribute('hidden', !open);
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  for (const c of COLUMNS) {
+    const input = el('input', { class: 'form-check-input', attrs: { type: 'checkbox', id: `solring-colpref-${c.key}` } });
+    input.checked = !!listColumns[c.key];
+    input.addEventListener('change', () => setListColumns({ [c.key]: input.checked }));
+    panel.append(el('label', { class: 'solring-colmenu-item', attrs: { for: `solring-colpref-${c.key}` } }, [
+      input, el('span', { text: COLUMN_NAMES[c.key] || c.key }),
+    ]));
+  }
+  wrap.append(btn, panel);
+  return wrap;
+}
+
+// Inject the menu into the deck-list toolbar (next to Moxfield's native Sort), once
+// per toolbar; re-injected by annotate when React rebuilds the toolbar.
+function ensureToolbarMenu() {
+  const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()));
+  const toolbar = sortBtn && sortBtn.parentElement;
+  if (!toolbar || toolbar.querySelector(':scope > .solring-colmenu')) return;
+  toolbar.insertBefore(buildColumnMenu(), sortBtn);
+}
+
 // ---- DOM: annotate rows ------------------------------------------------------
 
 // Fetch a deck's full payload into the shared md5 cache, then re-render every row
@@ -336,6 +396,7 @@ function annotate() {
   }
   rowEntries = next;
   reconcileColumns(); // add/refresh/heal our columns across all deck tables
+  ensureToolbarMenu(); // (re)inject the Stats-columns toggle into the toolbar
   emitChange();
 }
 
@@ -355,6 +416,7 @@ function scheduleAnnotate() {
 export async function installDeckList(username, { waitFor } = {}) {
   if (!username) return;
   listColumns = await getListColumns();
+  installOutsideClose();
   if (!prefSubscribed) {
     prefSubscribed = true;
     onPrefChange(async (which) => {
@@ -389,7 +451,7 @@ export async function installDeckList(username, { waitFor } = {}) {
     them — we remove them here. */
 export function teardownDeckList() {
   if (listObserver) { listObserver.disconnect(); listObserver = null; }
-  document.querySelectorAll('.solring-col').forEach((n) => n.remove());
+  document.querySelectorAll('.solring-col, .solring-colmenu').forEach((n) => n.remove());
   rowEntries = [];
   rowMap = new WeakMap();
   hitMap = new Map();
