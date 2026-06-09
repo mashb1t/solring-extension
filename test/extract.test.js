@@ -76,6 +76,10 @@ test('extractDeck attaches synergy combos (anchors) to cards that have them', ()
   const withCombos = Object.values(d.cards).filter((c) => c.combos && c.combos.total > 0);
   assert.ok(withCombos.length > 0, 'expected at least one card with synergy combos');
   assert.ok(Array.isArray(withCombos[0].combos.anchors));
+  // effect texts (the parsed synergistic clauses) are surfaced, and total counts them
+  const fx = withCombos[0].combos.effects;
+  assert.ok(Array.isArray(fx) && fx.length === withCombos[0].combos.total);
+  assert.ok(fx.every((t) => typeof t === 'string' && t.length));
 });
 
 test('power breakdown de-duplicates wincon_X into X (no doubles)', () => {

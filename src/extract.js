@@ -30,26 +30,27 @@ function titleCase(id) {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-// CommanderSalt synergy ("Outgoing Impact"): what a card enables, and the anchor
-// cards its effects feed. synergy.list[id] is keyed by effect type (abilities /
-// triggers / statics / …), each a map of effects with cardsOfSupportingType.
+// CommanderSalt synergy ("Outgoing Impact"): the card's synergistic clauses and the
+// anchor cards they feed. synergy.list[id] is keyed by effect type (abilities /
+// triggers / statics / …), each a map of effects with a rules-text `text` and the
+// `cardsOfSupportingType` it supports. We surface the effect texts and the anchors.
 function cardCombos(synergy, id) {
   const node = g(synergy, 'list', id);
   if (!node || typeof node !== 'object') return null;
   const anchors = new Set();
-  let total = 0;
-  for (const effects of Object.values(node)) {
-    if (!effects || typeof effects !== 'object') continue;
-    for (const eff of Object.values(effects)) {
+  const effects = [];
+  for (const group of Object.values(node)) {
+    if (!group || typeof group !== 'object') continue;
+    for (const eff of Object.values(group)) {
       if (!eff || typeof eff !== 'object') continue;
-      total += 1;
+      if (typeof eff.text === 'string' && eff.text.trim()) effects.push(eff.text.trim());
       for (const s of eff.cardsOfSupportingType || []) {
         if (s && s.id) anchors.add(s.id);
       }
     }
   }
-  if (!total || anchors.size === 0) return null;
-  return { total, anchors: [...anchors].slice(0, 8).map(titleCase) };
+  if (!effects.length || anchors.size === 0) return null;
+  return { total: effects.length, anchors: [...anchors].slice(0, 8).map(titleCase), effects };
 }
 
 // Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.

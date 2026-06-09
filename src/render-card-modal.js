@@ -123,14 +123,19 @@ function buildBody(card, stats) {
   if (card.saltBreakdown && card.saltBreakdown.length) body.append(bars('Salt breakdown', card.saltBreakdown));
 
   const anchors = (card.combos && card.combos.anchors) || [];
-  const effects = (card.combos && card.combos.total) || 0;
-  if (anchors.length || card.deckCombos || effects) {
+  const effects = (card.combos && card.combos.effects) || [];
+  if (anchors.length || card.deckCombos || effects.length) {
     const kids = [];
+    // The card's synergistic clauses (CommanderSalt "outgoing impact"), then the
+    // anchor cards they feed, then its Commander Spellbook combo count.
+    if (effects.length) {
+      kids.push(el('ul', { class: 'solring-cm-effects' },
+        effects.map((t) => el('li', { text: t.charAt(0).toUpperCase() + t.slice(1) }))));
+    }
     if (anchors.length) kids.push(chips(anchors, 'solring-tag'));
-    const sub = [];
-    if (card.deckCombos) sub.push(`${card.deckCombos} combo${card.deckCombos === 1 ? '' : 's'} in this deck`);
-    if (effects) sub.push(`${effects} synergy effect${effects === 1 ? '' : 's'}`);
-    if (sub.length) kids.push(el('div', { class: 'solring-cm-note', text: sub.join(' · ') }));
+    if (card.deckCombos) {
+      kids.push(el('div', { class: 'solring-cm-note', text: `${card.deckCombos} combo${card.deckCombos === 1 ? '' : 's'} in this deck` }));
+    }
     body.append(sectionBlock('Synergy', kids));
   }
   return body;
