@@ -83,19 +83,25 @@ export function annotate(fields, prefs) {
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
 
-    // 1) Power + Salt value — trailing columns that stay on the first line (before
-    // the wrapping rows). Power sits to the left of salt (it is appended first).
-    // Standouts (salt >=5 / power >2× avg) are flagged in the accent color.
+    // 1) Power + Salt value — columns on the first line (before the wrapping rows),
+    // power to the left of salt. Placed just before the collection toggle
+    // (a[id^="collection_"], logged-in); if absent, before the row's control icon
+    // (the fa-stack dropdown); else appended at the row end. Standouts
+    // (salt >=5 / power >2× avg) are flagged in the accent color.
     const flag = (on) => (on ? ' solring-card-flag' : '');
+    const columnOf = (node) => { let n = node; while (n && n.parentElement !== li) n = n.parentElement; return n; };
+    const beforeEl = li.querySelector('a[id^="collection_"]') || li.querySelector('a.fa-stack');
+    const anchorCol = beforeEl ? columnOf(beforeEl) : null;
+    const place = (node) => (anchorCol ? li.insertBefore(node, anchorCol) : li.append(node));
     if (prefs.power && typeof card.powerTotal === 'number') {
-      li.append(el('span', {
+      place(el('span', {
         class: `solring-power-cell text-end solring-card-anno${flag(powerTier(card.powerTotal, avgPower) === 'a')}`,
         text: card.powerTotal.toFixed(1),
         title: 'CommanderSalt power contribution',
       }));
     }
     if (prefs.saltValue && typeof card.salt === 'number') {
-      li.append(el('span', {
+      place(el('span', {
         class: `solring-salt-cell text-end solring-card-anno${flag(saltTier(card.salt) === 'a')}`,
         text: card.salt.toFixed(1),
         title: 'CommanderSalt saltiness',
