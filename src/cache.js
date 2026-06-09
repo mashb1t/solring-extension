@@ -11,9 +11,36 @@ export async function getEntry(key) {
   return obj[key] || null; // { fetchedAt, data } | null
 }
 
+// Evict the oldest cached analyses (deck:* / search:*, by fetchedAt) to free space.
+// `fraction` = share of current cache entries to drop. Returns how many were removed.
+export async function evictOldestCache(fraction = 0.25) {
+  const all = await chrome.storage.local.get(null);
+  const cache = Object.keys(all)
+    .filter(isCacheKey)
+    .map((k) => ({ k, t: (all[k] && all[k].fetchedAt) || 0 }));
+  if (!cache.length) return 0;
+  cache.sort((a, b) => a.t - b.t); // oldest first
+  const drop = cache.slice(0, Math.max(1, Math.floor(cache.length * fraction))).map((e) => e.k);
+  await chrome.storage.local.remove(drop);
+  return drop.length;
+}
+
 export async function setEntry(key, data) {
   const entry = { fetchedAt: Date.now(), data };
-  await chrome.storage.local.set({ [key]: entry });
+  try {
+    await chrome.storage.local.set({ [key]: entry });
+  } catch (e) {
+    // Storage full (QUOTA_BYTES): evict the oldest cached analyses and retry once. If
+    // it still fails, give up PERSISTING — the caller keeps the in-memory fields it
+    // already has, so a full cache degrades to "not cached" (it self-bounds via the
+    // eviction), never a rejected getDeck/importDeck that breaks the display.
+    const evicted = await evictOldestCache(0.25).catch(() => 0);
+    try {
+      await chrome.storage.local.set({ [key]: entry });
+    } catch (e2) {
+      console.warn(`[solring] cache write failed (storage full?); evicted ${evicted}, not persisting`, e2);
+    }
+  }
   return entry;
 }
 
