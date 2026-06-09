@@ -245,6 +245,9 @@ export async function mount({ waitFor }) {
   // toolbar is the container's previous sibling (a div containing Primer/Playtest).
   const deckview = await waitFor('section.deckview');
   if (!deckview) return; // private/404 page with no decklist → stay silent
+  // If the SPA navigated to a different deck while we awaited, abort — otherwise this
+  // stale mount injects a panel for the old URL next to the new deck's (two panels).
+  if (parseDeckId(location.href) !== publicId) return;
   const container = deckview.closest('.container') || deckview;
   // Toolbar = the container's previous sibling whose text contains the deck
   // actions (Moxfield concatenates them without spaces, so no \b boundaries).
