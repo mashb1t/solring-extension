@@ -51,22 +51,28 @@ function profileColumn() {
 
 const numAvg = (a) => el('span', { class: 'solring-num', text: a.v != null ? num(a.v) : '—' });
 const gradeAvg = (a, field) => (a.v != null ? gradeChip(csRatingGrade(a.v, field)) : el('span', { class: 'solring-num', text: '—' }));
-const cover = (a) => (a.n ? `ø of ${a.n}` : null);
+// A graded average tile mirrors the deck view: the letter grade as the headline, the
+// raw average score beneath it (where the deck panel shows "{score} total").
+const gradeTileAvg = (label, a, field) => tile(label, gradeAvg(a, field), a.v != null ? num(a.v) : null);
 
 function buildPanel() {
   const a = averageViews(getViews());
+  // One coverage figure for the whole card: how many decks actually contributed
+  // (the best-covered metric — hit metrics cover every scored deck, full metrics
+  // only the scanned ones). Equals the deck count once every deck is scanned.
+  const cov = Math.max(0, a.power.n, a.bracket.n, a.salt.n, a.synergy.n, a.threat.n, a.interaction.n, a.wincons.n, a.tier.n);
   return el('div', { class: 'solring-averages card card-light-border', attrs: { 'data-solring-root': '' } }, [
     el('div', { class: 'card-body p-3' }, [
-      el('div', { class: 'solring-averages-title', text: `Deck averages · ${a.total} deck${a.total === 1 ? '' : 's'}` }),
+      el('div', { class: 'solring-averages-title', text: `Deck averages · ${a.total} deck${a.total === 1 ? '' : 's'} · ø of ${cov}` }),
       el('div', { class: 'solring-tiles solring-averages-tiles' }, [
-        tile('ø Power', numAvg(a.power), cover(a.power)),
-        tile('ø Bracket', numAvg(a.bracket), cover(a.bracket)),
-        tile('ø Salt', gradeAvg(a.salt, 'saltRating'), cover(a.salt)),
-        tile('ø Synergy', gradeAvg(a.synergy, 'synergyRating'), cover(a.synergy)),
-        tile('ø Threat', gradeAvg(a.threat, 'threatRating'), cover(a.threat)),
-        tile('ø Inter.', gradeAvg(a.interaction, 'interactionRating'), cover(a.interaction)),
-        tile('ø Wincons', gradeAvg(a.wincons, 'comboRating'), cover(a.wincons)),
-        tile('ø Cmd. tier', el('span', { class: 'solring-num', text: a.tier.v != null ? `T${num(a.tier.v)}` : '—' }), cover(a.tier)),
+        tile('ø Power', numAvg(a.power)),
+        tile('ø Bracket', numAvg(a.bracket)),
+        gradeTileAvg('ø Saltiness', a.salt, 'saltRating'),
+        gradeTileAvg('ø Synergy', a.synergy, 'synergyRating'),
+        gradeTileAvg('ø Threat', a.threat, 'threatRating'),
+        gradeTileAvg('ø Interaction', a.interaction, 'interactionRating'),
+        gradeTileAvg('ø Wincons', a.wincons, 'comboRating'),
+        tile('ø Commander tier', el('span', { class: 'solring-num', text: a.tier.v != null ? `T${num(a.tier.v)}` : '—' })),
       ]),
     ]),
   ]);
