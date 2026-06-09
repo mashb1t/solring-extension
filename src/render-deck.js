@@ -219,7 +219,7 @@ function renderMessage(body, text, action) {
 }
 
 function renderAnalyze(body, canonicalUrl, md5, onResult) {
-  const btn = el('button', { class: 'solring-btn', text: 'Analyze on CommanderSalt' });
+  const btn = el('button', { class: 'solring-btn', text: 'Analyze' });
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = 'Analyzing… (~5s)';
@@ -227,9 +227,9 @@ function renderAnalyze(body, canonicalUrl, md5, onResult) {
     if (res && res.fields) return onResult(res.fields);
     if (res && res.unanalyzable) return renderMessage(body, 'Couldn’t analyze — deck appears private, non-Commander, or illegal.');
     btn.disabled = false;
-    btn.textContent = 'Analyze on CommanderSalt — retry';
+    btn.textContent = 'Analyze - retry';
   });
-  renderMessage(body, 'Not analyzed on CommanderSalt yet.', btn);
+  renderMessage(body, 'Not analyzed yet.', btn);
 }
 
 async function guardAsync(fn) {
@@ -266,10 +266,16 @@ export async function mount({ waitFor }) {
   const body = el('div', { class: 'solring-panel-body' });
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
+  // The ↻ glyph lives in its own span so spinning rotates only the icon, not the
+  // whole button (border/focus ring stay put).
+  const refreshIcon = el('span', { class: 'solring-spin-icon', text: '↻' });
   const refreshBtn = el('button', {
-    class: 'solring-refresh', text: '↻',
+    class: 'solring-refresh',
     attrs: { type: 'button', 'aria-label': 'Re-analyze on CommanderSalt', title: 'Re-analyze on CommanderSalt (~5s)' },
-  });
+  }, [refreshIcon]);
+  // Spin the refresh icon (and disable the button) whenever a fetch is in flight —
+  // the initial load, an edit re-analysis, or a manual ↻.
+  const setRefreshSpinning = (on) => { refreshIcon.classList.toggle('solring-spin', on); refreshBtn.disabled = on; };
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
     el('span', { class: 'solring-wordmark', text: 'Solring' }),
@@ -312,11 +318,9 @@ export async function mount({ waitFor }) {
   // not just a re-fetch — so decklist edits are reflected. Spins the icon while the
   // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)
   async function doRefresh() {
-    refreshBtn.classList.add('solring-spin');
-    refreshBtn.disabled = true;
+    setRefreshSpinning(true);
     const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
-    refreshBtn.classList.remove('solring-spin');
-    refreshBtn.disabled = false;
+    setRefreshSpinning(false);
     if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
   }
 
@@ -330,10 +334,12 @@ export async function mount({ waitFor }) {
   renderMessage(body, 'Loading CommanderSalt…');
   setOpen(false);
 
+  setRefreshSpinning(true); // spin the icon while the initial fetch runs
   const res = await guardAsync(() => getDeck(md5, {
     allowFetch: currentOptions.autoFetch !== false, // off → never hit the network for uncached decks
     maxAgeMs: cacheMaxAgeMs(currentOptions),         // 0 = never expire
   }));
+  setRefreshSpinning(false);
   if (!res || res.error) {
     const retry = el('button', { class: 'solring-btn', text: 'Retry' });
     retry.addEventListener('click', () => {
@@ -363,7 +369,9 @@ export async function mount({ waitFor }) {
     if (currentOptions.autoFetch === false || !f || !f.analyzedAt) return;
     const mox = moxfieldLastUpdatedMs();
     if (!mox || mox <= f.analyzedAt) return;
+    setRefreshSpinning(true);
     const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
+    setRefreshSpinning(false);
     if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
   }
 

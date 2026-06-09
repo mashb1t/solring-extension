@@ -304,18 +304,21 @@ function applyNativeHide(tbl, htr) {
 function buildActionsCell(entry) {
   const cs = el('a', {
     class: 'solring-row-act', text: 'CS', title: 'Open on CommanderSalt',
-    attrs: { href: `https://commandersalt.com/decks/${entry.md5}`, target: '_blank', rel: 'noopener' },
+    attrs: { href: `https://commandersalt.com/details/deck/${entry.md5}`, target: '_blank', rel: 'noopener' },
   });
+  // ↻ in its own span so spinning rotates only the icon, not the bordered button.
   const sync = el('button', {
-    class: 'solring-row-act solring-row-sync', text: '↻',
+    class: 'solring-row-act solring-row-sync',
     attrs: { type: 'button', title: 'Re-analyze on CommanderSalt' },
-  });
+  }, [el('span', { class: 'solring-spin-icon', text: '↻' })]);
   sync.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); syncDeck(entry, sync); });
   return el('span', { class: 'solring-row-acts' }, [cs, sync]);
 }
 
 async function syncDeck(entry, btn) {
-  if (btn) { btn.disabled = true; btn.classList.add('solring-spin'); }
+  const icon = btn && btn.querySelector('.solring-spin-icon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.classList.add('solring-spin');
   let res = null;
   try {
     res = await importDeck(canonicalDeckUrl(entry.publicId), entry.md5, entry.md5); // POST re-analysis
@@ -328,7 +331,7 @@ async function syncDeck(entry, btn) {
     emitChange();
   } else if (btn) {
     btn.disabled = false;
-    btn.classList.remove('solring-spin');
+    if (icon) icon.classList.remove('solring-spin');
   }
 }
 
