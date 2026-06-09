@@ -369,6 +369,14 @@
    on source order (their CSS loads after ours) and keep the column visible. */
 th.solring-hide-native, td.solring-hide-native { display: none !important; }
 
+/* Profile-sidebar deck averages (T18): a card under the profile, 2-up tiles. */
+.solring-averages { margin-top: 1rem; }
+.solring-averages-title {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--solring-text-2); font-weight: 600; margin-bottom: 0.5rem;
+}
+.solring-averages-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+
 /* compact inline "label · bar · value" — shared by the profile averages (T18) */
 .solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }
 .solring-mini-label { font-size: 0.64rem; color: var(--solring-text-2); }
