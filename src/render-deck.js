@@ -204,7 +204,10 @@ function renderBody(body, f) {
 }
 
 function renderMessage(body, text, action) {
-  body.replaceChildren(el('div', { class: 'solring-msg', text }), action || null);
+  // Don't pass a null child — replaceChildren stringifies it into a literal "null".
+  const kids = [el('div', { class: 'solring-msg', text })];
+  if (action) kids.push(action);
+  body.replaceChildren(...kids);
 }
 
 function renderAnalyze(body, canonicalUrl, md5, onResult) {
@@ -325,13 +328,11 @@ export async function mount({ waitFor }) {
     return;
   }
   function showFields(f) {
-    if (f.isPrivate || f.isIllegal) {
-      renderMessage(body, 'Private/illegal — CommanderSalt can’t analyze it.');
-      setOpen(false);
-      currentFields = null;
-      clearAnnotations();
-      return;
-    }
+    // We only reach here with real (non-stub) analysis. CommanderSalt still returns
+    // full metrics for decks it flags isIllegal (banned card / not strictly legal),
+    // so render them — don't mistake the flag for "can't analyze". Genuinely
+    // unanalyzable decks (private / un-indexed) come back as stubs and are handled
+    // by the Analyze flow below.
     renderBody(body, f);
     setOpen(true); // analyzed/cached → default open
     startAnnotations(f);
