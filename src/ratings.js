@@ -59,13 +59,13 @@ export function saltTier(salt) {
 
 // Power contribution is flagged ('a', red) only when it exceeds this multiple of
 // the deck's average per-card power.
-export const POWER_RED_MULTIPLE = 2;
+export const POWER_MARK_MULTIPLE = 2;
 
 // Per-card power tier: 'a' (red) when the card contributes more than 2× the deck
 // average, otherwise null (no highlight — low power is never "bad").
 export function powerTier(powerTotal, avgPower) {
   if (typeof powerTotal !== 'number' || !(avgPower > 0)) return null;
-  return powerTotal > avgPower * POWER_RED_MULTIPLE ? 'a' : null;
+  return powerTotal > avgPower * POWER_MARK_MULTIPLE ? 'a' : null;
 }
 
 // Deck's average per-card power, from the authoritative scoring.total when present

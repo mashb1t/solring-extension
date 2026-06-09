@@ -216,9 +216,9 @@
    don't shift row-to-row with the number's digit count. flex:none keeps the width
    in the flex row; values wider than the slot (rare, power >=100) expand gracefully. */
 .solring-salt-cell, .solring-power-cell {
-  flex: 0 0 auto; min-width: 2.75rem; box-sizing: border-box;
+  flex: 0 0 auto; min-width: 2rem; box-sizing: border-box;
   font-variant-numeric: tabular-nums; color: var(--solring-text-2);
-  padding-left: 0.5rem; white-space: nowrap;
+  white-space: nowrap;
 }
 /* Flag for standout cards: salt in the salty cluster (>=5) or power above 2× the
    deck average (thresholds in ratings.js). Accent (Moxfield primary) is theme-aware. */
