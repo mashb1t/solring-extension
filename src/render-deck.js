@@ -8,7 +8,8 @@ import { parseDeckId } from './moxfield.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
-import { el, tierFromGrade, isDark, chevronSvg } from './dom.js';
+import { el, isDark, chevronSvg } from './dom.js';
+import { tile, gradeChip, bracketValue } from './components.js';
 import { getCardPrefs, getOptions, onPrefChange } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
@@ -130,42 +131,6 @@ function startAnnotations(fields) {
   currentFields = fields;
   observeDecklist();
   reannotate();
-}
-
-const GRADES = [
-  ['Threat', 'threat', 'threatRating'],
-  ['Interaction', 'interaction', 'interactionRating'],
-  ['Wincons', 'wincons', 'comboRating'],
-  ['Synergy', 'synergy', 'synergyRating'],
-];
-
-function tile(label, valueNode, sub) {
-  return el('div', { class: 'solring-tile' }, [
-    el('div', { class: 'solring-tile-label', text: label }),
-    el('div', { class: 'solring-tile-value' }, valueNode),
-    sub ? el('div', { class: 'solring-tile-sub', text: sub }) : null,
-  ]);
-}
-
-function gradeChip(grade) {
-  return el('span', { class: 'solring-grade', text: grade, attrs: { 'data-tier': tierFromGrade(grade) } });
-}
-
-// Bracket value = realistic bracket number, plus an arrow if it differs from the
-// baseline (WOTC) bracket: red ↑ when it plays above (high = bad), grey ↓ below.
-function bracketValue(f) {
-  const real = f.bracketRealistic;
-  const base = f.bracketBaseline;
-  const node = el('span', { class: 'solring-num', text: real != null ? String(real) : '—' });
-  if (real != null && base != null && real !== base) {
-    const up = real > base;
-    node.append(el('span', {
-      class: `solring-bracket-arrow ${up ? 'solring-bracket-up' : 'solring-bracket-down'}`,
-      text: up ? ' ↑' : ' ↓',
-      title: `${up ? 'Plays above' : 'Plays below'} its baseline bracket (${base} → ${real})`,
-    }));
-  }
-  return node;
 }
 
 // "2 2-card · 9 3-card · 2 4+ card" — combos grouped by how many cards each needs.
