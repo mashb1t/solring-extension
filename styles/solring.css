@@ -332,14 +332,25 @@
 /* "Stats columns" toggle: the button copies Moxfield's Sort styling and the panel
    reuses Moxfield's .dropdown-menu/.dropdown-item chrome, so we only position it. */
 .solring-colmenu { position: relative; display: inline-flex; align-items: center; }
-.solring-colmenu .dropdown-menu { margin-top: 0.3rem; max-height: 75vh; overflow-y: auto; }
+/* Force our own positioning — Moxfield's .dropdown-menu base is Popper-oriented
+   (expects a JS-set transform/inset), which otherwise floats the panel above the
+   button and mis-aligns it (notably in wide layout). We keep its chrome, drop it
+   below the button, right-aligned, on screen. */
+.solring-colmenu .dropdown-menu {
+  position: absolute !important;
+  top: 100% !important; right: 0 !important; left: auto !important; bottom: auto !important;
+  transform: none !important;
+  margin-top: 0.3rem; max-height: 75vh; overflow-y: auto;
+}
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
 /* Drag-to-reorder the metric rows (DnD lives in our own menu DOM, not the table). */
 .solring-grip { cursor: grab; opacity: 0.5; font-size: 0.9em; line-height: 1; }
 .solring-colmenu-row { user-select: none; }
 .solring-colmenu-row.solring-dragging { opacity: 0.45; }
-/* Hide a Moxfield native column (overrides Bootstrap's d-*-table-cell utilities). */
-.solring-hide-native { display: none !important; }
+/* Hide a Moxfield native column. The element-qualified selector (th/td) outranks
+   Bootstrap's single-class .d-*-table-cell !important utilities, which otherwise win
+   on source order (their CSS loads after ours) and keep the column visible. */
+th.solring-hide-native, td.solring-hide-native { display: none !important; }
 
 /* compact inline "label · bar · value" — shared by the profile averages (T18) */
 .solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }
