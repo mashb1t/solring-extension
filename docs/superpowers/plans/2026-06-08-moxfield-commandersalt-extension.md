@@ -434,15 +434,49 @@ export async function importByUrl(canonicalUrl) {     // manual only, never auto
 
 ## Phase 5 — Deck-list surfaces (user profile + personal manager)
 
+> **Updated for what shipped in Phases 0–4 + later polish — reuse it, don't re-invent:**
+>
+> - **Grades are A–D, not A–F** (no E/F). Use `gradeChip(grade)` (in `render-deck.js`)
+>   + `tierFromGrade(grade)` (in `dom.js`) and the `.solring-grade[data-tier]` /
+>   `.solring-tier-a…d` CSS (a = red/worst … d = green/best). Replace every "A–F" below.
+> - **Ranking helpers exist** in `ratings.js`: `csRatingGrade(value, field)`,
+>   `saltTier(salt)`, `powerTier(powerTotal, avgPower)`, `deckAvgPower(cards, total)`,
+>   `POWER_MARK_MULTIPLE`. Reuse for any deck/card highlighting (the per-card accent
+>   flag is `saltTier===‘a’` / `powerTier===‘a’` → `.solring-card-flag`).
+> - **Reusable, already-styled UI** in `styles/solring.css`: `.solring-tile`
+>   (+`-label`/`-value`/`-sub`), `.solring-grade`, `.solring-pl-row` (label · bar ·
+>   value), `.solring-pl-bar`, `.solring-num`, `.solring-card-flag`, `.solring-panel`
+>   (collapsible, with the synced/refresh bar). The deck panel (`render-deck.js`) and
+>   the per-metric panels (`render-panels.js`) are the templates for the below-line
+>   strip and the sidebar averages. There is **no** `dom.js` color-var/tooltip helper —
+>   use the CSS classes. `dom.js` exposes `el`, `claim` (the idempotency mark, not
+>   `once`), `teardown`, `isDark`, `tierFromGrade`, `chevronSvg`, `guard`.
+> - **Messaging + cache are ready**: `getUserDecks(username, cursor)` (background +
+>   `messaging.js`) and `cache.js` `getSync(username)` / `setSync(username, patch)` for
+>   the per-user last-sync timestamp already exist. Sort prefs: `getSortPref()` /
+>   `setSortPref()` + `onPrefChange(cb)` (`cb('sort')`) in `prefs.js`.
+> - **`getDeck` no longer auto-revalidates** (manual only). `getDeck(md5)` =
+>   cache-or-`GET /decks?id=`. To force a fresh recompute use
+>   `importDeck(canonicalUrl, md5, oldDeckId=md5)` → `POST /decks?url=…&oldDeckId=…`
+>   (the same path the deck-page ↻ button uses); first-time import omits `oldDeckId`.
+> - **Baseline bracket is kept** (`extractDeck` → `bracketBaseline`, `bracketRealistic`).
+>   Show the realistic bracket and render baseline only as the red↑/grey↓ delta arrow —
+>   mirror the deck panel's `bracketValue()`. (Deck **value** is still dropped.)
+> - **Per-card code already lives in its own modules** — `render-cards.js`
+>   (annotations), `customize-view.js` (the toggles), `links-menu.js`, plus
+>   `render-combos.js`, `render-panels.js`, `render-card-modal.js`. Phase 5 still only
+>   creates `decklist.js`, `render-user.js`, `sync.js`. The Phase-6 README (T21) is
+>   already written.
+
 ### Task 16: Shared deck-list engine — below-line detail (`decklist.js`)
 
 **Files:** Create `src/decklist.js`
 
 - [ ] **Step 1: Implement** — given a container of deck rows (works for both `/users/{name}` and `/decks/personal` + folders; confirm live selectors): for each **deck** row (skip folders / "Up a level"):
   - read its deck link → `canonicalDeckUrl` → `md5`; look up the joined `HitFields` (from `getUserDecks`) and any cached `DeckFields`.
-  - append a **below-line detail strip**: tier `T{n}`, power `X.X/10` + bar, saltiness, **THR/INT/WIN/SYN** bars + grades, **real bracket**, archetype, CommanderSalt/Moxfield link icons. (No deck name, value, or baseline bracket.)
-  - hit metrics render immediately; full-payload metrics show "—" until cached. A per-row expand affordance calls `getDeck(md5)` to fill them (and contributes to averages).
-  - rating-color bars + A–F grades via `dom.js` color helpers. Idempotent; MutationObserver re-applies after re-render.
+  - append a **below-line detail strip**: tier `T{n}`, power `X.X/10` + bar, saltiness, **THR/INT/WIN/SYN** bars + grades, **realistic bracket** (with the baseline only as the red↑/grey↓ delta arrow — reuse `bracketValue()`), archetype, CommanderSalt/Moxfield link icons. (No deck name or value.) Optionally a **combos** count when the full payload is cached (`extractDeck` now yields it).
+  - hit metrics (`extractHit`: power, bracketRating, salt, synergy, archetypeMajor/Minor) render immediately; full-payload-only metrics (threat, interaction, wincons, tier, combos) show "—" until cached. A per-row expand affordance calls `getDeck(md5)` to fill them (and contributes to averages).
+  - rating-color bars (`.solring-pl-row`/`.solring-pl-bar`) + **A–D** grade chips via `gradeChip()`/`tierFromGrade()` (`.solring-tier-a…d`) — reuse the deck panel's `.solring-tile` components, not a (nonexistent) `dom.js` color helper. Idempotent (`claim`); MutationObserver re-applies after re-render.
 - [ ] **Step 2: Manual check** on `/users/mashb1t`.
 - [ ] **Step 3: Commit** — `git commit -am "feat(extension): shared deck-list below-line detail strip"`
 
@@ -450,7 +484,7 @@ export async function importByUrl(canonicalUrl) {     // manual only, never auto
 
 **Files:** Modify `src/decklist.js`
 
-- [ ] **Step 1: Implement** — inject a **"Sort by score"** control into the current view's toolbar. Keys: power, bracket(real), saltiness, synergy (always) + threat, interaction, wincons, tier (when cached). Click toggles desc/asc. Reorder **only the deck rows in the current folder** (each row + its detail strip move together); pin folders / "Up a level". Missing-metric rows sort last (marked, with "Scan all" hint). Persist `prefs:sort`; re-apply on folder nav + Moxfield re-render; detect a native-sort click and yield. Reuse the prototype's comparator logic.
+- [ ] **Step 1: Implement** — inject a **"Sort by score"** control into the current view's toolbar. Keys: power, bracket(real), saltiness, synergy (always, from hits) + threat, interaction, wincons, tier (when cached). Click toggles desc/asc. Reorder **only the deck rows in the current folder** (each row + its detail strip move together); pin folders / "Up a level". Missing-metric rows sort last (marked, with "Scan all" hint). Persist via `prefs.js` `getSortPref()`/`setSortPref()`; re-apply on folder nav + Moxfield re-render and on `onPrefChange('sort')`; detect a native-sort click and yield. Reuse the prototype's comparator logic.
 - [ ] **Step 2: Manual check** — sort by power/salt within a folder; confirm pinning, persistence, and yielding to Moxfield's own sort.
 - [ ] **Step 3: Commit** — `git commit -am "feat(extension): per-folder score-sort control"`
 
@@ -458,17 +492,17 @@ export async function importByUrl(canonicalUrl) {     // manual only, never auto
 
 **Files:** Create `src/render-user.js`
 
-- [ ] **Step 1: Implement** — append an averages block to the profile sidebar: **ø power / ø bracket / ø saltiness / ø synergy** from all hits (always); **ø threat / ø interaction / ø wincons / ø commander-tier** averaged over decks whose full payload is cached, each with a **"from N decks"** coverage hint. Recompute as more decks get cached (subscribe to relevant updates). Uses `decklist.js` for the table itself.
+- [ ] **Step 1: Implement** — append an averages block to the profile sidebar: **ø power / ø bracket / ø saltiness / ø synergy** from all hits (always); **ø threat / ø interaction / ø wincons / ø commander-tier** averaged over decks whose full payload is cached, each with a **"from N decks"** coverage hint. Render with the existing `.solring-tile` + `gradeChip()` (A–D) components. Recompute as more decks get cached (subscribe to relevant updates). Uses `decklist.js` for the table itself.
 - [ ] **Step 2: Commit** — `git commit -am "feat(extension): user-profile sidebar averages (partial w/ coverage)"`
 
 ### Task 19: Bulk sync (`sync.js`)
 
 **Files:** Create `src/sync.js`
 
-- [ ] **Step 1: Implement** — inject **Scan all** + **Re-scan all** buttons + a Moxfield-styled tooltip ("Private decks can't be synced — CommanderSalt can't read them") + a last-sync timestamp (`sync:{username}`). Enumerate the user's decks (Moxfield rows joined with `/search`); read **visibility badges**; exclude **Private**; keep **Public + Unlisted**.
-  - **Scan all**: for each syncable deck, `getDeck(md5)` (warm; skip fresh); if stub → `importDeck` (POST). 
-  - **Re-scan all**: confirm-gated; `importDeck` for every syncable deck.
-  - Sequential + throttled (small delay), progress "Syncing n/N…", cancel control; each POST attempted once (never retried); per-deck failures listed. Update timestamp on completion; refresh detail strips + averages from the new cache.
+- [ ] **Step 1: Implement** — inject **Scan all** + **Re-scan all** buttons + a Moxfield-styled tooltip ("Private decks can't be synced — CommanderSalt can't read them") + a last-sync timestamp via `cache.js` `getSync(username)`/`setSync(username, {at})` (already implemented). Enumerate the user's decks (Moxfield rows joined with `/search`); read **visibility badges**; exclude **Private**; keep **Public + Unlisted**.
+  - **Scan all**: for each syncable deck, `getDeck(md5)` (cache-or-`GET`; since `getDeck` no longer auto-revalidates this just warms un-cached decks); if stub/un-indexed → `importDeck(canonicalUrl, md5)` (first-time POST import, no `oldDeckId`).
+  - **Re-scan all**: confirm-gated; `importDeck(canonicalUrl, md5, md5)` for every syncable deck — `POST /decks?url=…&oldDeckId=md5`, the same forced recompute the deck-page ↻ button performs.
+  - Sequential + throttled (small delay), progress "Syncing n/N…", cancel control; each POST attempted once (never retried); per-deck failures listed. Update the timestamp (`setSync`) on completion; refresh detail strips + averages from the new cache.
 - [ ] **Step 2: Commit** — `git commit -am "feat(extension): bulk Scan all / Re-scan all with visibility gating"`
 
 ---
@@ -494,6 +528,7 @@ export async function importByUrl(canonicalUrl) {     // manual only, never auto
 
 ## Self-review notes
 
-- **Spec coverage:** deck panel (T13), per-card + Customize View (T14), links menu (T15), user profile + averages (T16/T18), personal manager (T16/T17 shared engine), below-line detail (T16), score sort (T17), bulk sync (T19), caching/SWR (T7/T8), direct CommanderSalt sourcing (T6/manifest), md5 join (T1), grade ladder (T2), per-card extraction (T4), value/base-bracket dropped (T4/T13/T16). Combos (Spellbook) intentionally out of scope.
+- **Spec coverage:** deck panel (T13), per-card + Customize View (T14), links menu (T15), user profile + averages (T16/T18), personal manager (T16/T17 shared engine), below-line detail (T16), score sort (T17), bulk sync (T19), caching/SWR (T7/T8), direct CommanderSalt sourcing (T6/manifest), md5 join (T1), grade ladder (T2), per-card extraction (T4), deck value dropped (T4/T13/T16).
+- **Drift since creation (Phases 0–4 + polish shipped):** grades are **A–D** (no E/F); per-card UI split into `render-cards.js` / `customize-view.js` / `links-menu.js` (not one `render-deck.js`); **baseline bracket is kept** for the delta arrow (not dropped); **Combos (Spellbook) are implemented** (`render-combos.js`, deck combos count + per-card membership) — no longer out of scope; `ratings.js` gained `saltTier`/`powerTier`/`deckAvgPower`; `getDeck` is manual-refresh only and the ↻ button does a `POST` re-analysis (`oldDeckId`). Phase 5 above is rewritten to reuse these.
 - **DOM-dependent tasks (10, 12–19)** carry explicit "confirm against live DOM" steps because Moxfield is a React SPA with hashed class names and `/decks/personal` is login-gated; selectors are finalized at implementation time, anchored by content/structure.
 - **Pure modules (1–5)** are fully TDD'd against the bundled fixtures with concrete assertions and known vectors.
