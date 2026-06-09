@@ -11,15 +11,16 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
       import(u('decklist.js')),
       import(u('wide-layout.js')),
       import(u('render-user.js')),
+      import(u('sync.js')),
     ]);
-    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser };
+    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync };
     return mods;
   }
 
@@ -49,11 +50,12 @@
 
   async function route() {
     const m = await load();
-    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser } = m;
+    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync } = m;
     wideLayout.installWideToggle(); // global header toggle (idempotent); applies on every page
     dom.guard('teardown', () => dom.teardown());
     decklist.teardownDeckList(); // drop any prior list observer/state on every nav
     renderUser.teardownUserAverages(); // …and the profile-averages card
+    sync.teardownSync(); // …and the bulk-sync controls
     const type = moxfield.pageType(location.href);
     if (type === 'deck') {
       await renderDeck.mount({ ...m, waitFor });
@@ -65,7 +67,10 @@
         const link = await waitFor('header a[href^="/users/"], nav a[href^="/users/"]');
         if (link) username = moxfield.parseUsername(link.href);
       }
-      if (username) await decklist.installDeckList(username, { waitFor });
+      if (username) {
+        await decklist.installDeckList(username, { waitFor });
+        sync.installSync(username); // Scan all / Re-scan all controls
+      }
       if (type === 'user') renderUser.installUserAverages(); // profile-sidebar averages
     }
   }

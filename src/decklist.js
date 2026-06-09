@@ -750,6 +750,15 @@ function rerenderMd5(md5) {
   for (const e of rowEntries) if (e.md5 === md5) renderRowCells(e);
 }
 
+/** Fold a freshly-fetched full payload into the shared cache and repaint the deck's
+    rows + notify subscribers (averages). Used by bulk sync after scanning a deck. */
+export function setFull(md5, fields) {
+  if (!md5 || !fields) return;
+  fullByMd5.set(md5, fields);
+  rerenderMd5(md5);
+  emitChange();
+}
+
 function annotate() {
   const next = [];
   for (const { row, publicId } of deckRows()) {
