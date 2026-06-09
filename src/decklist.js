@@ -240,11 +240,32 @@ function buildHeaderCells() {
   }, [el('span', { text: c.label })]));
 }
 
-// Build/rebuild one row's metric cells from its current view. A blank full-only cell
-// (deck not yet scanned) is clickable to scan just that deck.
-function renderRowCells(entry) {
+// Moxfield's (non-Solring) cells of a row, in order.
+function nativeCells(row) {
+  return [...row.children].filter((c) => !(c.classList && c.classList.contains('solring-col')));
+}
+// Index of Moxfield's "Updated" column among native header cells (-1 if absent) — we
+// insert our columns just before it, so they sit between Format and Updated.
+function updatedIndex(htr) {
+  return nativeCells(htr).findIndex((c) => /updated/i.test(c.textContent || ''));
+}
+// The cell our columns insert before in `row`, for a given header updated-index;
+// null → append (Updated column not found / row shorter than expected).
+function anchorCell(row, idx) {
+  return idx < 0 ? null : (nativeCells(row)[idx] || null);
+}
+
+// Build/rebuild one row's metric cells from its current view, inserted before the
+// "Updated" column (idx). A blank full-only cell (deck not yet scanned) is clickable
+// to scan just that deck. idx omitted → resolve it from the row's own table header.
+function renderRowCells(entry, idx) {
   const tr = entry.row;
   tr.querySelectorAll(':scope > td.solring-col').forEach((n) => n.remove());
+  if (idx === undefined) {
+    const htr = tr.closest('table') && tr.closest('table').querySelector('thead tr');
+    idx = htr ? updatedIndex(htr) : -1;
+  }
+  const ref = anchorCell(tr, idx);
   const view = viewFor(entry);
   for (const c of enabledColumns()) {
     const inner = c.cell(view);
@@ -254,14 +275,15 @@ function renderRowCells(entry) {
       td.title = 'Scan this deck on CommanderSalt';
       td.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, td); });
     }
-    tr.appendChild(td);
+    if (ref) tr.insertBefore(td, ref); else tr.appendChild(td);
   }
 }
 
-// Reconcile every Moxfield deck table to exactly the enabled columns. Each table is
-// handled independently (its own <thead>); a table with no joined rows is skipped
-// (and any stale header cells removed). This is also the self-heal: rows React
-// recreated without our cells get them re-added here.
+// Reconcile every Moxfield deck table to exactly the enabled columns, inserting them
+// before the "Updated" column. Each table is handled independently (its own
+// <thead>); a table with no joined rows is skipped (and any stale header cells
+// removed). This is also the self-heal: rows React recreated without our cells get
+// them re-added here.
 function reconcileColumns() {
   const sig = colSig();
   for (const tbl of document.querySelectorAll('table.table')) {
@@ -273,12 +295,14 @@ function reconcileColumns() {
       htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
       continue;
     }
+    const idx = updatedIndex(htr); // native index of "Updated" — same for header + rows
     if (ourColKeys(htr) !== sig) {
       htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
-      buildHeaderCells().forEach((th) => htr.appendChild(th));
+      const headRef = anchorCell(htr, idx);
+      buildHeaderCells().forEach((th) => (headRef ? htr.insertBefore(th, headRef) : htr.appendChild(th)));
     }
     for (const tr of ours) {
-      if (ourColKeys(tr) !== sig) renderRowCells(rowMap.get(tr));
+      if (ourColKeys(tr) !== sig) renderRowCells(rowMap.get(tr), idx);
     }
   }
 }
