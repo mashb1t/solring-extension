@@ -76,10 +76,14 @@ export function annotate(fields, prefs) {
     const card = fields.cards[rowName(link)];
     if (!card) return;
 
-    // The row is flex(row nowrap). Let it wrap so our full-width sub-lines (tags,
-    // detail) sit below the columns, indented to start under the name (2nd col)
-    // and spanning to the row's end (last col).
-    li.classList.add('solring-row');
+    // Only relax the row (wrap + let the name shrink) when we add full-width
+    // sub-lines below the columns (tags / detail). For power/salt-only rows we leave
+    // the native layout untouched so it stays as compact as Moxfield's own — our
+    // cells are just two extra columns. (The wrap override changes the name to
+    // flex-basis:0, which creates free space a margin-auto column would otherwise
+    // turn into a gap before the price.)
+    const wantSub = (prefs.tags && card.tags && card.tags.length) || prefs.stats || prefs.combos;
+    if (wantSub) li.classList.add('solring-row');
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
 
