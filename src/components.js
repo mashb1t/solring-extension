@@ -14,9 +14,16 @@ export function tile(label, valueNode, sub) {
   ]);
 }
 
-/** A–D letter-grade chip, colored by tier via [data-tier] (a=red worst … d=green best). */
+/** A–D letter-grade chip, colored by tier via [data-tier] (a=red worst … d=green best).
+    Split into letter + modifier (+/–) spans so a fixed-width modifier slot (in list
+    columns) lines the letters up regardless of suffix — "A" sits at the same x as the
+    "B" in "B–". */
 export function gradeChip(grade) {
-  return el('span', { class: 'solring-grade', text: grade, attrs: { 'data-tier': tierFromGrade(grade) } });
+  const g = String(grade);
+  return el('span', { class: 'solring-grade', attrs: { 'data-tier': tierFromGrade(g) } }, [
+    el('span', { class: 'solring-grade-letter', text: g.slice(0, 1) }),
+    el('span', { class: 'solring-grade-mod', text: g.slice(1) }), // '+', '–', or ''
+  ]);
 }
 
 // Bracket value = realistic bracket number, plus an arrow if it differs from the
@@ -27,14 +34,16 @@ export function bracketValue(f) {
   const real = f.bracketRealistic;
   const base = f.bracketBaseline;
   const node = el('span', { class: 'solring-num', text: real != null ? String(real) : '—' });
+  // Always emit the arrow slot (empty when no delta) so a fixed-width slot in list
+  // columns keeps the bracket numbers aligned whether or not an arrow is present.
+  const arrow = el('span', { class: 'solring-bracket-arrow' });
   if (real != null && base != null && real !== base) {
     const up = real > base;
-    node.append(el('span', {
-      class: `solring-bracket-arrow ${up ? 'solring-bracket-up' : 'solring-bracket-down'}`,
-      text: up ? ' ↑' : ' ↓',
-      title: `${up ? 'Plays above' : 'Plays below'} its baseline bracket (${base} → ${real})`,
-    }));
+    arrow.classList.add(up ? 'solring-bracket-up' : 'solring-bracket-down');
+    arrow.textContent = up ? '↑' : '↓';
+    arrow.title = `${up ? 'Plays above' : 'Plays below'} its baseline bracket (${base} → ${real})`;
   }
+  node.append(arrow);
   return node;
 }
 

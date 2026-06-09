@@ -104,7 +104,7 @@
 .solring-tile-value { font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
 .solring-tile-sub { font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.15rem; }
 .solring-num { font-variant-numeric: tabular-nums; }
-.solring-bracket-arrow { font-size: 0.8em; }
+.solring-bracket-arrow { font-size: 0.8em; margin-left: 0.15em; }
 .solring-bracket-up { color: var(--solring-rating-a); }   /* red — plays above its baseline */
 .solring-bracket-down { color: var(--solring-text-2); }   /* grey — plays below its baseline */
 .solring-grade-tiles { margin-top: 0; }
@@ -319,25 +319,21 @@
 .solring-col-h { font-weight: 600; }
 .solring-col .solring-num,
 .solring-col .solring-grade { font-variant-numeric: tabular-nums; }
+/* Align grade letters + bracket numbers across rows: the suffix (+/– or arrow) rides
+   in a fixed-width slot, so the letter/number's right edge is constant regardless of
+   whether a suffix is present ("A" lines up with the "B" in "B–"). Cells are text-end. */
+.solring-col .solring-grade-mod { display: inline-block; width: 0.72em; text-align: left; }
+.solring-col .solring-bracket-arrow { display: inline-block; width: 0.7em; text-align: left; }
 /* Blank full-only cell on an un-scanned deck: dim, click to scan that deck. */
 .solring-col-scan { cursor: pointer; }
 .solring-col-scan .solring-num { opacity: 0.45; }
 .solring-col-scan:hover .solring-num { opacity: 1; color: var(--solring-accent); }
 
-/* "Stats columns" toggle dropdown injected into the deck-list toolbar. */
-.solring-colmenu { position: relative; display: inline-block; }
-.solring-colmenu-caret { font-size: 0.7em; }
-.solring-colmenu-panel {
-  position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 2147483000;
-  background: var(--solring-surface); color: var(--solring-text);
-  border: 1px solid var(--solring-border); border-radius: 6px; padding: 0.35rem;
-  min-width: 12rem; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
-}
-.solring-colmenu-item {
-  display: flex; align-items: center; gap: 0.45rem; margin: 0;
-  padding: 0.22rem 0.35rem; font-size: 0.8rem; white-space: nowrap; cursor: pointer;
-}
-.solring-colmenu-item:hover { background: var(--solring-surface-2); border-radius: 4px; }
+/* "Stats columns" toggle: the button copies Moxfield's Sort styling and the panel
+   reuses Moxfield's .dropdown-menu/.dropdown-item chrome, so we only position it. */
+.solring-colmenu { position: relative; display: inline-flex; align-items: center; }
+.solring-colmenu .dropdown-menu { margin-top: 0.3rem; }
+.solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
 
 /* compact inline "label · bar · value" — shared by the profile averages (T18) */
 .solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }

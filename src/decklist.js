@@ -297,50 +297,84 @@ function installOutsideClose() {
   outsideCloseInstalled = true;
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.solring-colmenu').forEach((wrap) => {
-      if (!wrap.contains(e.target)) {
-        const p = wrap.querySelector('.solring-colmenu-panel');
-        if (p) p.setAttribute('hidden', '');
-      }
+      if (!wrap.contains(e.target)) closeMenu(wrap);
     });
   });
 }
+function closeMenu(wrap) {
+  const panel = wrap.querySelector('.dropdown-menu');
+  const btn = wrap.querySelector('.solring-colmenu-btn');
+  if (panel) panel.classList.remove('show');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+// A "table-columns" glyph, sized/spaced like the Sort button's leading FA icon.
+function columnsIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'svg-inline--fa me-1');
+  svg.setAttribute('width', '1em');
+  svg.setAttribute('height', '1em');
+  const rect = document.createElementNS(NS, 'rect');
+  for (const [k, v] of [['x', '3'], ['y', '4'], ['width', '18'], ['height', '16'], ['rx', '2']]) rect.setAttribute(k, v);
+  rect.setAttribute('stroke', 'currentColor');
+  rect.setAttribute('stroke-width', '2');
+  svg.appendChild(rect);
+  for (const x of ['9', '15']) {
+    const ln = document.createElementNS(NS, 'line');
+    for (const [k, v] of [['x1', x], ['y1', '4'], ['x2', x], ['y2', '20']]) ln.setAttribute(k, v);
+    ln.setAttribute('stroke', 'currentColor');
+    ln.setAttribute('stroke-width', '2');
+    svg.appendChild(ln);
+  }
+  return svg;
+}
 
 // A dropdown of per-metric checkboxes, persisted to prefs:listColumns (which fires
-// onPrefChange('listColumns') → reconcileColumns). Mirrors the deck page's Customize
-// View, but as our own control since the list toolbar exposes no extra-data group.
-function buildColumnMenu() {
+// onPrefChange('listColumns') → reconcileColumns). The button copies Moxfield's Sort
+// button styling (passed in) and the panel uses Moxfield's dropdown-menu / -item /
+// -header classes, so both match the native Sort control.
+function buildColumnMenu(sortClassName) {
   const wrap = el('div', { class: 'solring-colmenu', attrs: { 'data-solring-root': '' } });
-  const panel = el('div', { class: 'solring-colmenu-panel', attrs: { hidden: '' } });
   const btn = el('button', {
-    class: 'btn btn-sm btn-outline-primary text-nowrap solring-colmenu-btn',
+    class: `${sortClassName || 'btn btn-outline btn-outline-primary text-nowrap'} solring-colmenu-btn`,
     attrs: { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
-  }, ['Stats ', el('span', { class: 'solring-colmenu-caret', text: '▾' })]);
+  }, [el('span', {}, [columnsIcon(), 'Stats'])]);
+  const inner = el('div', { class: 'dropdown-menu-parent', attrs: { tabindex: '-1' } }, [
+    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'Columns' })]),
+  ]);
+  for (const c of COLUMNS) {
+    const input = el('input', { class: 'form-check-input m-0', attrs: { type: 'checkbox', id: `solring-colpref-${c.key}` } });
+    input.checked = !!listColumns[c.key];
+    input.addEventListener('change', () => setListColumns({ [c.key]: input.checked }));
+    inner.append(el('label', {
+      class: 'dropdown-item d-flex flex-row flex-nowrap gap-2 align-items-center cursor-pointer no-outline',
+      attrs: { for: `solring-colpref-${c.key}` },
+    }, [input, el('span', { text: COLUMN_NAMES[c.key] || c.key })]));
+  }
+  const panel = el('div', { class: 'dropdown-menu dropdown-menu-end' }, [inner]);
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const open = panel.hasAttribute('hidden');
-    panel.toggleAttribute('hidden', !open);
-    btn.setAttribute('aria-expanded', String(open));
+    const show = !panel.classList.contains('show');
+    panel.classList.toggle('show', show);
+    btn.setAttribute('aria-expanded', String(show));
   });
-  for (const c of COLUMNS) {
-    const input = el('input', { class: 'form-check-input', attrs: { type: 'checkbox', id: `solring-colpref-${c.key}` } });
-    input.checked = !!listColumns[c.key];
-    input.addEventListener('change', () => setListColumns({ [c.key]: input.checked }));
-    panel.append(el('label', { class: 'solring-colmenu-item', attrs: { for: `solring-colpref-${c.key}` } }, [
-      input, el('span', { text: COLUMN_NAMES[c.key] || c.key }),
-    ]));
-  }
   wrap.append(btn, panel);
   return wrap;
 }
 
 // Inject the menu into the deck-list toolbar (next to Moxfield's native Sort), once
-// per toolbar; re-injected by annotate when React rebuilds the toolbar.
+// per toolbar; re-injected by annotate when React rebuilds the toolbar. The button
+// copies Sort's exact class list so it stays visually identical.
 function ensureToolbarMenu() {
   const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()));
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-colmenu')) return;
-  toolbar.insertBefore(buildColumnMenu(), sortBtn);
+  toolbar.insertBefore(buildColumnMenu(sortBtn.className), sortBtn);
 }
 
 // ---- DOM: annotate rows ------------------------------------------------------
