@@ -1,8 +1,9 @@
-// Bulk sync (Scan all / Re-scan all) for the deck-list pages. Injects two buttons +
-// a status/last-synced label into the deck-list toolbar (next to Moxfield's Sort).
-// Operates on the decks currently rendered in the list (decklist.getEntries), minus
-// private ones (CommanderSalt can't read those). Sequential + throttled; one request
-// per deck, never retried; cancelable; updates each row + the averages as it goes.
+// Bulk analysis (Analyze all / Re-analyze all) for the deck-list pages. Injects two
+// buttons + a status/last-analyzed label into the deck-list toolbar (next to Moxfield's
+// Sort). Operates on the decks currently rendered in the list (decklist.getEntries),
+// minus private ones (CommanderSalt can't read those). Sequential + throttled; one
+// request per deck, never retried; cancelable; updates each row + the averages as it
+// goes. Verb mirrors the single-deck panel ("Analyze" / "Re-analyze" / "analyzed X ago").
 
 import { el, guard } from './dom.js';
 import { canonicalDeckUrl } from './md5.js';
@@ -46,11 +47,11 @@ function setBusy(on) {
 async function refreshStatus() {
   if (!controls || running || !username) return;
   const s = await getSync(username);
-  controls.status.textContent = s && s.at ? `synced ${relTime(s.at)}` : '';
+  controls.status.textContent = s && s.at ? `analyzed ${relTime(s.at)}` : '';
 }
 
-// Scan all = warm the cache (GET; un-indexed decks get a first POST import).
-// Re-scan all = force a fresh POST re-analysis of every deck (confirm-gated).
+// Analyze all = warm the cache (GET; un-indexed decks get a first POST import).
+// Re-analyze all = force a fresh POST re-analysis of every deck (confirm-gated).
 async function run({ force }) {
   if (running) return;
   running = true;
@@ -61,7 +62,7 @@ async function run({ force }) {
   let failed = 0;
   for (const e of entries) {
     if (cancelFlag) break;
-    if (controls) controls.status.textContent = `${force ? 'Re-analyzing' : 'Scanning'} ${done + 1}/${entries.length}…`;
+    if (controls) controls.status.textContent = `${force ? 'Re-analyzing' : 'Analyzing'} ${done + 1}/${entries.length}…`;
     try {
       let res;
       if (force) {
@@ -92,12 +93,12 @@ function buildControls(btnClass) {
   const status = el('span', { class: 'solring-sync-status' });
   const scanBtn = el('button', {
     class: `${btnClass} solring-sync-btn`,
-    attrs: { type: 'button', title: 'Fetch stats for every listed (non-private) deck not yet cached' },
-  }, ['Scan all']);
+    attrs: { type: 'button', title: 'Load stats for every listed (non-private) deck not yet cached' },
+  }, ['Analyze all']);
   const rescanBtn = el('button', {
     class: `${btnClass} solring-sync-btn`,
     attrs: { type: 'button', title: 'Force a fresh re-analysis of every listed (non-private) deck' },
-  }, ['Re-scan all']);
+  }, ['Re-analyze all']);
   const cancelBtn = el('button', {
     class: `${btnClass} solring-sync-btn solring-sync-cancel`,
     attrs: { type: 'button', hidden: '' },

@@ -360,8 +360,8 @@
   margin-top: 0.3rem; max-height: 75vh; overflow-y: auto;
 }
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
-/* Bulk-sync controls (Scan all / Re-scan all) in the deck-list toolbar. Buttons copy
-   Moxfield's Sort styling; only the wrapper + status need styling. */
+/* Bulk-analysis controls (Analyze all / Re-analyze all) in the deck-list toolbar.
+   Buttons copy Moxfield's Sort styling; only the wrapper + status need styling. */
 .solring-sync { display: inline-flex; align-items: center; gap: 0.4rem; }
 .solring-sync-status { font-size: 0.78rem; color: var(--solring-text-2); white-space: nowrap; }
 

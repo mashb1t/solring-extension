@@ -72,7 +72,7 @@ export const SORT_KEYS = {
   threat: { label: 'Threat', get: (v) => v.threat, hit: false },
   interaction: { label: 'Interaction', get: (v) => v.interaction, hit: false },
   wincons: { label: 'Wincons', get: (v) => v.wincons, hit: false },
-  tier: { label: 'Cmd. tier', get: (v) => v.commanderTier, hit: false },
+  tier: { label: 'Commander tier', get: (v) => v.commanderTier, hit: false },
 };
 
 // Comparator over views: rows with the metric present sort by value (asc/desc);
@@ -748,7 +748,7 @@ function probeCache(md5) {
   loadFull(md5, { allowFetch: false });
 }
 
-// Manual "Scan" → force a fetch (GET/import) of the full payload.
+// Manual "Analyze" (click a blank cell) → force a fetch (GET/import) of the full payload.
 async function expandEntry(entry, btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
   const ok = await loadFull(entry.md5, { allowFetch: true });
