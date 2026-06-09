@@ -1,15 +1,18 @@
-# Solring — Stats for Moxfield
+# Solring - Stats for Moxfield
 
-A Manifest V3 Chrome extension that injects [CommanderSalt](https://commandersalt.com)
+![Solring header](images/header.png)
+
+Solring is an extension for Chromium-based browsers that injects [CommanderSalt](https://commandersalt.com)
 deck and card metrics into [Moxfield](https://moxfield.com), blended into Moxfield's
 own look (light & dark). It shows you power level, bracket, saltiness, archetype, and
-per-card stats right where you're building or browsing a deck — no tab-switching.
+per-card stats right where you're building or browsing a deck, no tab-switching.
 
+> [!NOTE]
 > Unofficial. Not affiliated with Moxfield or CommanderSalt.
 
 ## Features
 
-**On a deck page** (`moxfield.com/decks/…`) — a collapsible "Solring" report card injected into the deck:
+**On a deck page** (`moxfield.com/decks/…`) a collapsible Solring report card is injected into the deck:
 
 - **Power** (`x / 10` rating + the deck's raw total power score)
 - **Bracket** (baseline → realistic, with an up/down delta arrow)
@@ -20,28 +23,50 @@ per-card stats right where you're building or browsing a deck — no tab-switchi
 - Every metric tile expands an inline detail panel (power pillars, bracket-defining
   cards, salt sources, archetype mix, synergy anchors, interaction breakdown)
 
-**In the decklist (Text view)** — per-card annotations, each toggled from Moxfield's
+**In the decklist (Text view)**: per-card annotations, each toggled from Moxfield's
 **Customize View** dialog (Power · Salt Value · Tags · Stats · Combos):
 
 - **Power** and **Salt** columns, placed right after the price; cards that stand out
   (power > 2× the deck average, salt ≥ 5) are highlighted in the accent color
 - **Tags**, bracket flags, per-card power/salt breakdowns, and combo membership
 
-**In the card-detail modal** — a per-card "Info" panel in the sidebar listing
+**In the card-detail modal**: a per-card "Info" panel in the sidebar listing
 saltiness, power contribution (as a share of the deck total), tags, bracket flags,
 power/salt breakdowns, and synergy. Updates as you page through cards.
 
-**Elsewhere** — a "CommanderSalt" link in the deck's links row, a manual re-analyze
+**Elsewhere:** a "CommanderSalt" link in the deck's links row, a manual re-analyze
 (↻) button, and a live "synced … ago" timestamp.
+
+## Enabling / disabling per-card data
+
+The per-card columns and annotations are toggled from **Moxfield's own "Customize
+View" dialog** (on a deck page, open the decklist's view settings). Solring adds its
+checkboxes to the **Include Extra Data** group, next to Moxfield's Mana Cost / Price /
+Set Symbol:
+
+| Toggle         | Shows on each card                        |
+|----------------|-------------------------------------------|
+| **Power**      | power-contribution column                 |
+| **Salt Value** | saltiness column                          |
+| **Tags**       | CommanderSalt tags (tutor, ramp, …)       |
+| **Stats**      | bracket flags + power and salt breakdowns |
+| **Combos**     | combo membership + synergy ("feeds …")    |
+
+Tick or untick any of them, changes apply **immediately**, persist across sessions
+(`chrome.storage.local`), and sync to other open Moxfield tabs. All are on by default.
+
+These annotations only show in a **text-row layout** (the *Text* / *Condensed* views).
+The *Visual* view has no rows to annotate. The deck report card and the card-modal
+panel are always shown as header.
 
 ## Install (load unpacked)
 
 1. `chrome://extensions`
 2. Enable **Developer mode** (top right)
 3. **Load unpacked** → select this folder
-4. Open any Moxfield deck — the Solring panel appears below the header
+4. Open any Moxfield deck: the Solring panel appears below the header
 
-No build step: the extension runs the source directly.
+No build step for now, the extension runs the source directly.
 
 ## How it works
 
@@ -54,20 +79,20 @@ No build step: the extension runs the source directly.
   display fields (never raw payloads) in `chrome.storage.local`.
 - Deck ↔ analysis are joined by **`md5(canonical Moxfield deck URL)`**, which is
   CommanderSalt's deck id. (Web Crypto has no MD5, so a small MD5 is vendored.)
-- The ↻ button forces a fresh re-analysis (`POST /decks?url=…&oldDeckId=…`); ordinary
-  page loads use the cheap cached `GET /decks?id=…`.
+- The ↻ button forces a fresh re-analysis (`POST /decks?url=…&oldDeckId=…`), whereas
+  ordinary page loads uses the cached `GET /decks?id=…`.
 
 ## Privacy & data
 
 - The extension only contacts **`api.commandersalt.com`** (its single host
-  permission) — client → CommanderSalt directly, never through any proxy.
+  permission): client → CommanderSalt directly, never through any proxy.
 - It stores extracted metric fields and your display preferences in
   `chrome.storage.local`. Nothing else is collected or sent.
 
 ## Development
 
 ```sh
-npm test        # node --test — pure-logic unit tests (extract, ratings, md5, …)
+npm test        # node --test, pure-logic unit tests (extract, ratings, md5, …)
 ```
 
 Pure ES modules, no bundler. The metric extraction, rating ladder, MD5, and Moxfield
