@@ -293,8 +293,5 @@
 .solring-cm-row { margin: 0.3rem 0; }
 .solring-cm-row-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.72rem; margin-bottom: 0.15rem; }
 .solring-cm-note { font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.35rem; }
-/* Synergy effect texts: the card's parsed synergistic clauses (outgoing impact). */
-.solring-cm-effects { margin: 0 0 0.4rem; padding-left: 1.1rem; font-size: 0.72rem; line-height: 1.35; color: var(--solring-text-2); }
-.solring-cm-effects li { margin: 0.15rem 0; }
 
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
