@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Solring — Options</title>
+  <title>Solring - Options</title>
   <style>
     :root {
       --bg: #ffffff; --fg: #1b1f24; --muted: #5c636a; --border: #e2e5e9;
@@ -46,16 +46,16 @@
     <p class="sub">Settings apply immediately to open Moxfield tabs.</p>
 
     <section>
-      <h2>Fetching</h2>
+      <h2>Data Sync</h2>
       <div class="row">
-        <span class="label">Auto-fetch uncached decks
-          <small>Fetch (GET) decks not yet cached, and re-analyze (POST) decks edited since their last scan. Off = show cached only.</small>
+        <span class="label">Auto-sync uncached decks
+          <small>Get statistics for decks not yet cached, and re-analyze decks edited since their last scan. Off = show cached only. Reload page for auto-sync after edit.</small>
         </span>
         <input type="checkbox" id="autoFetch">
       </div>
       <div class="row">
         <span class="label">Cache lifetime
-          <small>Cached analyses older than this count as stale (re-fetched when auto-fetch is on).</small>
+          <small>Cached analyses older than this count as stale (re-synced on page load when auto-sync is on).</small>
         </span>
         <select id="cacheLifetimeDays">
           <option value="1">1 day</option>
@@ -74,7 +74,7 @@
     </section>
 
     <section>
-      <h2>Marks — standout cards</h2>
+      <h2>Marks - standout cards</h2>
       <div class="row">
         <span class="label">Power threshold<small>Mark power above this multiple of the deck average.</small></span>
         <span class="color-ctl"><input type="number" id="powerThreshold" min="1" step="0.5"> × avg</span>
@@ -84,7 +84,7 @@
         <span class="color-ctl"><input type="color" id="powerColor"><code class="hex" id="powerColor-hex"></code><button type="button" class="reset" data-for="powerColor">Reset</button></span>
       </div>
       <div class="row">
-        <span class="label">Saltiness threshold<small>Mark saltiness at or above this value.</small></span>
+        <span class="label">Saltiness threshold<small>Mark saltiness at or above this static value.</small></span>
         <span class="color-ctl"><input type="number" id="saltThreshold" min="0" step="0.5"></span>
       </div>
       <div class="row">
@@ -94,9 +94,9 @@
     </section>
 
     <section>
-      <h2>Rating colors (A–D grades)</h2>
+      <h2>Rating colors</h2>
       <div class="row">
-        <span class="label">A — worst</span>
+        <span class="label">A</span>
         <span class="color-ctl"><input type="color" id="ratingA"><code class="hex" id="ratingA-hex"></code><button type="button" class="reset" data-for="ratingA">Reset</button></span>
       </div>
       <div class="row">
@@ -108,7 +108,7 @@
         <span class="color-ctl"><input type="color" id="ratingC"><code class="hex" id="ratingC-hex"></code><button type="button" class="reset" data-for="ratingC">Reset</button></span>
       </div>
       <div class="row">
-        <span class="label">D — best</span>
+        <span class="label">D</span>
         <span class="color-ctl"><input type="color" id="ratingD"><code class="hex" id="ratingD-hex"></code><button type="button" class="reset" data-for="ratingD">Reset</button></span>
       </div>
     </section>
@@ -116,11 +116,11 @@
     <section>
       <h2>Panels</h2>
       <div class="row">
-        <span class="label">Card Info panel — card-detail page</span>
+        <span class="label">Card Info panel - card-detail page</span>
         <input type="checkbox" id="cardPanelModal">
       </div>
       <div class="row">
-        <span class="label">Card Info panel — deck page</span>
+        <span class="label">Card Info panel - deck page</span>
         <input type="checkbox" id="cardPanelSidebar">
       </div>
       <div class="row">
@@ -133,7 +133,7 @@
       </div>
     </section>
 
-    <footer>Solring — stats for Moxfield · CommanderSalt data</footer>
+    <footer>Solring - Stats for Moxfield · CommanderSalt data</footer>
   </main>
   <script type="module" src="options.js"></script>
 </body>

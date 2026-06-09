@@ -22,7 +22,7 @@ export const OPTIONS_DEFAULT = {
   cardPanelModal: true,
   cardPanelSidebar: true,
   deckPanelDefault: 'auto', // 'auto' | 'open' | 'collapsed'
-  cacheLifetimeDays: 7,
+  cacheLifetimeDays: 30,
 };
 
 export async function getCardPrefs() {

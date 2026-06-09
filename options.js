@@ -35,7 +35,7 @@ async function render() {
 
 async function refreshCacheSize() {
   const { bytes, count } = await cachedBytes();
-  $('cacheSize').textContent = `${(bytes / 1024).toFixed(1)} KB · ${count} cached ${count === 1 ? 'entry' : 'entries'}`;
+  $('cacheSize').textContent = `${(bytes / 1024).toFixed(1)} KB · ${count} cached ${count === 1 ? 'deck' : 'decks'}`;
 }
 
 function bind() {
