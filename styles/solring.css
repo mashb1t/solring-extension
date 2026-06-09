@@ -328,6 +328,18 @@
 .solring-col-scan { cursor: pointer; }
 .solring-col-scan .solring-num { opacity: 0.45; }
 .solring-col-scan:hover .solring-num { opacity: 1; color: var(--solring-accent); }
+/* Per-row actions column: CommanderSalt link + Sync (re-analyze) button. */
+.solring-row-acts { display: inline-flex; gap: 0.3rem; align-items: center; justify-content: flex-end; }
+.solring-row-act {
+  font-size: 0.72rem; font-weight: 600; line-height: 1.35; color: var(--solring-accent);
+  background: none; border: 1px solid var(--solring-border); border-radius: 4px;
+  padding: 0 0.35rem; cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.solring-row-act:hover { border-color: var(--solring-accent); }
+.solring-row-sync { font-size: 0.82rem; }
+.solring-row-sync:disabled { opacity: 0.6; cursor: default; }
+.solring-row-sync.solring-spin { display: inline-block; animation: solring-spin 0.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .solring-row-sync.solring-spin { animation: none; } }
 
 /* "Stats columns" toggle: the button copies Moxfield's Sort styling and the panel
    reuses Moxfield's .dropdown-menu/.dropdown-item chrome, so we only position it. */

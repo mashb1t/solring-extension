@@ -18,7 +18,7 @@
 
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { parseDeckId } from './moxfield.js';
-import { getUserDecks, getDeck } from './messaging.js';
+import { getUserDecks, getDeck, importDeck } from './messaging.js';
 import { csRatingGrade } from './ratings.js';
 import {
   getListColumns, setListColumns, getColumnOrder, setColumnOrder,
@@ -226,6 +226,9 @@ const COLUMNS = [
   { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
   { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
   { key: 'archetype', label: 'Arch', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
+  // Per-row actions (CS link + Sync) — built from the entry, not the view; see
+  // buildActionsCell. `action:true` flags the special render path.
+  { key: 'actions', label: '', title: 'CommanderSalt link + re-sync', hit: true, action: true, cell: () => null },
 ];
 
 // Enabled columns, in the user's saved order (columnOrder); keys missing from the
@@ -295,6 +298,40 @@ function applyNativeHide(tbl, htr) {
   });
 }
 
+// Per-row actions cell: a CommanderSalt link + a Sync (re-analyze) button. Sync POSTs
+// the deck for a fresh analysis (like the deck page's ↻), spins while running, then
+// refreshes the row from the new payload. Never auto-syncs — explicit click only.
+function buildActionsCell(entry) {
+  const cs = el('a', {
+    class: 'solring-row-act', text: 'CS', title: 'Open on CommanderSalt',
+    attrs: { href: `https://commandersalt.com/decks/${entry.md5}`, target: '_blank', rel: 'noopener' },
+  });
+  const sync = el('button', {
+    class: 'solring-row-act solring-row-sync', text: '↻',
+    attrs: { type: 'button', title: 'Re-analyze on CommanderSalt' },
+  });
+  sync.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); syncDeck(entry, sync); });
+  return el('span', { class: 'solring-row-acts' }, [cs, sync]);
+}
+
+async function syncDeck(entry, btn) {
+  if (btn) { btn.disabled = true; btn.classList.add('solring-spin'); }
+  let res = null;
+  try {
+    res = await importDeck(canonicalDeckUrl(entry.publicId), entry.md5, entry.md5); // POST re-analysis
+  } catch (e) {
+    console.warn('[solring] deck-list sync failed', e);
+  }
+  if (res && res.fields) {
+    fullByMd5.set(entry.md5, res.fields);
+    rerenderMd5(entry.md5); // rebuilds the row (incl. a fresh, un-spun actions cell)
+    emitChange();
+  } else if (btn) {
+    btn.disabled = false;
+    btn.classList.remove('solring-spin');
+  }
+}
+
 // Build/rebuild one row's metric cells from its current view, inserted before the
 // "Updated" column (idx). A blank full-only cell (deck not yet scanned) is clickable
 // to scan just that deck. idx omitted → resolve it from the row's own table header.
@@ -308,12 +345,17 @@ function renderRowCells(entry, idx) {
   const ref = anchorCell(tr, idx);
   const view = viewFor(entry);
   for (const c of enabledColumns()) {
-    const inner = c.cell(view);
-    const td = el('td', { class: 'solring-col text-end', attrs: { 'data-col': c.key } }, [inner || el('span', { class: 'solring-num', text: '—' })]);
-    if (!inner && !c.hit && !view.analyzed) {
-      td.classList.add('solring-col-scan');
-      td.title = 'Scan this deck on CommanderSalt';
-      td.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, td); });
+    const td = el('td', { class: 'solring-col text-end', attrs: { 'data-col': c.key } });
+    if (c.action) {
+      td.append(buildActionsCell(entry));
+    } else {
+      const inner = c.cell(view);
+      td.append(inner || el('span', { class: 'solring-num', text: '—' }));
+      if (!inner && !c.hit && !view.analyzed) {
+        td.classList.add('solring-col-scan');
+        td.title = 'Scan this deck on CommanderSalt';
+        td.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, td); });
+      }
     }
     if (ref) tr.insertBefore(td, ref); else tr.appendChild(td);
   }
@@ -338,16 +380,32 @@ function renderBlankCells(row, idx) {
 // them re-added here.
 function reconcileColumns() {
   const sig = colSig();
+  const decorated = new Set(); // tables we actually own this pass
   for (const tbl of document.querySelectorAll('table.table')) {
     const htr = tbl.querySelector('thead tr');
     if (!htr) continue;
+    const idx = updatedIndex(htr); // native index of "Updated" — same for header + rows
+    // Only decorate the MAIN deck-list table: a Name + Updated header AND positively
+    // inside the main content column (.flex-grow-1). Moxfield's sidebar widgets
+    // ("Most Recent Deck" / "Favorite Decks" / …) are 1-row Name+Updated tables too,
+    // so the header alone isn't enough — and a negative "not in .flex-shrink-0" check
+    // lets a transiently-positioned sidebar table slip through. Requiring .flex-grow-1
+    // is positive and excludes it. (Verified main tables on /users/{name} +
+    // /decks/personal are in .flex-grow-1; the sidebar is not.)
+    const isDeckList = idx >= 0
+      && nativeCells(htr).some((c) => /^name$/i.test((c.textContent || '').trim()))
+      && !!tbl.closest('.flex-grow-1');
+    if (!isDeckList) {
+      tbl.querySelectorAll('.solring-col').forEach((n) => n.remove());
+      continue;
+    }
+    decorated.add(tbl);
     const bodyRows = [...tbl.querySelectorAll('tbody tr')];
     const ours = bodyRows.filter((tr) => rowMap.get(tr));
-    if (!ours.length) { // not one of our deck tables → strip any stale header cells
+    if (!ours.length) { // no joined rows yet → strip any stale header cells
       htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
       continue;
     }
-    const idx = updatedIndex(htr); // native index of "Updated" — same for header + rows
     if (ourColKeys(htr) !== sig) {
       htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
       const headRef = anchorCell(htr, idx);
@@ -362,6 +420,13 @@ function reconcileColumns() {
     }
     applyNativeHide(tbl, htr);
   }
+  // Sweep stray cells anywhere outside the tables we decorated. Moxfield's sidebar
+  // ("Most Recent Deck") transiently renders as a table we may decorate before it
+  // lands in .flex-shrink-0, then React re-renders it into <div>s — orphaning our
+  // <td>s where the per-table strip above can't reach them. Remove any such cells.
+  for (const cell of document.querySelectorAll('.solring-col')) {
+    if (!decorated.has(cell.closest('table.table'))) cell.remove();
+  }
 }
 
 // ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
@@ -370,6 +435,7 @@ const COLUMN_NAMES = {
   power: 'Power', bracket: 'Bracket', salt: 'Saltiness', synergy: 'Synergy',
   threat: 'Threat', interaction: 'Interaction', wincons: 'Wincons',
   tier: 'Commander tier', combos: 'Combos', archetype: 'Archetype',
+  actions: 'CS link + sync',
 };
 
 let outsideCloseInstalled = false;
@@ -601,6 +667,25 @@ function scheduleAnnotate() {
   });
 }
 
+// Remove any of our cells that aren't inside a main-content (.flex-grow-1) deck table.
+// React renders Moxfield's sidebar "Most Recent Deck" as a table inside .flex-grow-1
+// just long enough for us to decorate it, then reparents our <td>s into the sidebar
+// (.flex-shrink-0) divs — orphaning them where reconcile's per-table strip can't see
+// them. This sweep is idempotent (only removes), so running it on every mutation is
+// loop-safe (the relevance filter that drives annotate intentionally ignores our own
+// nodes, so it wouldn't otherwise fire on that reparent).
+function sweepStrayCols() {
+  for (const cell of document.querySelectorAll('.solring-col')) {
+    const t = cell.closest('table.table');
+    if (!t || !t.closest('.flex-grow-1')) cell.remove();
+  }
+}
+let sweepRaf = null;
+function scheduleSweep() {
+  if (sweepRaf) return;
+  sweepRaf = requestAnimationFrame(() => { sweepRaf = null; guard('deck-list sweep', sweepStrayCols); });
+}
+
 // ---- entry point -------------------------------------------------------------
 
 /** Install the deck-list strips for `username`. Loads all search hits, annotates
@@ -625,8 +710,12 @@ export async function installDeckList(username, { waitFor } = {}) {
   annotate();
   if (!listObserver) {
     listObserver = new MutationObserver((mutations) => {
+      // Always sweep cells React may have reparented out of the main table (cheap,
+      // idempotent — see sweepStrayCols). The relevance check below ignores our own
+      // nodes, so it would miss that reparent; the sweep covers it.
+      scheduleSweep();
       // Re-annotate when Moxfield adds/replaces rows; ignore our OWN injected nodes
-      // (any solring-* class), or inserting the strip <tr> would re-trigger forever.
+      // (any solring-* class), or inserting our cells would re-trigger forever.
       const relevant = mutations.some((m) => [...m.addedNodes].some((n) => {
         if (n.nodeType !== 1) return false;
         const cls = typeof n.className === 'string' ? n.className : '';

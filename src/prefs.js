@@ -27,6 +27,7 @@ export const LIST_COLUMNS_DEFAULT = {
   tier: false,
   combos: false,
   archetype: false,
+  actions: true,
 };
 
 // Options-panel settings. null colors = "not customized" (keep the auto-themed CSS
