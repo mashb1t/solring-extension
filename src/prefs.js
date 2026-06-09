@@ -6,6 +6,7 @@ const CARD_KEY = 'prefs:cardData';
 const SORT_KEY = 'prefs:sort';
 const OPTIONS_KEY = 'prefs:options';
 const LIST_COLUMNS_KEY = 'prefs:listColumns';
+const WIDE_KEY = 'prefs:wide';
 
 const CARD_DEFAULT = { power: true, saltValue: true, tags: true, stats: true, combos: true };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
@@ -89,8 +90,21 @@ export async function setListColumns(patch) {
   return next;
 }
 
+// Wide layout: drop Moxfield's container max-widths so pages use the full viewport.
+export async function getWide() {
+  return !!(await getPrefRaw(WIDE_KEY, false));
+}
+export async function setWide(on) {
+  await chrome.storage.local.set({ [WIDE_KEY]: !!on });
+  return !!on;
+}
+async function getPrefRaw(key, fallback) {
+  const obj = await chrome.storage.local.get(key);
+  return key in obj ? obj[key] : fallback;
+}
+
 /** Subscribe to pref changes. cb(which) where which is
-    'card' | 'sort' | 'options' | 'listColumns'. */
+    'card' | 'sort' | 'options' | 'listColumns' | 'wide'. */
 export function onPrefChange(cb) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
@@ -98,5 +112,6 @@ export function onPrefChange(cb) {
     if (SORT_KEY in changes) cb('sort');
     if (OPTIONS_KEY in changes) cb('options');
     if (LIST_COLUMNS_KEY in changes) cb('listColumns');
+    if (WIDE_KEY in changes) cb('wide');
   });
 }

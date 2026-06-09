@@ -353,4 +353,19 @@
 .solring-mini.solring-tier-d .solring-mini-fill { background: var(--solring-rating-d); }
 .solring-mini-val { font-variant-numeric: tabular-nums; }
 
+/* ---- wide layout toggle (header) ----
+   Wide mode drops Moxfield's Bootstrap container max-widths so pages use the full
+   viewport. Gated on the html.solring-wide class the header toggle flips. */
+html.solring-wide .container-xxxl,
+html.solring-wide .container-xxl,
+html.solring-wide .container-xl,
+html.solring-wide .container-lg,
+html.solring-wide .container-md,
+html.solring-wide .container-sm,
+html.solring-wide .container-xs,
+html.solring-wide .container { max-width: unset !important; }
+/* The toggle mirrors Moxfield's nav-link icon button; tint it the accent when wide. */
+.solring-wide-toggle { display: inline-flex; align-items: center; }
+.solring-wide-toggle.solring-wide-on { color: var(--solring-accent); }
+
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
