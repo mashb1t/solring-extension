@@ -104,6 +104,10 @@ function installCardHover() {
   if (hoverInstalled) return;
   hoverInstalled = true;
   const hide = () => { if (hoverPop) hoverPop.classList.remove('solring-cardpop-show'); };
+  // All delegated listeners use CAPTURE: inside Moxfield's card modal an ancestor
+  // calls stopPropagation() on mouseover/click, so a bubble-phase document listener
+  // never fires there (it does on the deck sidebar). Capture runs before any
+  // descendant can stop it. (Verified live: bubble=0, capture=1 in the modal.)
   document.addEventListener('mouseover', (e) => {
     const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-img]');
     if (!chip) return;
@@ -128,10 +132,10 @@ function installCardHover() {
     const top = r.top - ph - 8 >= 4 ? r.top - ph - 8 : Math.min(r.bottom + 8, window.innerHeight - ph - 4);
     hoverPop.style.left = `${Math.max(4, Math.min(r.left, window.innerWidth - pw - 4))}px`;
     hoverPop.style.top = `${Math.max(4, top)}px`;
-  });
+  }, true);
   document.addEventListener('mouseout', (e) => {
     if (e.target.closest && e.target.closest('.solring-syn-chip[data-img]')) hide();
-  });
+  }, true);
   document.addEventListener('scroll', hide, true);
   // Click (or Enter/Space) opens Moxfield's card view for the chip's card. We click
   // the live on-page link so React Router handles it (modal overlay), falling back
@@ -148,14 +152,14 @@ function installCardHover() {
     if (!chip) return;
     e.preventDefault();
     open(chip);
-  });
+  }, true);
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
     if (!chip) return;
     e.preventDefault();
     open(chip);
-  });
+  }, true);
 }
 
 // Map decklist rows → normalized name → { img, href }. A card's id in its
