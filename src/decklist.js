@@ -20,7 +20,10 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { parseDeckId } from './moxfield.js';
 import { getUserDecks, getDeck } from './messaging.js';
 import { csRatingGrade } from './ratings.js';
-import { getListColumns, setListColumns, onPrefChange } from './prefs.js';
+import {
+  getListColumns, setListColumns, getColumnOrder, setColumnOrder,
+  getHiddenNativeCols, setHiddenNativeCols, onPrefChange,
+} from './prefs.js';
 import { el, guard } from './dom.js';
 import { gradeChip, bracketValue } from './components.js';
 
@@ -99,6 +102,8 @@ let checkedCache = new Set(); // md5s we've already probed cache-only (avoid re-
 let rowEntries = []; // [{ md5, publicId, row, hit }] — one per visible deck row
 let rowMap = new WeakMap(); // row element → its current entry (idempotency)
 let listColumns = {}; // prefs:listColumns — which metric columns are enabled
+let columnOrder = []; // prefs:listColumnOrder — display order of the metric columns
+let hiddenNative = []; // prefs:hiddenNativeCols — Moxfield native columns to hide
 let prefSubscribed = false; // onPrefChange wired only once
 const subscribers = new Set();
 let listObserver = null;
@@ -223,8 +228,18 @@ const COLUMNS = [
   { key: 'archetype', label: 'Arch', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
 ];
 
+// Enabled columns, in the user's saved order (columnOrder); keys missing from the
+// order fall back to the default COLUMNS order at the end (forward-compatible).
 function enabledColumns() {
-  return COLUMNS.filter((c) => listColumns[c.key]);
+  const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
+  const seen = new Set();
+  const out = [];
+  for (const k of columnOrder) {
+    const c = byKey.get(k);
+    if (c && listColumns[k] && !seen.has(k)) { out.push(c); seen.add(k); }
+  }
+  for (const c of COLUMNS) if (listColumns[c.key] && !seen.has(c.key)) out.push(c);
+  return out;
 }
 // Signature of the enabled set, to detect when a row/header needs rebuilding.
 function colSig() {
@@ -253,6 +268,31 @@ function updatedIndex(htr) {
 // null → append (Updated column not found / row shorter than expected).
 function anchorCell(row, idx) {
   return idx < 0 ? null : (nativeCells(row)[idx] || null);
+}
+
+// Stable key for a Moxfield native column = its lowercased header label. Icon-only
+// columns (likes/comments/views — blank headers) have no key and aren't hideable.
+function nativeKey(headerCell) {
+  const t = (headerCell.textContent || '').trim();
+  return t ? t.toLowerCase() : null;
+}
+
+// Hide/show Moxfield's own columns per prefs (hiddenNative), by toggling a
+// display:none class on the header cell + every body cell at that column index.
+// 'name' is never hidden (it carries the deck link). Re-applied each reconcile so it
+// survives React re-renders.
+function applyNativeHide(tbl, htr) {
+  const headNative = nativeCells(htr);
+  const bodyRows = [...tbl.querySelectorAll('tbody tr')];
+  headNative.forEach((th, i) => {
+    const key = nativeKey(th);
+    const hide = !!key && key !== 'name' && hiddenNative.includes(key);
+    th.classList.toggle('solring-hide-native', hide);
+    for (const tr of bodyRows) {
+      const cell = nativeCells(tr)[i];
+      if (cell) cell.classList.toggle('solring-hide-native', hide);
+    }
+  });
 }
 
 // Build/rebuild one row's metric cells from its current view, inserted before the
@@ -304,6 +344,7 @@ function reconcileColumns() {
     for (const tr of ours) {
       if (ourColKeys(tr) !== sig) renderRowCells(rowMap.get(tr), idx);
     }
+    applyNativeHide(tbl, htr);
   }
 }
 
@@ -357,10 +398,80 @@ function columnsIcon() {
   return svg;
 }
 
-// A dropdown of per-metric checkboxes, persisted to prefs:listColumns (which fires
-// onPrefChange('listColumns') → reconcileColumns). The button copies Moxfield's Sort
-// button styling (passed in) and the panel uses Moxfield's dropdown-menu / -item /
-// -header classes, so both match the native Sort control.
+// All metric columns in the saved display order (enabled or not) — for the menu, so
+// reordering works regardless of which are currently shown.
+function orderedColumns() {
+  const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
+  const seen = new Set();
+  const out = [];
+  for (const k of columnOrder) { const c = byKey.get(k); if (c && !seen.has(k)) { out.push(c); seen.add(k); } }
+  for (const c of COLUMNS) if (!seen.has(c.key)) out.push(c);
+  return out;
+}
+
+// Moxfield's native, label-bearing columns (for the hide section). Icon-only columns
+// have no label/key and are omitted.
+function nativeColumnsForMenu() {
+  const htr = document.querySelector('table.table thead tr');
+  if (!htr) return [];
+  return nativeCells(htr)
+    .map((th) => { const key = nativeKey(th); return key ? { key, label: th.textContent.trim() } : null; })
+    .filter(Boolean);
+}
+
+let dragColKey = null;
+function onDropReorder(targetKey, list) {
+  if (!dragColKey || dragColKey === targetKey) return;
+  const dragged = list.querySelector(`[data-colkey="${dragColKey}"]`);
+  const target = list.querySelector(`[data-colkey="${targetKey}"]`);
+  dragColKey = null;
+  if (!dragged || !target) return;
+  list.insertBefore(dragged, target); // reorder our own menu DOM (stable, not React's)
+  const order = [...list.querySelectorAll('[data-colkey]')].map((n) => n.getAttribute('data-colkey'));
+  setColumnOrder(order); // → onPrefChange('listColumns') → reconcile repaints the table
+}
+
+// A draggable Solring-metric row: grip + show/hide checkbox + label. Drag reorders
+// within the menu (our DOM), persisting columnOrder.
+function buildSolringItem(c, list) {
+  const input = el('input', { class: 'form-check-input m-0', attrs: { type: 'checkbox', id: `solring-colpref-${c.key}` } });
+  input.checked = !!listColumns[c.key];
+  input.addEventListener('change', () => setListColumns({ [c.key]: input.checked }));
+  const grip = el('span', { class: 'solring-grip', text: '⠿', attrs: { 'aria-hidden': 'true', title: 'Drag to reorder' } });
+  const item = el('label', {
+    class: 'dropdown-item d-flex flex-row flex-nowrap gap-2 align-items-center cursor-pointer no-outline solring-colmenu-row',
+    attrs: { for: `solring-colpref-${c.key}`, 'data-colkey': c.key, draggable: 'true' },
+  }, [grip, input, el('span', { text: COLUMN_NAMES[c.key] || c.key })]);
+  item.addEventListener('dragstart', (e) => { dragColKey = c.key; e.dataTransfer.effectAllowed = 'move'; item.classList.add('solring-dragging'); });
+  item.addEventListener('dragend', () => item.classList.remove('solring-dragging'));
+  item.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  item.addEventListener('drop', (e) => { e.preventDefault(); onDropReorder(c.key, list); });
+  return item;
+}
+
+// A native-column show/hide row. 'name' is pinned (always shown — it carries the
+// deck link). Checked = visible; unchecking adds the column to hiddenNative.
+function buildNativeItem(n) {
+  const pinned = n.key === 'name';
+  const input = el('input', { class: 'form-check-input m-0', attrs: { type: 'checkbox', id: `solring-natcol-${n.key}` } });
+  input.checked = pinned ? true : !hiddenNative.includes(n.key);
+  if (pinned) { input.disabled = true; }
+  else {
+    input.addEventListener('change', () => {
+      const set = new Set(hiddenNative);
+      if (input.checked) set.delete(n.key); else set.add(n.key);
+      setHiddenNativeCols([...set]);
+    });
+  }
+  return el('label', {
+    class: 'dropdown-item d-flex flex-row flex-nowrap gap-2 align-items-center cursor-pointer no-outline',
+    attrs: { for: `solring-natcol-${n.key}` },
+  }, [input, el('span', { text: n.label })]);
+}
+
+// The "Stats" dropdown: a reorderable, toggleable list of Solring metric columns +
+// a show/hide list of Moxfield's own columns. Button copies Sort's styling; panel
+// uses Moxfield's dropdown chrome so both match the native Sort control.
 function buildColumnMenu(sortClassName) {
   const wrap = el('div', { class: 'solring-colmenu', attrs: { 'data-solring-root': '' } });
   const btn = el('button', {
@@ -368,16 +479,15 @@ function buildColumnMenu(sortClassName) {
     attrs: { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
   }, [el('span', {}, [columnsIcon(), 'Stats'])]);
   const inner = el('div', { class: 'dropdown-menu-parent', attrs: { tabindex: '-1' } }, [
-    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'Columns' })]),
+    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'CommanderSalt columns' })]),
   ]);
-  for (const c of COLUMNS) {
-    const input = el('input', { class: 'form-check-input m-0', attrs: { type: 'checkbox', id: `solring-colpref-${c.key}` } });
-    input.checked = !!listColumns[c.key];
-    input.addEventListener('change', () => setListColumns({ [c.key]: input.checked }));
-    inner.append(el('label', {
-      class: 'dropdown-item d-flex flex-row flex-nowrap gap-2 align-items-center cursor-pointer no-outline',
-      attrs: { for: `solring-colpref-${c.key}` },
-    }, [input, el('span', { text: COLUMN_NAMES[c.key] || c.key })]));
+  const list = el('div', { class: 'solring-colmenu-list' });
+  for (const c of orderedColumns()) list.append(buildSolringItem(c, list));
+  inner.append(list);
+  const native = nativeColumnsForMenu();
+  if (native.length) {
+    inner.append(el('div', { class: 'dropdown-header small text-caps text-primary pt-2 pb-1' }, [el('strong', { text: 'Moxfield columns' })]));
+    for (const n of native) inner.append(buildNativeItem(n));
   }
   const panel = el('div', { class: 'dropdown-menu dropdown-menu-end' }, [inner]);
   btn.addEventListener('click', (e) => {
@@ -473,13 +583,13 @@ function scheduleAnnotate() {
     every deck row, and keeps re-annotating across Moxfield's SPA re-renders. */
 export async function installDeckList(username, { waitFor } = {}) {
   if (!username) return;
-  listColumns = await getListColumns();
+  [listColumns, columnOrder, hiddenNative] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols()]);
   installOutsideClose();
   if (!prefSubscribed) {
     prefSubscribed = true;
     onPrefChange(async (which) => {
       if (which !== 'listColumns') return;
-      listColumns = await getListColumns();
+      [listColumns, columnOrder, hiddenNative] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols()]);
       guard('deck-list reconcile', () => reconcileColumns());
     });
   }
@@ -510,6 +620,7 @@ export async function installDeckList(username, { waitFor } = {}) {
 export function teardownDeckList() {
   if (listObserver) { listObserver.disconnect(); listObserver = null; }
   document.querySelectorAll('.solring-col, .solring-colmenu').forEach((n) => n.remove());
+  document.querySelectorAll('.solring-hide-native').forEach((n) => n.classList.remove('solring-hide-native'));
   rowEntries = [];
   rowMap = new WeakMap();
   hitMap = new Map();

@@ -6,6 +6,8 @@ const CARD_KEY = 'prefs:cardData';
 const SORT_KEY = 'prefs:sort';
 const OPTIONS_KEY = 'prefs:options';
 const LIST_COLUMNS_KEY = 'prefs:listColumns';
+const LIST_ORDER_KEY = 'prefs:listColumnOrder';
+const HIDDEN_NATIVE_KEY = 'prefs:hiddenNativeCols';
 const WIDE_KEY = 'prefs:wide';
 
 const CARD_DEFAULT = { power: true, saltValue: true, tags: true, stats: true, combos: true };
@@ -90,6 +92,27 @@ export async function setListColumns(patch) {
   return next;
 }
 
+// Display order of the Solring metric columns (array of keys). [] = use the default
+// COLUMNS order. Unknown/new keys fall back to default order in decklist.js.
+export async function getColumnOrder() {
+  const obj = await chrome.storage.local.get(LIST_ORDER_KEY);
+  return Array.isArray(obj[LIST_ORDER_KEY]) ? obj[LIST_ORDER_KEY] : [];
+}
+export async function setColumnOrder(order) {
+  await chrome.storage.local.set({ [LIST_ORDER_KEY]: Array.isArray(order) ? order : [] });
+  return order;
+}
+
+// Moxfield native columns to hide (array of lowercased header labels, e.g. 'colors').
+export async function getHiddenNativeCols() {
+  const obj = await chrome.storage.local.get(HIDDEN_NATIVE_KEY);
+  return Array.isArray(obj[HIDDEN_NATIVE_KEY]) ? obj[HIDDEN_NATIVE_KEY] : [];
+}
+export async function setHiddenNativeCols(keys) {
+  await chrome.storage.local.set({ [HIDDEN_NATIVE_KEY]: Array.isArray(keys) ? keys : [] });
+  return keys;
+}
+
 // Wide layout: drop Moxfield's container max-widths so pages use the full viewport.
 export async function getWide() {
   return !!(await getPrefRaw(WIDE_KEY, false));
@@ -111,7 +134,7 @@ export function onPrefChange(cb) {
     if (CARD_KEY in changes) cb('card');
     if (SORT_KEY in changes) cb('sort');
     if (OPTIONS_KEY in changes) cb('options');
-    if (LIST_COLUMNS_KEY in changes) cb('listColumns');
+    if (LIST_COLUMNS_KEY in changes || LIST_ORDER_KEY in changes || HIDDEN_NATIVE_KEY in changes) cb('listColumns');
     if (WIDE_KEY in changes) cb('wide');
   });
 }

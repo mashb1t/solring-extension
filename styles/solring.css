@@ -332,8 +332,14 @@
 /* "Stats columns" toggle: the button copies Moxfield's Sort styling and the panel
    reuses Moxfield's .dropdown-menu/.dropdown-item chrome, so we only position it. */
 .solring-colmenu { position: relative; display: inline-flex; align-items: center; }
-.solring-colmenu .dropdown-menu { margin-top: 0.3rem; }
+.solring-colmenu .dropdown-menu { margin-top: 0.3rem; max-height: 75vh; overflow-y: auto; }
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
+/* Drag-to-reorder the metric rows (DnD lives in our own menu DOM, not the table). */
+.solring-grip { cursor: grab; opacity: 0.5; font-size: 0.9em; line-height: 1; }
+.solring-colmenu-row { user-select: none; }
+.solring-colmenu-row.solring-dragging { opacity: 0.45; }
+/* Hide a Moxfield native column (overrides Bootstrap's d-*-table-cell utilities). */
+.solring-hide-native { display: none !important; }
 
 /* compact inline "label · bar · value" — shared by the profile averages (T18) */
 .solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }
