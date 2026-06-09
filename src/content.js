@@ -56,7 +56,13 @@
     if (type === 'deck') {
       await renderDeck.mount({ ...m, waitFor });
     } else if (type === 'user' || type === 'personal') {
-      const username = listUsername(moxfield);
+      let username = listUsername(moxfield);
+      // On a fresh /decks/personal load the header (and its profile link) may not be
+      // rendered yet when route() runs — wait for it rather than giving up silently.
+      if (!username && type === 'personal') {
+        const link = await waitFor('header a[href^="/users/"], nav a[href^="/users/"]');
+        if (link) username = moxfield.parseUsername(link.href);
+      }
       if (username) await decklist.installDeckList(username, { waitFor });
     }
   }

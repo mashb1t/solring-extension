@@ -319,6 +319,18 @@ function renderRowCells(entry, idx) {
   }
 }
 
+// Non-deck rows (folders, "up a level", spacers) in a deck table get matching BLANK
+// metric cells before "Updated" — otherwise our inserted columns shift the deck rows'
+// Updated/⋯ right while the folder rows' stay put, breaking the right-side alignment.
+function renderBlankCells(row, idx) {
+  row.querySelectorAll(':scope > td.solring-col').forEach((n) => n.remove());
+  const ref = anchorCell(row, idx);
+  for (const c of enabledColumns()) {
+    const td = el('td', { class: 'solring-col solring-col-blank text-end', attrs: { 'data-col': c.key } });
+    if (ref) row.insertBefore(td, ref); else row.appendChild(td);
+  }
+}
+
 // Reconcile every Moxfield deck table to exactly the enabled columns, inserting them
 // before the "Updated" column. Each table is handled independently (its own
 // <thead>); a table with no joined rows is skipped (and any stale header cells
@@ -341,8 +353,12 @@ function reconcileColumns() {
       const headRef = anchorCell(htr, idx);
       buildHeaderCells().forEach((th) => (headRef ? htr.insertBefore(th, headRef) : htr.appendChild(th)));
     }
-    for (const tr of ours) {
-      if (ourColKeys(tr) !== sig) renderRowCells(rowMap.get(tr), idx);
+    // Every body row keeps the same column count so Updated/⋯ stay aligned: deck rows
+    // get metric cells, folder/other rows get matching blank cells.
+    for (const tr of bodyRows) {
+      if (ourColKeys(tr) === sig) continue; // already current
+      const entry = rowMap.get(tr);
+      if (entry) renderRowCells(entry, idx); else renderBlankCells(tr, idx);
     }
     applyNativeHide(tbl, htr);
   }
@@ -484,16 +500,24 @@ function buildColumnMenu(sortClassName) {
   const list = el('div', { class: 'solring-colmenu-list' });
   for (const c of orderedColumns()) list.append(buildSolringItem(c, list));
   inner.append(list);
-  const native = nativeColumnsForMenu();
-  if (native.length) {
-    inner.append(el('div', { class: 'dropdown-header small text-caps text-primary pt-2 pb-1' }, [el('strong', { text: 'Moxfield columns' })]));
-    for (const n of native) inner.append(buildNativeItem(n));
-  }
+  // Native-columns section is (re)built each time the menu opens — the toolbar can
+  // render before the deck table, so the native columns aren't known at build time,
+  // and this also keeps the checkboxes in sync with hiddenNative.
+  const nativeWrap = el('div', { class: 'solring-native-wrap' });
+  inner.append(nativeWrap);
+  const populateNative = () => {
+    nativeWrap.replaceChildren();
+    const native = nativeColumnsForMenu();
+    if (!native.length) return;
+    nativeWrap.append(el('div', { class: 'dropdown-header small text-caps text-primary pt-2 pb-1' }, [el('strong', { text: 'Moxfield columns' })]));
+    for (const n of native) nativeWrap.append(buildNativeItem(n));
+  };
   const panel = el('div', { class: 'dropdown-menu dropdown-menu-end' }, [inner]);
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     const show = !panel.classList.contains('show');
+    if (show) populateNative();
     panel.classList.toggle('show', show);
     btn.setAttribute('aria-expanded', String(show));
   });
