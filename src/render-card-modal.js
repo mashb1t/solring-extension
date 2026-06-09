@@ -23,10 +23,10 @@ let getFields = () => null;
 let observer = null;
 let raf = null;
 
-// Match the modal's card name to a per-card entry: raw name → normalized → a
-// DFC-tolerant scan (the cards map keys by full "Front // Back", normName strips it).
-function lookup(name) {
-  const fields = getFields();
+// Match a card name to a per-card entry: raw name → normalized → a DFC-tolerant
+// scan (the cards map keys by full "Front // Back", normName strips it). Exported
+// so the deck-page sidebar mirror can resolve the same way.
+export function lookupCard(fields, name) {
   if (!fields || !fields.cards || !name) return null;
   const cards = fields.cards;
   const raw = name.toLowerCase().trim();
@@ -56,8 +56,8 @@ function tile(label, value, sub, valueClass) {
 // Deck-wide totals (denominators for each card's "/ total") + the average power.
 // Both use the deck's authoritative totals: power's scoring.total (powerScoreTotal)
 // and salt's saltRating (fields.salt IS the deck total saltiness). Summed per-card
-// values are a fallback for older cached decks.
-function deckStats(fields) {
+// values are a fallback for older cached decks. Exported for the sidebar mirror.
+export function deckStats(fields) {
   const cards = (fields && fields.cards) || {};
   const ids = Object.keys(cards);
   let powerSum = 0;
@@ -136,7 +136,9 @@ function buildBody(card, stats) {
   return body;
 }
 
-function buildPanel(card, key, stats) {
+// Build the full panel for a card. Exported so the deck-page sidebar renders the
+// identical layout/info as the card-detail modal.
+export function buildPanel(card, key, stats) {
   const bar = el('div', { class: 'solring-panel-bar solring-cm-bar' }, [
     el('span', { class: 'solring-wordmark', text: 'Solring' }),
   ]);
@@ -160,10 +162,11 @@ function apply() {
   const key = normName(name);
   const existing = box.querySelector(':scope > .solring-card-modal');
   if (existing && existing.getAttribute('data-card') === key) return; // already current
-  const card = lookup(name);
+  const fields = getFields();
+  const card = lookupCard(fields, name);
   if (existing) existing.remove();
   if (!card) return;
-  const panel = buildPanel(card, key, deckStats(getFields()));
+  const panel = buildPanel(card, key, deckStats(fields));
   // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
   // list would stretch the whole modal. Cap the panel to the card image's width
   // (measured before inserting, since our content could otherwise widen the box). On

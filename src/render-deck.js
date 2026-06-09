@@ -14,6 +14,7 @@ import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
 import { installCardModal } from './render-card-modal.js';
+import { installCardSidebar } from './render-card-sidebar.js';
 import { buildCombosSection } from './render-combos.js';
 import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel } from './render-panels.js';
 
@@ -78,6 +79,7 @@ function installOnce() {
   installedOnce = true;
   installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
   installCardModal(() => currentFields);  // per-card Info panel in the card-detail modal
+  installCardSidebar(() => currentFields); // …mirrored on the deck-page preview sidebar
   onPrefChange((which) => { if (which === 'card') reannotate(); });
 }
 
