@@ -11,13 +11,24 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
+      import(u('decklist.js')),
     ]);
-    mods = { moxfield, dom, renderDeck };
+    mods = { moxfield, dom, renderDeck, decklist };
     return mods;
+  }
+
+  // The username whose decks a list page shows: from the URL on /users/{name};
+  // on /decks/personal the logged-in user, read best-effort from a profile link in
+  // the page chrome. LIVE-VERIFY: confirm the navbar profile-link selector when
+  // logged in (the personal route stays inert until a username resolves).
+  function listUsername(moxfield) {
+    if (moxfield.pageType(location.href) === 'user') return moxfield.parseUsername(location.href);
+    const link = document.querySelector('header a[href^="/users/"], nav a[href^="/users/"]');
+    return link ? moxfield.parseUsername(link.href) : null;
   }
 
   // Wait (briefly) for an anchor Moxfield renders asynchronously.
@@ -36,13 +47,16 @@
 
   async function route() {
     const m = await load();
-    const { moxfield, dom, renderDeck } = m;
+    const { moxfield, dom, renderDeck, decklist } = m;
     dom.guard('teardown', () => dom.teardown());
+    decklist.teardownDeckList(); // drop any prior list observer/state on every nav
     const type = moxfield.pageType(location.href);
     if (type === 'deck') {
       await renderDeck.mount({ ...m, waitFor });
+    } else if (type === 'user' || type === 'personal') {
+      const username = listUsername(moxfield);
+      if (username) await decklist.installDeckList(username, { waitFor });
     }
-    // 'user' / 'personal' renderers wired in later tasks.
   }
 
   function onNavigate() {
