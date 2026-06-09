@@ -8,10 +8,12 @@
 // that covers the default, hover, click, and Moxfield-internal swaps uniformly.
 
 import { buildPanel, deckStats, lookupCard } from './render-card-modal.js';
+import { onPrefChange } from './prefs.js';
 
 const ASIDE_SEL = 'aside.deckview-image-container';
 
 let getFields = () => null;
+let getOpts = () => ({});
 let observer = null;
 let raf = null;
 
@@ -27,6 +29,12 @@ function apply() {
   raf = null;
   const aside = document.querySelector(ASIDE_SEL);
   if (!aside) return;
+  const opts = getOpts();
+  if (opts.cardPanelSidebar === false) { // panel disabled
+    const ex = aside.querySelector(':scope > .solring-card-modal');
+    if (ex) ex.remove();
+    return;
+  }
   const img = aside.querySelector('img.front') || aside.querySelector('img.img-card') || aside.querySelector('img');
   const id = img && ((img.src || '').match(/\/card-([A-Za-z0-9]+)-/) || [])[1];
   const key = id || 'commander';
@@ -45,7 +53,7 @@ function apply() {
 
   if (existing) existing.remove();
   if (!card) return;
-  const panel = buildPanel(card, key, deckStats(fields));
+  const panel = buildPanel(card, key, { ...deckStats(fields), powerThreshold: opts.powerThreshold, saltThreshold: opts.saltThreshold });
   // Cap to the preview image width so a long tag/synergy list can't widen the column.
   const w = img ? Math.round(img.getBoundingClientRect().width) : 0;
   if (w > 40) panel.style.maxWidth = `${w}px`;
@@ -62,11 +70,13 @@ function schedule() {
 
 /** Install the deck-sidebar mirror once. `fieldsGetter` returns the live deck fields
     (or null when no deck is analyzed). */
-export function installCardSidebar(fieldsGetter) {
+export function installCardSidebar(fieldsGetter, optsGetter) {
   getFields = fieldsGetter || (() => null);
+  if (optsGetter) getOpts = optsGetter;
   if (observer) return;
   // Watch the preview image's src (and node swaps) plus structural changes; the
   // attributeFilter keeps this cheap despite the body-wide subtree.
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+  onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
 }

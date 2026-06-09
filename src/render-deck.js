@@ -9,7 +9,7 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
 import { el, tierFromGrade, isDark, chevronSvg } from './dom.js';
-import { getCardPrefs, onPrefChange } from './prefs.js';
+import { getCardPrefs, getOptions, onPrefChange } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
@@ -20,10 +20,48 @@ import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
+let currentOptions = {}; // prefs:options, loaded on mount + kept fresh on change
 let deckObserver = null;
 let dvRef = null;
 let installedOnce = false;
 let syncTimer = null; // ticks the "synced …ago" label live; manual refresh only, no auto-revalidate
+
+// Override the injected-UI CSS vars from the options (single value, both themes);
+// null = not customized → removeProperty falls back to the auto-themed default.
+function applyOptionColors(o) {
+  const root = document.documentElement.style;
+  const set = (name, val) => (val ? root.setProperty(name, val) : root.removeProperty(name));
+  set('--solring-mark-power', o.powerColor);
+  set('--solring-mark-salt', o.saltColor);
+  const rc = o.ratingColors || {};
+  set('--solring-rating-a', rc.a);
+  set('--solring-rating-b', rc.b);
+  set('--solring-rating-c', rc.c);
+  set('--solring-rating-d', rc.d);
+}
+
+// Moxfield's deck "last updated" as epoch ms. Moxfield renders the timestamp like
+// `Last updated <time datetime=… title=…>… ago</time>` — the word "updated" usually
+// lives on a PARENT node, not the <time>/[title] element itself, so we read each
+// candidate's absolute date but require an ancestor's text to mention "updated" (and
+// not "created", to skip the sibling create-date). Best-effort: returns null when not
+// found, in which case edit-detection is simply skipped.
+function moxfieldLastUpdatedMs() {
+  for (const e of document.querySelectorAll('time[datetime], time[title], [title]')) {
+    const raw = e.getAttribute('datetime') || e.getAttribute('title');
+    const ms = raw ? Date.parse(raw) : NaN;
+    if (!Number.isFinite(ms)) continue;
+    // The "Last updated" label sits on the timestamp's parent (it and its sibling
+    // create-date each have their own row), so element + parent is enough scope —
+    // and shallow enough not to reach a shared ancestor holding both rows.
+    const ctx = `${e.textContent || ''} ${e.getAttribute('aria-label') || ''} `
+      + `${e.parentElement ? e.parentElement.textContent : ''}`;
+    if (/updated/i.test(ctx) && !/\bcreated\b/i.test(ctx)) return ms;
+  }
+  return null;
+}
+
+const cacheMaxAgeMs = (o) => (o.cacheLifetimeDays > 0 ? o.cacheLifetimeDays * 86400000 : 0);
 
 function connectObserver() {
   if (deckObserver && dvRef) deckObserver.observe(dvRef, { childList: true, subtree: true });
@@ -33,7 +71,7 @@ async function reannotate() {
   if (!currentFields) return;
   const prefs = await getCardPrefs();
   if (deckObserver) deckObserver.disconnect(); // ignore our own mutations
-  annotate(currentFields, prefs);
+  annotate(currentFields, prefs, currentOptions);
   connectObserver();
 }
 
@@ -78,9 +116,12 @@ function installOnce() {
   if (installedOnce) return;
   installedOnce = true;
   installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
-  installCardModal(() => currentFields);  // per-card Info panel in the card-detail modal
-  installCardSidebar(() => currentFields); // …mirrored on the deck-page preview sidebar
-  onPrefChange((which) => { if (which === 'card') reannotate(); });
+  installCardModal(() => currentFields, () => currentOptions);  // per-card Info panel (card-detail modal)
+  installCardSidebar(() => currentFields, () => currentOptions); // …mirrored on the deck-page sidebar
+  onPrefChange(async (which) => {
+    if (which === 'card') { reannotate(); return; }
+    if (which === 'options') { currentOptions = await getOptions(); applyOptionColors(currentOptions); reannotate(); }
+  });
 }
 
 // Begin annotating card rows for this deck: store fields, watch the decklist for
@@ -251,6 +292,12 @@ export async function mount({ waitFor }) {
   const canonicalUrl = canonicalDeckUrl(publicId);
   const md5 = deckMd5(canonicalUrl);
 
+  currentOptions = await getOptions();
+  applyOptionColors(currentOptions);
+  // Deck panel initial state: 'open'/'collapsed' force it; 'auto' opens when analyzed.
+  const panelOpenFor = (analyzed) => (currentOptions.deckPanelDefault === 'open' ? true
+    : currentOptions.deckPanelDefault === 'collapsed' ? false : analyzed);
+
   const body = el('div', { class: 'solring-panel-body' });
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
@@ -318,7 +365,10 @@ export async function mount({ waitFor }) {
   renderMessage(body, 'Loading CommanderSalt…');
   setOpen(false);
 
-  const res = await guardAsync(() => getDeck(md5));
+  const res = await guardAsync(() => getDeck(md5, {
+    allowFetch: currentOptions.autoFetch !== false, // off → never hit the network for uncached decks
+    maxAgeMs: cacheMaxAgeMs(currentOptions),         // 0 = never expire
+  }));
   if (!res || res.error) {
     const retry = el('button', { class: 'solring-btn', text: 'Retry' });
     retry.addEventListener('click', () => {
@@ -336,22 +386,36 @@ export async function mount({ waitFor }) {
     // unanalyzable decks (private / un-indexed) come back as stubs and are handled
     // by the Analyze flow below.
     renderBody(body, f);
-    setOpen(true); // analyzed/cached → default open
+    setOpen(panelOpenFor(true)); // analyzed → honor the configured default ('auto' opens)
     startAnnotations(f);
   }
 
-  // Stats never auto-revalidate: an analysis can change anytime, but a silent
-  // background refresh would shift the numbers under the user. We paint the
+  // When auto-fetch is on, re-analyze (POST) a deck that Moxfield says was edited
+  // after CommanderSalt last analyzed it — otherwise the cached numbers describe a
+  // stale decklist. Best-effort: skipped when Moxfield's "updated" time is unreadable
+  // or not newer than analyzedAt. Mirrors the manual ↻ (POST /decks?url=…&oldDeckId=md5).
+  async function maybeReanalyzeIfEdited(f) {
+    if (currentOptions.autoFetch === false || !f || !f.analyzedAt) return;
+    const mox = moxfieldLastUpdatedMs();
+    if (!mox || mox <= f.analyzedAt) return;
+    const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
+    if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
+  }
+
+  // Stats never auto-revalidate on a timer: an analysis can change anytime, but a
+  // silent background refresh would shift the numbers under the user. We paint the
   // cached values and leave updating to the manual ↻ button; the "synced …ago"
-  // label (ticked live above) keeps the staleness visible.
+  // label (ticked live above) keeps the staleness visible. The one exception is an
+  // edited decklist (above), which auto-fetch re-analyzes so the data stays truthful.
   if (res.fields) {
     showFields(res.fields);
     setSynced(res.fetchedAt);
+    maybeReanalyzeIfEdited(res.fields);
     return;
   }
-  // stub / un-indexed → closed; expand to Analyze
+  // stub / un-indexed / cold miss with auto-fetch off → honor default; expand to Analyze
   currentFields = null;
   clearAnnotations();
   renderAnalyze(body, canonicalDeckUrl(publicId), md5, showFields);
-  setOpen(false);
+  setOpen(panelOpenFor(false));
 }
