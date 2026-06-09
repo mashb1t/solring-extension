@@ -55,7 +55,9 @@ export async function getOptions() {
   };
 }
 export async function setOptions(patch) {
-  const next = { ...(await getOptions()), ...patch };
+  const cur = await getOptions();
+  const next = { ...cur, ...patch };
+  if (patch.ratingColors) next.ratingColors = { ...cur.ratingColors, ...patch.ratingColors };
   await chrome.storage.local.set({ [OPTIONS_KEY]: next });
   return next;
 }

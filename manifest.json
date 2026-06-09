@@ -5,6 +5,10 @@
   "description": "Shows deck metrics and useful information for evaluating decks on Moxfield.",
   "permissions": ["storage"],
   "host_permissions": ["https://api.commandersalt.com/*"],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "background": {
     "service_worker": "src/background.js",
     "type": "module"

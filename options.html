@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solring — Options</title>
+  <style>
+    :root {
+      --bg: #ffffff; --fg: #1b1f24; --muted: #5c636a; --border: #e2e5e9;
+      --surface: #f6f7f9; --accent: #6741d9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1c1f24; --fg: #e6e8ea; --muted: #9aa1a8; --border: #33373d; --surface: #24282e; --accent: #9a7bf0; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 2rem 1rem; background: var(--bg); color: var(--fg);
+      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 620px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+    .sub { color: var(--muted); margin: 0 0 1.75rem; }
+    section { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 0.5rem 1rem; margin-bottom: 1.25rem; }
+    section > h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0.6rem 0; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.6rem 0; border-top: 1px solid var(--border); }
+    section > .row:first-of-type { border-top: 0; }
+    .row .label { flex: 1; min-width: 0; }
+    .row .label small { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.1rem; }
+    input[type="number"] { width: 5rem; padding: 0.3rem 0.4rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+    select { padding: 0.3rem 0.4rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+    input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+    .color-ctl { display: inline-flex; align-items: center; gap: 0.5rem; }
+    input[type="color"] { width: 2.4rem; height: 1.7rem; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+    .hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; color: var(--muted); min-width: 5.5rem; text-align: right; }
+    .reset { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0.1rem 0.2rem; }
+    .reset:hover { text-decoration: underline; }
+    button.action { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; font: inherit; }
+    button.action:hover { border-color: var(--accent); }
+    .cache-size { color: var(--muted); font-variant-numeric: tabular-nums; }
+    footer { color: var(--muted); font-size: 0.78rem; text-align: center; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Solring</h1>
+    <p class="sub">Settings apply immediately to open Moxfield tabs.</p>
+
+    <section>
+      <h2>Fetching</h2>
+      <div class="row">
+        <span class="label">Auto-fetch uncached decks
+          <small>Fetch (GET) decks not yet cached, and re-analyze (POST) decks edited since their last scan. Off = show cached only.</small>
+        </span>
+        <input type="checkbox" id="autoFetch">
+      </div>
+      <div class="row">
+        <span class="label">Cache lifetime
+          <small>Cached analyses older than this count as stale (re-fetched when auto-fetch is on).</small>
+        </span>
+        <select id="cacheLifetimeDays">
+          <option value="1">1 day</option>
+          <option value="3">3 days</option>
+          <option value="7">7 days</option>
+          <option value="30">30 days</option>
+          <option value="0">Never expire</option>
+        </select>
+      </div>
+      <div class="row">
+        <span class="label">Cached data
+          <small id="cacheSize" class="cache-size">…</small>
+        </span>
+        <button type="button" class="action" id="clearCache">Clear</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Marks — standout cards</h2>
+      <div class="row">
+        <span class="label">Power threshold<small>Mark power above this multiple of the deck average.</small></span>
+        <span class="color-ctl"><input type="number" id="powerThreshold" min="1" step="0.5"> × avg</span>
+      </div>
+      <div class="row">
+        <span class="label">Power color</span>
+        <span class="color-ctl"><input type="color" id="powerColor"><code class="hex" id="powerColor-hex"></code><button type="button" class="reset" data-for="powerColor">Reset</button></span>
+      </div>
+      <div class="row">
+        <span class="label">Saltiness threshold<small>Mark saltiness at or above this value.</small></span>
+        <span class="color-ctl"><input type="number" id="saltThreshold" min="0" step="0.5"></span>
+      </div>
+      <div class="row">
+        <span class="label">Saltiness color</span>
+        <span class="color-ctl"><input type="color" id="saltColor"><code class="hex" id="saltColor-hex"></code><button type="button" class="reset" data-for="saltColor">Reset</button></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Rating colors (A–D grades)</h2>
+      <div class="row">
+        <span class="label">A — worst</span>
+        <span class="color-ctl"><input type="color" id="ratingA"><code class="hex" id="ratingA-hex"></code><button type="button" class="reset" data-for="ratingA">Reset</button></span>
+      </div>
+      <div class="row">
+        <span class="label">B</span>
+        <span class="color-ctl"><input type="color" id="ratingB"><code class="hex" id="ratingB-hex"></code><button type="button" class="reset" data-for="ratingB">Reset</button></span>
+      </div>
+      <div class="row">
+        <span class="label">C</span>
+        <span class="color-ctl"><input type="color" id="ratingC"><code class="hex" id="ratingC-hex"></code><button type="button" class="reset" data-for="ratingC">Reset</button></span>
+      </div>
+      <div class="row">
+        <span class="label">D — best</span>
+        <span class="color-ctl"><input type="color" id="ratingD"><code class="hex" id="ratingD-hex"></code><button type="button" class="reset" data-for="ratingD">Reset</button></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Panels</h2>
+      <div class="row">
+        <span class="label">Card Info panel — card-detail page</span>
+        <input type="checkbox" id="cardPanelModal">
+      </div>
+      <div class="row">
+        <span class="label">Card Info panel — deck page</span>
+        <input type="checkbox" id="cardPanelSidebar">
+      </div>
+      <div class="row">
+        <span class="label">Deck report-card default state</span>
+        <select id="deckPanelDefault">
+          <option value="auto">Auto (open when analyzed)</option>
+          <option value="open">Always open</option>
+          <option value="collapsed">Always collapsed</option>
+        </select>
+      </div>
+    </section>
+
+    <footer>Solring — stats for Moxfield · CommanderSalt data</footer>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
