@@ -22,7 +22,7 @@ import { getUserDecks, getDeck, importDeck } from './messaging.js';
 import { csRatingGrade } from './ratings.js';
 import {
   getListColumns, setListColumns, getColumnOrder, setColumnOrder,
-  getHiddenNativeCols, setHiddenNativeCols, onPrefChange,
+  getHiddenNativeCols, setHiddenNativeCols, getSortPref, setSortPref, onPrefChange,
 } from './prefs.js';
 import { el, guard } from './dom.js';
 import { gradeChip, bracketValue } from './components.js';
@@ -104,7 +104,9 @@ let rowMap = new WeakMap(); // row element → its current entry (idempotency)
 let listColumns = {}; // prefs:listColumns — which metric columns are enabled
 let columnOrder = []; // prefs:listColumnOrder — display order of the metric columns
 let hiddenNative = []; // prefs:hiddenNativeCols — Moxfield native columns to hide
+let sortState = { key: null, dir: 'desc' }; // prefs:sort — active score-sort (null = none)
 let prefSubscribed = false; // onPrefChange wired only once
+let nativeSortYieldInstalled = false;
 const subscribers = new Set();
 let listObserver = null;
 let rafPending = false;
@@ -226,9 +228,9 @@ const COLUMNS = [
   { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
   { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
   { key: 'archetype', label: 'Arch', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
-  // Per-row actions (CS link + Sync) — built from the entry, not the view; see
+  // Per-row actions (CS link + Analysis) — built from the entry, not the view; see
   // buildActionsCell. `action:true` flags the special render path.
-  { key: 'actions', label: '', title: 'CommanderSalt link + re-sync', hit: true, action: true, cell: () => null },
+  { key: 'actions', label: '', title: 'Solring actions', hit: true, action: true, cell: () => null },
 ];
 
 // Enabled columns, in the user's saved order (columnOrder); keys missing from the
@@ -252,10 +254,111 @@ function ourColKeys(container) {
   return [...container.querySelectorAll(':scope > .solring-col')].map((n) => n.getAttribute('data-col')).join(',');
 }
 
+// Per-column sort accessors (numeric/grade columns only; archetype/actions aren't
+// sortable). Keyed by COLUMN key so the header click maps straight through.
+const SORT_VALUE = {
+  power: (v) => v.power,
+  bracket: (v) => v.bracketRealistic,
+  salt: (v) => v.salt,
+  synergy: (v) => v.synergy,
+  threat: (v) => v.threat,
+  interaction: (v) => v.interaction,
+  wincons: (v) => v.wincons,
+  tier: (v) => v.commanderTier,
+  combos: (v) => v.combosCount,
+};
+const isSortable = (key) => Object.prototype.hasOwnProperty.call(SORT_VALUE, key);
+
+// Header cells. Sortable ones get a click/keydown handler here (headers are rebuilt
+// each reconcile, so the handler must live here, not be attached afterward); the
+// ▲/▼ indicator is managed separately by updateSortIndicators so it can change
+// without rebuilding the header.
 function buildHeaderCells() {
-  return enabledColumns().map((c) => el('th', {
-    class: 'solring-col solring-col-h text-end text-nowrap', title: c.title, attrs: { 'data-col': c.key },
-  }, [el('span', { text: c.label })]));
+  return enabledColumns().map((c) => {
+    const th = el('th', {
+      class: 'solring-col solring-col-h text-end text-nowrap', title: c.title, attrs: { 'data-col': c.key },
+    }, [el('span', { text: c.label })]);
+    if (isSortable(c.key)) {
+      th.classList.add('solring-col-sortable');
+      th.setAttribute('role', 'button');
+      th.setAttribute('tabindex', '0');
+      const fire = (e) => { e.preventDefault(); e.stopPropagation(); toggleSort(c.key); };
+      th.addEventListener('click', fire);
+      th.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') fire(e); });
+    }
+    return th;
+  });
+}
+
+// Click a sortable header: same column → flip direction; new column → that column,
+// descending. Persisted (prefs:sort) → onPrefChange('sort') re-applies + repaints.
+function toggleSort(key) {
+  const next = sortState.key === key
+    ? { key, dir: sortState.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: 'desc' };
+  setSortPref(next);
+}
+
+// Reflect the active sort on the header (▲/▼ + active class), idempotently — only
+// touches the DOM when something actually changed, so it never drives the observer.
+function updateSortIndicators(htr) {
+  for (const th of htr.querySelectorAll(':scope > th.solring-col')) {
+    const active = sortState.key === th.getAttribute('data-col');
+    th.classList.toggle('solring-sort-active', active);
+    let ind = th.querySelector(':scope > .solring-sort-ind');
+    if (active) {
+      if (!ind) { ind = el('span', { class: 'solring-sort-ind' }); th.appendChild(ind); }
+      const glyph = sortState.dir === 'asc' ? ' ▲' : ' ▼';
+      if (ind.textContent !== glyph) ind.textContent = glyph;
+    } else if (ind) {
+      ind.remove();
+    }
+  }
+}
+
+function compareEntries(key, dir) {
+  const get = SORT_VALUE[key] || (() => null);
+  const sign = dir === 'asc' ? 1 : -1;
+  const has = (x) => typeof x === 'number' && Number.isFinite(x);
+  return (ea, eb) => {
+    const av = get(viewFor(ea));
+    const bv = get(viewFor(eb));
+    if (has(av) && has(bv)) return (av - bv) * sign;
+    if (has(av)) return -1; // present before missing, regardless of direction
+    if (has(bv)) return 1;
+    return 0;
+  };
+}
+
+// Reorder a table's deck rows by the active sort, pinning non-deck rows (folders /
+// "Up a level") in their slots. STRICT no-op when already sorted — otherwise moving
+// a Moxfield <tr> (no solring class) re-triggers the observer → annotate → applySort
+// → infinite loop. With the guard, the first real sort costs one extra (no-op) pass.
+function applySort(tbl) {
+  if (!sortState.key) return;
+  const tbody = tbl.querySelector(':scope > tbody');
+  if (!tbody) return;
+  const allRows = [...tbody.children].filter((n) => n.tagName === 'TR');
+  const deckRows = allRows.filter((tr) => rowMap.get(tr));
+  if (deckRows.length < 2) return;
+  const cmp = compareEntries(sortState.key, sortState.dir);
+  const sorted = [...deckRows].sort((a, b) => cmp(rowMap.get(a), rowMap.get(b)));
+  if (deckRows.every((r, i) => r === sorted[i])) return; // already sorted → no DOM ops
+  let si = 0;
+  const target = allRows.map((tr) => (rowMap.get(tr) ? sorted[si++] : tr)); // fill deck slots, pin folders
+  target.forEach((tr) => tbody.appendChild(tr));
+}
+
+// Clicking Moxfield's own Sort yields our score-sort (else our sticky re-apply would
+// permanently override Moxfield's sort). Delegated so it survives header re-renders.
+function installNativeSortYield() {
+  if (nativeSortYieldInstalled) return;
+  nativeSortYieldInstalled = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest && e.target.closest('button');
+    if (!btn || btn.closest('.solring-colmenu')) return;
+    if (sortState.key && /^\s*Sort\s*$/i.test((btn.textContent || '').trim())) setSortPref({ key: null });
+  });
 }
 
 // Moxfield's (non-Solring) cells of a row, in order.
@@ -422,6 +525,8 @@ function reconcileColumns() {
       if (entry) renderRowCells(entry, idx); else renderBlankCells(tr, idx);
     }
     applyNativeHide(tbl, htr);
+    updateSortIndicators(htr); // ▲/▼ on the active sort column
+    applySort(tbl); // reorder deck rows by the active sort (no-op if already sorted)
   }
   // Sweep stray cells anywhere outside the tables we decorated. Moxfield's sidebar
   // ("Most Recent Deck") transiently renders as a table we may decorate before it
@@ -438,7 +543,7 @@ const COLUMN_NAMES = {
   power: 'Power', bracket: 'Bracket', salt: 'Saltiness', synergy: 'Synergy',
   threat: 'Threat', interaction: 'Interaction', wincons: 'Wincons',
   tier: 'Commander tier', combos: 'Combos', archetype: 'Archetype',
-  actions: 'CS link + sync',
+  actions: 'CS link + analysis',
 };
 
 let outsideCloseInstalled = false;
@@ -695,14 +800,19 @@ function scheduleSweep() {
     every deck row, and keeps re-annotating across Moxfield's SPA re-renders. */
 export async function installDeckList(username, { waitFor } = {}) {
   if (!username) return;
-  [listColumns, columnOrder, hiddenNative] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols()]);
+  [listColumns, columnOrder, hiddenNative, sortState] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols(), getSortPref()]);
   installOutsideClose();
+  installNativeSortYield();
   if (!prefSubscribed) {
     prefSubscribed = true;
     onPrefChange(async (which) => {
-      if (which !== 'listColumns') return;
-      [listColumns, columnOrder, hiddenNative] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols()]);
-      guard('deck-list reconcile', () => reconcileColumns());
+      if (which === 'listColumns') {
+        [listColumns, columnOrder, hiddenNative] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols()]);
+        guard('deck-list reconcile', () => reconcileColumns());
+      } else if (which === 'sort') {
+        sortState = await getSortPref();
+        guard('deck-list sort', () => reconcileColumns());
+      }
     });
   }
   // Wait for the first deck row to exist (Moxfield renders the list async).
