@@ -87,12 +87,23 @@ export function compareViews(key, dir = 'desc') {
 }
 
 // ---- module state ------------------------------------------------------------
+// A deck can appear in several rows (e.g. a "Favorites" folder + "All Decks"), so
+// state is tracked PER ROW, not per md5. Fetched full payloads are shared by md5
+// (fullByMd5) so every row of the same deck shows the analysis once any is scanned.
 
-let hitMap = new Map(); // md5 → hit
-let entries = new Map(); // md5 → { md5, publicId, row, hit, full, view }
+let hitMap = new Map(); // md5 → search hit
+let fullByMd5 = new Map(); // md5 → full DeckFields (cached/expanded)
+let checkedCache = new Set(); // md5s we've already probed cache-only (avoid re-probing each pass)
+let rowEntries = []; // [{ md5, publicId, row, hit }] — one per visible deck row
+let rowMap = new WeakMap(); // row element → its current entry (idempotency)
 const subscribers = new Set();
 let listObserver = null;
 let rafPending = false;
+
+// The view for a row = its hit merged with any shared full payload for that deck.
+function viewFor(entry) {
+  return mergeView(entry.hit, fullByMd5.get(entry.md5) || null);
+}
 
 /** Subscribe to deck-list changes (initial load, per-row expand, bulk sync).
     Returns an unsubscribe fn. Used by the profile averages + sync surfaces. */
@@ -104,12 +115,28 @@ function emitChange() {
   for (const cb of subscribers) guard('deck-list subscriber', () => cb());
 }
 
-/** Current per-deck views (one per joined deck row). */
+/** Unique per-deck views (deduped by md5 — duplicate folder rows collapse to one),
+    for the profile averages. */
 export function getViews() {
-  return [...entries.values()].map((e) => e.view);
+  const seen = new Set();
+  const out = [];
+  for (const e of rowEntries) {
+    if (seen.has(e.md5)) continue;
+    seen.add(e.md5);
+    out.push(viewFor(e));
+  }
+  return out;
 }
+/** Unique per-deck entries (deduped by md5), for the bulk-sync surface. */
 export function getEntries() {
-  return [...entries.values()];
+  const seen = new Set();
+  const out = [];
+  for (const e of rowEntries) {
+    if (seen.has(e.md5)) continue;
+    seen.add(e.md5);
+    out.push(e);
+  }
+  return out;
 }
 
 // ---- hit loading -------------------------------------------------------------
@@ -183,9 +210,8 @@ function gradeOrDash(value, field) {
   return typeof value === 'number' && Number.isFinite(value) ? gradeChip(csRatingGrade(value, field)) : el('span', { class: 'solring-num', text: '—' });
 }
 
-function buildStrip(entry, onExpand) {
-  const v = entry.view;
-  const strip = el('div', { class: 'solring-strip', attrs: { 'data-solring-root': '' } });
+function buildStrip(entry, v) {
+  const strip = el('div', { class: 'solring-strip' });
   const cells = [];
   cells.push(cell('Power', typeof v.power === 'number'
     ? el('span', { class: 'solring-strip-power' }, [el('span', { class: 'solring-num', text: `${num(v.power)}` }), miniBar('', '', (v.power || 0) * 10)])
@@ -214,7 +240,7 @@ function buildStrip(entry, onExpand) {
       class: 'solring-strip-expand', text: 'Scan',
       attrs: { type: 'button', title: 'Fetch full CommanderSalt analysis' },
     });
-    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onExpand(entry, btn); });
+    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, btn); });
     strip.append(btn);
   }
   return strip;
@@ -222,53 +248,94 @@ function buildStrip(entry, onExpand) {
 
 // ---- DOM: annotate rows ------------------------------------------------------
 
-async function fillEntry(entry, { allowFetch }) {
+// Fetch a deck's full payload into the shared md5 cache, then re-render every row
+// of that deck. `allowFetch` false = cache-only probe (no network).
+async function loadFull(md5, { allowFetch }) {
+  if (fullByMd5.has(md5)) return true;
   let res = null;
   try {
-    res = await getDeck(entry.md5, { allowFetch: !!allowFetch });
+    res = await getDeck(md5, { allowFetch: !!allowFetch });
   } catch (e) {
     console.warn('[solring] deck-list getDeck failed', e);
   }
-  const full = res && res.fields ? res.fields : null;
-  entry.full = full;
-  entry.view = mergeView(entry.hit, full);
-  return entry;
+  if (res && res.fields) {
+    fullByMd5.set(md5, res.fields);
+    rerenderMd5(md5);
+    emitChange();
+    return true;
+  }
+  return false;
 }
 
-async function onExpand(entry, btn) {
+// Cache-only probe for a deck's full payload (once per md5 per session).
+function probeCache(md5) {
+  if (fullByMd5.has(md5) || checkedCache.has(md5)) return;
+  checkedCache.add(md5);
+  loadFull(md5, { allowFetch: false });
+}
+
+// Manual "Scan" → force a fetch (GET/import) of the full payload.
+async function expandEntry(entry, btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
-  await fillEntry(entry, { allowFetch: true });
-  renderRow(entry); // replace the strip with the filled one
-  emitChange();
+  const ok = await loadFull(entry.md5, { allowFetch: true });
+  if (!ok && btn) { btn.disabled = false; btn.textContent = 'Scan — retry'; }
 }
 
-// Render (or re-render) one row's strip, idempotently.
+// Re-render every row currently showing this deck (duplicate folder rows included).
+function rerenderMd5(md5) {
+  for (const e of rowEntries) if (e.md5 === md5) renderRow(e);
+}
+
+// Is `row` already annotated? A table row's strip is its sibling <tr>; other
+// layouts hold the strip as a child <div>.
+function hasStrip(row) {
+  if (row.tagName === 'TR') {
+    const next = row.nextElementSibling;
+    return !!(next && next.classList && next.classList.contains('solring-strip-row'));
+  }
+  return !!row.querySelector(':scope > .solring-strip');
+}
+function removeStrip(row) {
+  if (row.tagName === 'TR') {
+    const next = row.nextElementSibling;
+    if (next && next.classList && next.classList.contains('solring-strip-row')) next.remove();
+    return;
+  }
+  const ex = row.querySelector(':scope > .solring-strip');
+  if (ex) ex.remove();
+}
+
+// Render (or re-render) one row's strip, idempotently and layout-aware. Verified
+// live on /users/{name}: the list is a <table>, so a <div> can't sit inside the
+// <tr> — the strip rides in a sibling <tr> with a full-width (colspan) cell.
 function renderRow(entry) {
-  const existing = entry.row.querySelector(':scope > .solring-strip');
-  if (existing) existing.remove();
-  const strip = buildStrip(entry, onExpand);
-  entry.row.append(strip);
+  removeStrip(entry.row);
+  const strip = buildStrip(entry, viewFor(entry));
+  if (entry.row.tagName === 'TR') {
+    const tr = el('tr', { class: 'solring-strip-row', attrs: { 'data-solring-root': '' } }, [
+      el('td', { class: 'solring-strip-td', attrs: { colspan: '99' } }, [strip]),
+    ]);
+    entry.row.insertAdjacentElement('afterend', tr);
+  } else {
+    strip.setAttribute('data-solring-root', '');
+    entry.row.append(strip);
+  }
 }
 
 function annotate() {
+  const next = [];
   for (const { row, publicId } of deckRows()) {
     const md5 = deckMd5(canonicalDeckUrl(publicId));
-    const prev = entries.get(md5);
-    const hasStrip = !!row.querySelector(':scope > .solring-strip');
-    if (prev && prev.row === row && hasStrip) continue; // already current on this row
-    // Reuse any full payload we already fetched/expanded for this deck.
-    const full = prev ? prev.full : null;
     const hit = hitMap.get(md5) || null;
-    const entry = { md5, publicId, row, hit, full, view: mergeView(hit, full) };
-    entries.set(md5, entry);
-    renderRow(entry); // hit metrics immediately
-    if (!full) {
-      // Fold in an already-cached full payload (no network), if any.
-      fillEntry(entry, { allowFetch: false }).then(() => {
-        if (entry.full && entries.get(md5) === entry) { renderRow(entry); emitChange(); }
-      });
-    }
+    const entry = { md5, publicId, row, hit };
+    next.push(entry);
+    const prev = rowMap.get(row);
+    rowMap.set(row, entry);
+    // (Re)render when the strip is missing or this row now shows a different deck.
+    if (!(prev && prev.md5 === md5) || !hasStrip(row)) renderRow(entry);
+    probeCache(md5); // fold in an already-cached full payload (no network)
   }
+  rowEntries = next;
   emitChange();
 }
 
@@ -290,14 +357,18 @@ export async function installDeckList(username, { waitFor } = {}) {
   // Wait for the first deck row to exist (Moxfield renders the list async).
   if (waitFor) await waitFor('a[href*="/decks/"]');
   hitMap = await loadAllHits(username);
-  entries = new Map();
+  rowEntries = [];
+  rowMap = new WeakMap();
   annotate();
   if (!listObserver) {
     listObserver = new MutationObserver((mutations) => {
-      // Ignore our own strip churn; re-annotate when Moxfield adds/replaces rows.
-      const relevant = mutations.some((m) => [...m.addedNodes].some(
-        (n) => n.nodeType === 1 && !(n.classList && n.classList.contains('solring-strip')),
-      ));
+      // Re-annotate when Moxfield adds/replaces rows; ignore our OWN injected nodes
+      // (any solring-* class), or inserting the strip <tr> would re-trigger forever.
+      const relevant = mutations.some((m) => [...m.addedNodes].some((n) => {
+        if (n.nodeType !== 1) return false;
+        const cls = typeof n.className === 'string' ? n.className : '';
+        return !cls.includes('solring');
+      }));
       if (relevant) scheduleAnnotate();
     });
   }
@@ -307,6 +378,9 @@ export async function installDeckList(username, { waitFor } = {}) {
 /** Tear down observers + state (SPA navigation away from the list). */
 export function teardownDeckList() {
   if (listObserver) { listObserver.disconnect(); listObserver = null; }
-  entries = new Map();
+  rowEntries = [];
+  rowMap = new WeakMap();
   hitMap = new Map();
+  fullByMd5 = new Map();
+  checkedCache = new Set();
 }

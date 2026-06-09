@@ -335,6 +335,10 @@
 }
 .solring-strip-link:hover, .solring-strip-expand:hover { border-color: var(--solring-accent); }
 .solring-strip-expand:disabled { opacity: 0.6; cursor: default; }
+/* Table layout (the profile/personal deck list is a <table>): the strip rides in a
+   sibling <tr> with a full-width cell, so it can't sit inside the deck row's <tr>. */
+.solring-strip-row > .solring-strip-td { padding: 0 0.5rem 0.45rem; border-top: 0; }
+.solring-strip-row .solring-strip { margin-top: 0; }
 
 /* compact inline "label · bar · value" — shared by the strip + profile averages */
 .solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }
