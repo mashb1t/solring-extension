@@ -34,11 +34,12 @@ function titleCase(id) {
 // synergy.list[id] is keyed by effect type (abilities / triggers / statics / …),
 // each a map of effects whose cardsOfSupportingType are the cards it feeds. We
 // surface the union of those cards (the per-clause rules texts are redundant with
-// the card's own text, and the per-clause card links carry no relationship label).
-function cardCombos(synergy, id) {
+// the card's own text). Each anchor is { name, image } so the chip can preview the
+// card's exact deck print on hover; idToCard maps anchor id → that card.
+function cardCombos(synergy, id, idToCard) {
   const node = g(synergy, 'list', id);
   if (!node || typeof node !== 'object') return null;
-  const anchors = new Set();
+  const ids = new Set();
   let total = 0;
   for (const group of Object.values(node)) {
     if (!group || typeof group !== 'object') continue;
@@ -46,16 +47,20 @@ function cardCombos(synergy, id) {
       if (!eff || typeof eff !== 'object') continue;
       total += 1;
       for (const s of eff.cardsOfSupportingType || []) {
-        if (s && s.id) anchors.add(s.id);
+        if (s && s.id) ids.add(s.id);
       }
     }
   }
-  if (!total || anchors.size === 0) return null;
-  return { total, anchors: [...anchors].slice(0, 8).map(titleCase) };
+  if (!total || ids.size === 0) return null;
+  const anchors = [...ids].slice(0, 8).map((aid) => {
+    const c = idToCard && idToCard[aid];
+    return { name: (c && c.name) || titleCase(aid), image: (c && c.image) || null };
+  });
+  return { total, anchors };
 }
 
 // Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.
-function cardStats(details, id) {
+function cardStats(details, id, idToCard) {
   const cats = g(details, 'brackets', 'categories') || {};
   const flags = Object.keys(BRACKET_FLAG_LABELS)
     .filter((k) => Array.isArray(cats[k] && cats[k].list) && cats[k].list.includes(id))
@@ -87,7 +92,7 @@ function cardStats(details, id) {
     power,
     powerTotal,
     saltBreakdown,
-    combos: cardCombos(g(details, 'synergy'), id),
+    combos: cardCombos(g(details, 'synergy'), id, idToCard),
   };
 }
 
@@ -112,6 +117,7 @@ function extractCards(p) {
   const cards = p.cards || {};
   const details = p.details || {};
   const comboList = g(details, 'combos', 'list') || [];
+  const idToCard = buildIdToCard(cards); // anchor id → { name, image } for synergy chips
   for (const c of Object.values(cards)) {
     if (!c || !c.name) continue;
     const stats = g(c, 'categories', 'stats') || {};
@@ -120,11 +126,24 @@ function extractCards(p) {
       salt: parseFloat(c.salt) || 0,
       tags,
       total: g(c, 'categories', 'total') || 0,
-      ...cardStats(details, c.id),
+      ...cardStats(details, c.id, idToCard),
       deckCombos: countDeckCombos(comboList, c),
     };
   }
   return out;
+}
+
+// id → { name, image } for synergy anchors. image is the deck's exact print
+// (CommanderSalt's per-card imageUri), upgraded from the border-crop art to the
+// full card (/normal/). Covers DFC front/container ids.
+function buildIdToCard(cards) {
+  const map = {};
+  for (const c of Object.values(cards || {})) {
+    if (!c || !c.name) continue;
+    const image = typeof c.imageUri === 'string' ? c.imageUri.replace('/border_crop/', '/normal/') : null;
+    for (const id of [c.id, c.frontFaceId, c.containerId]) if (id && !(id in map)) map[id] = { name: c.name, image };
+  }
+  return map;
 }
 
 // id → display name, from the deck's own cards (covers DFC front/container ids).

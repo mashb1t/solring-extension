@@ -5,7 +5,7 @@
 
 import { el, isDark } from './dom.js';
 import { prettifyStat } from './labels.js';
-import { saltTier, powerTier, deckAvgPower } from './ratings.js';
+import { powerMark, saltMark, deckAvgPower } from './ratings.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
 
@@ -50,7 +50,7 @@ function statsDetail(card, prefs) {
     const parts = [];
     if (card.deckCombos) parts.push(`${card.deckCombos} in deck`);
     if (card.combos && card.combos.anchors && card.combos.anchors.length) {
-      parts.push(`feeds ${card.combos.anchors.slice(0, 6).join(', ')}`);
+      parts.push(`feeds ${card.combos.anchors.slice(0, 6).map((a) => a.name).join(', ')}`);
     }
     if (parts.length) rows.push(detailLine('Combos:', document.createTextNode(parts.join('  ·  '))));
   }
@@ -60,14 +60,15 @@ function statsDetail(card, prefs) {
   return el('div', { class: 'solring-card-detail' }, rows);
 }
 
-/** Annotate every matched text row. Removes prior annotations first (idempotent). */
-export function annotate(fields, prefs) {
+/** Annotate every matched text row. Removes prior annotations first (idempotent).
+    `options` (prefs:options) supplies the mark thresholds; defaults apply if absent. */
+export function annotate(fields, prefs, options = {}) {
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
   const dark = isDark();
 
-  // Red flags (ratings.js): salt in the salty cluster (>=5) and power above 2× the
-  // deck average. The average is computed once for all rows.
+  // Marks (ratings.js): salt at/above the salt threshold, power above N× the deck
+  // average. The average is computed once for all rows.
   const avgPower = deckAvgPower(fields.cards, fields.powerScoreTotal);
 
   document.querySelectorAll(ROW_SEL).forEach((link) => {
@@ -91,8 +92,8 @@ export function annotate(fields, prefs) {
     // right after the price column (the cell carrying the currency text) so they sit
     // after the price and before the set symbol. Fallbacks when there's no price cell
     // (prices hidden / logged out): before the collection toggle, then the control
-    // icon, else append. Standouts (salt >=5 / power >2× avg) flagged in the accent.
-    const flag = (on) => (on ? ' solring-card-flag' : '');
+    // icon, else append. Standouts (salt ≥ threshold / power > N× avg) get the mark color.
+    const mark = (on, cls) => (on ? ` ${cls}` : '');
     const columnOf = (node) => { let n = node; while (n && n.parentElement !== li) n = n.parentElement; return n; };
     const priceCol = [...li.children].find((c) => /[€$£¥]/.test(c.textContent || ''));
     const anchorCol = priceCol
@@ -101,14 +102,14 @@ export function annotate(fields, prefs) {
     const place = (node) => (anchorCol ? li.insertBefore(node, anchorCol) : li.append(node));
     if (prefs.power && typeof card.powerTotal === 'number') {
       place(el('span', {
-        class: `solring-power-cell text-end solring-card-anno${flag(powerTier(card.powerTotal, avgPower) === 'a')}`,
+        class: `solring-power-cell text-end solring-card-anno${mark(powerMark(card.powerTotal, avgPower, options.powerThreshold), 'solring-mark-power')}`,
         text: card.powerTotal.toFixed(1),
         title: 'CommanderSalt power contribution',
       }));
     }
     if (prefs.saltValue && typeof card.salt === 'number') {
       place(el('span', {
-        class: `solring-salt-cell text-end solring-card-anno${flag(saltTier(card.salt) === 'a')}`,
+        class: `solring-salt-cell text-end solring-card-anno${mark(saltMark(card.salt, options.saltThreshold), 'solring-mark-salt')}`,
         text: card.salt.toFixed(1),
         title: 'CommanderSalt saltiness',
       }));

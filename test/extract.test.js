@@ -76,7 +76,13 @@ test('extractDeck attaches synergy combos (anchors) to cards that have them', ()
   const d = extractDeck(deck);
   const withCombos = Object.values(d.cards).filter((c) => c.combos && c.combos.total > 0);
   assert.ok(withCombos.length > 0, 'expected at least one card with synergy combos');
-  assert.ok(Array.isArray(withCombos[0].combos.anchors));
+  const anchors = withCombos[0].combos.anchors;
+  assert.ok(Array.isArray(anchors) && anchors.length > 0);
+  // each anchor is { name, image } — image is the deck print, upgraded to the full card
+  assert.ok(anchors.every((a) => typeof a.name === 'string' && a.name.length));
+  const withImg = anchors.find((a) => a.image);
+  assert.ok(withImg, 'expected at least one anchor with an image');
+  assert.ok(withImg.image.includes('/normal/') && !withImg.image.includes('/border_crop/'));
 });
 
 test('power breakdown de-duplicates wincon_X into X (no doubles)', () => {
