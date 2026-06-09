@@ -5,9 +5,26 @@
 const CARD_KEY = 'prefs:cardData';
 const SORT_KEY = 'prefs:sort';
 const OPTIONS_KEY = 'prefs:options';
+const LIST_COLUMNS_KEY = 'prefs:listColumns';
 
 const CARD_DEFAULT = { power: true, saltValue: true, tags: true, stats: true, combos: true };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
+
+// Deck-list metric columns (user profile + personal manager). All are togglable via
+// the deck-list "Stats columns" menu; a small subset is on by default so the table
+// width stays sane. Keys match decklist.js COLUMNS.
+export const LIST_COLUMNS_DEFAULT = {
+  power: true,
+  bracket: true,
+  salt: true,
+  synergy: false,
+  threat: false,
+  interaction: false,
+  wincons: false,
+  tier: false,
+  combos: false,
+  archetype: false,
+};
 
 // Options-panel settings. null colors = "not customized" (keep the auto-themed CSS
 // defaults). Thresholds: power = ×deck-average, salt = absolute. cacheLifetimeDays
@@ -62,12 +79,24 @@ export async function setOptions(patch) {
   return next;
 }
 
-/** Subscribe to pref changes. cb(which) where which is 'card' | 'sort' | 'options'. */
+export async function getListColumns() {
+  const obj = await chrome.storage.local.get(LIST_COLUMNS_KEY);
+  return { ...LIST_COLUMNS_DEFAULT, ...(obj[LIST_COLUMNS_KEY] || {}) };
+}
+export async function setListColumns(patch) {
+  const next = { ...(await getListColumns()), ...patch };
+  await chrome.storage.local.set({ [LIST_COLUMNS_KEY]: next });
+  return next;
+}
+
+/** Subscribe to pref changes. cb(which) where which is
+    'card' | 'sort' | 'options' | 'listColumns'. */
 export function onPrefChange(cb) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (CARD_KEY in changes) cb('card');
     if (SORT_KEY in changes) cb('sort');
     if (OPTIONS_KEY in changes) cb('options');
+    if (LIST_COLUMNS_KEY in changes) cb('listColumns');
   });
 }

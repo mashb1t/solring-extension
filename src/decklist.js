@@ -1,26 +1,28 @@
 // Shared deck-list engine for the user profile (/users/{name}) and the personal
-// deck manager (/decks/personal + folders). For each deck row it appends a
-// below-line "detail strip" of CommanderSalt metrics, joining the row (a Moxfield
-// publicId) to a CommanderSalt search hit via md5, and filling full-payload-only
-// metrics from cache (or on demand when a row is expanded).
+// deck manager (/decks/personal + folders). It injects CommanderSalt metric COLUMNS
+// into Moxfield's deck table (a togglable subset; "Stats columns" menu), joining
+// each row (a Moxfield publicId) to a CommanderSalt search hit via md5 and filling
+// full-payload-only metrics from cache (or on demand by clicking a blank cell).
 //
 // The join key: a hit carries only its CommanderSalt deckId (an md5), never the
 // Moxfield publicId — so we map each DOM row's publicId through
 // deckMd5(canonicalDeckUrl(publicId)) and match that against hit.deckId. Proven by
 // the md5 known-vector test.
 //
-// DOM selectors here are anchored on content/structure (deck links + the repeating
-// row unit), not Moxfield's hashed class names, and every pass is guarded +
-// idempotent so an SPA re-render never duplicates strips or breaks the page.
-// LIVE-VERIFY: row-unit detection + strip placement want a confirmation pass on a
-// live /users/{name} and /decks/personal.
+// Verified live on /users/mashb1t: the deck list is a <table>; a <th> appended to
+// each <thead> and a <td> to each row align perfectly. React drops our trailing
+// cells from some rows on re-render (sort/filter/paginate), so a reconcile pass
+// re-adds any missing cells (self-heals within a frame — confirmed live). Selectors
+// are content-anchored (deck links + the table), never Moxfield's hashed classes.
+// LIVE-VERIFY: /decks/personal column structure is inferred (login-gated).
 
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { parseDeckId } from './moxfield.js';
 import { getUserDecks, getDeck } from './messaging.js';
 import { csRatingGrade } from './ratings.js';
+import { getListColumns, onPrefChange } from './prefs.js';
 import { el, guard } from './dom.js';
-import { gradeChip, bracketValue, miniBar } from './components.js';
+import { gradeChip, bracketValue } from './components.js';
 
 const HIT_PAGE_CAP = 20; // safety bound on search pagination (≈ HIT_PAGE_CAP×page-size decks)
 
@@ -96,6 +98,8 @@ let fullByMd5 = new Map(); // md5 → full DeckFields (cached/expanded)
 let checkedCache = new Set(); // md5s we've already probed cache-only (avoid re-probing each pass)
 let rowEntries = []; // [{ md5, publicId, row, hit }] — one per visible deck row
 let rowMap = new WeakMap(); // row element → its current entry (idempotency)
+let listColumns = {}; // prefs:listColumns — which metric columns are enabled
+let prefSubscribed = false; // onPrefChange wired only once
 const subscribers = new Set();
 let listObserver = null;
 let rafPending = false;
@@ -195,55 +199,88 @@ function deckRows() {
   return rows;
 }
 
-// ---- DOM: the detail strip ---------------------------------------------------
+// ---- DOM: the metric columns -------------------------------------------------
 
 const num = (n, d = 1) => (typeof n === 'number' && Number.isFinite(n) ? n.toFixed(d) : '—');
+const numNode = (n) => (typeof n === 'number' && Number.isFinite(n) ? el('span', { class: 'solring-num', text: num(n) }) : null);
+const textNode = (t) => el('span', { text: t });
+const gradeNode = (value, field) => (typeof value === 'number' && Number.isFinite(value) ? gradeChip(csRatingGrade(value, field)) : null);
 
-// One metric cell: a label + a value node (grade chip / number / bar).
-function cell(label, valueNode) {
-  return el('span', { class: 'solring-strip-cell' }, [
-    el('span', { class: 'solring-strip-k', text: label }),
-    el('span', { class: 'solring-strip-v' }, valueNode),
-  ]);
+// Every metric column the deck-list can show. `hit:true` = available from the search
+// hit alone (always populated); `hit:false` = needs the full payload (blank until the
+// deck is scanned). `cell(view)` returns the inner node, or null → a blank "—" cell.
+// Order here = left-to-right order of the injected columns.
+const COLUMNS = [
+  { key: 'power', label: 'Pow', title: 'Power level (0–10)', hit: true, cell: (v) => numNode(v.power) },
+  { key: 'bracket', label: 'Brkt', title: 'Realistic bracket', hit: true, cell: (v) => (v.bracketRealistic != null ? bracketValue(v) : null) },
+  { key: 'salt', label: 'Salt', title: 'Saltiness grade', hit: true, cell: (v) => gradeNode(v.salt, 'saltRating') },
+  { key: 'synergy', label: 'Syn', title: 'Synergy grade', hit: true, cell: (v) => gradeNode(v.synergy, 'synergyRating') },
+  { key: 'threat', label: 'Thr', title: 'Threat grade', hit: false, cell: (v) => gradeNode(v.threat, 'threatRating') },
+  { key: 'interaction', label: 'Int', title: 'Interaction grade', hit: false, cell: (v) => gradeNode(v.interaction, 'interactionRating') },
+  { key: 'wincons', label: 'Win', title: 'Wincons grade', hit: false, cell: (v) => gradeNode(v.wincons, 'comboRating') },
+  { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
+  { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
+  { key: 'archetype', label: 'Arch', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
+];
+
+function enabledColumns() {
+  return COLUMNS.filter((c) => listColumns[c.key]);
 }
-function gradeOrDash(value, field) {
-  return typeof value === 'number' && Number.isFinite(value) ? gradeChip(csRatingGrade(value, field)) : el('span', { class: 'solring-num', text: '—' });
+// Signature of the enabled set, to detect when a row/header needs rebuilding.
+function colSig() {
+  return enabledColumns().map((c) => c.key).join(',');
+}
+function ourColKeys(container) {
+  return [...container.querySelectorAll(':scope > .solring-col')].map((n) => n.getAttribute('data-col')).join(',');
 }
 
-function buildStrip(entry, v) {
-  const strip = el('div', { class: 'solring-strip' });
-  const cells = [];
-  cells.push(cell('Power', typeof v.power === 'number'
-    ? el('span', { class: 'solring-strip-power' }, [el('span', { class: 'solring-num', text: `${num(v.power)}` }), miniBar('', '', (v.power || 0) * 10)])
-    : el('span', { class: 'solring-num', text: '—' })));
-  cells.push(cell('Bracket', bracketValue(v)));
-  cells.push(cell('Salt', gradeOrDash(v.salt, 'saltRating')));
-  cells.push(cell('Synergy', gradeOrDash(v.synergy, 'synergyRating')));
-  cells.push(cell('Threat', gradeOrDash(v.threat, 'threatRating')));
-  cells.push(cell('Inter.', gradeOrDash(v.interaction, 'interactionRating')));
-  cells.push(cell('Wincons', gradeOrDash(v.wincons, 'comboRating')));
-  if (v.commanderTier != null) cells.push(cell('Tier', el('span', { class: 'solring-num', text: `T${v.commanderTier}` })));
-  if (v.combosCount != null) cells.push(cell('Combos', el('span', { class: 'solring-num', text: String(v.combosCount) })));
-  if (v.archetype) cells.push(el('span', { class: 'solring-strip-arch', text: v.archetype }));
-  strip.append(...cells);
+function buildHeaderCells() {
+  return enabledColumns().map((c) => el('th', {
+    class: 'solring-col solring-col-h text-end text-nowrap', title: c.title, attrs: { 'data-col': c.key },
+  }, [el('span', { text: c.label })]));
+}
 
-  // CommanderSalt link for the deck.
-  const csUrl = `https://commandersalt.com/decks/${entry.md5}`;
-  strip.append(el('a', {
-    class: 'solring-strip-link', text: 'CS', title: 'Open on CommanderSalt',
-    attrs: { href: csUrl, target: '_blank', rel: 'noopener' },
-  }));
-
-  // Un-analyzed (or hit-only) rows get an expand affordance to fetch the full payload.
-  if (!v.analyzed) {
-    const btn = el('button', {
-      class: 'solring-strip-expand', text: 'Scan',
-      attrs: { type: 'button', title: 'Fetch full CommanderSalt analysis' },
-    });
-    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, btn); });
-    strip.append(btn);
+// Build/rebuild one row's metric cells from its current view. A blank full-only cell
+// (deck not yet scanned) is clickable to scan just that deck.
+function renderRowCells(entry) {
+  const tr = entry.row;
+  tr.querySelectorAll(':scope > td.solring-col').forEach((n) => n.remove());
+  const view = viewFor(entry);
+  for (const c of enabledColumns()) {
+    const inner = c.cell(view);
+    const td = el('td', { class: 'solring-col text-end', attrs: { 'data-col': c.key } }, [inner || el('span', { class: 'solring-num', text: '—' })]);
+    if (!inner && !c.hit && !view.analyzed) {
+      td.classList.add('solring-col-scan');
+      td.title = 'Scan this deck on CommanderSalt';
+      td.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, td); });
+    }
+    tr.appendChild(td);
   }
-  return strip;
+}
+
+// Reconcile every Moxfield deck table to exactly the enabled columns. Each table is
+// handled independently (its own <thead>); a table with no joined rows is skipped
+// (and any stale header cells removed). This is also the self-heal: rows React
+// recreated without our cells get them re-added here.
+function reconcileColumns() {
+  const sig = colSig();
+  for (const tbl of document.querySelectorAll('table.table')) {
+    const htr = tbl.querySelector('thead tr');
+    if (!htr) continue;
+    const bodyRows = [...tbl.querySelectorAll('tbody tr')];
+    const ours = bodyRows.filter((tr) => rowMap.get(tr));
+    if (!ours.length) { // not one of our deck tables → strip any stale header cells
+      htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
+      continue;
+    }
+    if (ourColKeys(htr) !== sig) {
+      htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
+      buildHeaderCells().forEach((th) => htr.appendChild(th));
+    }
+    for (const tr of ours) {
+      if (ourColKeys(tr) !== sig) renderRowCells(rowMap.get(tr));
+    }
+  }
 }
 
 // ---- DOM: annotate rows ------------------------------------------------------
@@ -281,45 +318,10 @@ async function expandEntry(entry, btn) {
   if (!ok && btn) { btn.disabled = false; btn.textContent = 'Scan — retry'; }
 }
 
-// Re-render every row currently showing this deck (duplicate folder rows included).
+// Re-render the metric cells of every row showing this deck (duplicate folder rows
+// included) — e.g. after its full payload loads.
 function rerenderMd5(md5) {
-  for (const e of rowEntries) if (e.md5 === md5) renderRow(e);
-}
-
-// Is `row` already annotated? A table row's strip is its sibling <tr>; other
-// layouts hold the strip as a child <div>.
-function hasStrip(row) {
-  if (row.tagName === 'TR') {
-    const next = row.nextElementSibling;
-    return !!(next && next.classList && next.classList.contains('solring-strip-row'));
-  }
-  return !!row.querySelector(':scope > .solring-strip');
-}
-function removeStrip(row) {
-  if (row.tagName === 'TR') {
-    const next = row.nextElementSibling;
-    if (next && next.classList && next.classList.contains('solring-strip-row')) next.remove();
-    return;
-  }
-  const ex = row.querySelector(':scope > .solring-strip');
-  if (ex) ex.remove();
-}
-
-// Render (or re-render) one row's strip, idempotently and layout-aware. Verified
-// live on /users/{name}: the list is a <table>, so a <div> can't sit inside the
-// <tr> — the strip rides in a sibling <tr> with a full-width (colspan) cell.
-function renderRow(entry) {
-  removeStrip(entry.row);
-  const strip = buildStrip(entry, viewFor(entry));
-  if (entry.row.tagName === 'TR') {
-    const tr = el('tr', { class: 'solring-strip-row', attrs: { 'data-solring-root': '' } }, [
-      el('td', { class: 'solring-strip-td', attrs: { colspan: '99' } }, [strip]),
-    ]);
-    entry.row.insertAdjacentElement('afterend', tr);
-  } else {
-    strip.setAttribute('data-solring-root', '');
-    entry.row.append(strip);
-  }
+  for (const e of rowEntries) if (e.md5 === md5) renderRowCells(e);
 }
 
 function annotate() {
@@ -329,13 +331,11 @@ function annotate() {
     const hit = hitMap.get(md5) || null;
     const entry = { md5, publicId, row, hit };
     next.push(entry);
-    const prev = rowMap.get(row);
-    rowMap.set(row, entry);
-    // (Re)render when the strip is missing or this row now shows a different deck.
-    if (!(prev && prev.md5 === md5) || !hasStrip(row)) renderRow(entry);
+    rowMap.set(row, entry); // maps the (possibly newly-rendered) row → its deck
     probeCache(md5); // fold in an already-cached full payload (no network)
   }
   rowEntries = next;
+  reconcileColumns(); // add/refresh/heal our columns across all deck tables
   emitChange();
 }
 
@@ -354,6 +354,15 @@ function scheduleAnnotate() {
     every deck row, and keeps re-annotating across Moxfield's SPA re-renders. */
 export async function installDeckList(username, { waitFor } = {}) {
   if (!username) return;
+  listColumns = await getListColumns();
+  if (!prefSubscribed) {
+    prefSubscribed = true;
+    onPrefChange(async (which) => {
+      if (which !== 'listColumns') return;
+      listColumns = await getListColumns();
+      guard('deck-list reconcile', () => reconcileColumns());
+    });
+  }
   // Wait for the first deck row to exist (Moxfield renders the list async).
   if (waitFor) await waitFor('a[href*="/decks/"]');
   hitMap = await loadAllHits(username);
@@ -375,9 +384,12 @@ export async function installDeckList(username, { waitFor } = {}) {
   listObserver.observe(document.body, { childList: true, subtree: true });
 }
 
-/** Tear down observers + state (SPA navigation away from the list). */
+/** Tear down observers + state and remove our injected columns (SPA navigation away
+    from the list). Our cells aren't tagged data-solring-root, so dom.teardown leaves
+    them — we remove them here. */
 export function teardownDeckList() {
   if (listObserver) { listObserver.disconnect(); listObserver = null; }
+  document.querySelectorAll('.solring-col').forEach((n) => n.remove());
   rowEntries = [];
   rowMap = new WeakMap();
   hitMap = new Map();
