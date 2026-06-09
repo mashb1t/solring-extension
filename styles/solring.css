@@ -303,10 +303,13 @@
 /* Synergy anchor chip → full-card preview of the card's exact deck print on hover.
    The popover is body-level + position:fixed so the panel's overflow can't clip it. */
 .solring-syn-chip[data-img] { cursor: help; }
+.solring-syn-chip[data-href] { cursor: pointer; }
+.solring-syn-chip[data-href]:hover { color: var(--solring-accent); }
+.solring-syn-chip[data-href]:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 .solring-cardpop { position: fixed; z-index: 2147483000; pointer-events: none; display: none; }
 .solring-cardpop.solring-cardpop-show { display: block; }
 .solring-cardpop img {
-  width: 14rem; aspect-ratio: 5 / 7; object-fit: cover; display: block;
+  width: 251px; aspect-ratio: 5 / 7; object-fit: cover; display: block;
   border-radius: 4.75% / 3.4%; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
 }
 

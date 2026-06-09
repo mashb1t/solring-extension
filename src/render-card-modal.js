@@ -112,11 +112,19 @@ function installCardHover() {
       document.body.appendChild(hoverPop);
     }
     const img = hoverPop.querySelector('img');
-    if (img.getAttribute('src') !== chip.dataset.img) img.setAttribute('src', chip.dataset.img);
+    const primary = chip.dataset.img;
+    const fallback = chip.dataset.imgCs; // CommanderSalt print, if the deck print 404s (e.g. DFCs)
+    if (img.getAttribute('src') !== primary) {
+      // The synthesized deck-print URL (card-<id>-normal.webp) doesn't exist for
+      // double-faced cards (Moxfield serves card-face-<faceId>-…). On error, promote
+      // the CommanderSalt fallback so we don't retry the dead URL on every hover.
+      img.onerror = fallback ? () => { img.onerror = null; chip.dataset.img = fallback; img.setAttribute('src', fallback); } : null;
+      img.setAttribute('src', primary);
+    }
     hoverPop.classList.add('solring-cardpop-show');
     const r = chip.getBoundingClientRect();
-    const pw = hoverPop.offsetWidth || 224;
-    const ph = hoverPop.offsetHeight || 312;
+    const pw = hoverPop.offsetWidth || 251;
+    const ph = hoverPop.offsetHeight || 351;
     const top = r.top - ph - 8 >= 4 ? r.top - ph - 8 : Math.min(r.bottom + 8, window.innerHeight - ph - 4);
     hoverPop.style.left = `${Math.max(4, Math.min(r.left, window.innerWidth - pw - 4))}px`;
     hoverPop.style.top = `${Math.max(4, top)}px`;
@@ -125,31 +133,65 @@ function installCardHover() {
     if (e.target.closest && e.target.closest('.solring-syn-chip[data-img]')) hide();
   });
   document.addEventListener('scroll', hide, true);
+  // Click (or Enter/Space) opens Moxfield's card view for the chip's card. We click
+  // the live on-page link so React Router handles it (modal overlay), falling back
+  // to a plain navigation if the row was unmounted.
+  const open = (chip) => {
+    const href = chip.dataset.href;
+    if (!href) return;
+    hide();
+    const live = document.querySelector(`a.table-deck-row-link[href="${href}"]`) || document.querySelector(`a[href="${href}"]`);
+    if (live) live.click(); else location.assign(href);
+  };
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
+    if (!chip) return;
+    e.preventDefault();
+    open(chip);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
+    if (!chip) return;
+    e.preventDefault();
+    open(chip);
+  });
 }
 
-// Map decklist rows → normalized name → Moxfield image. A card's id in its
-// /cards/<id>- link is printing-specific, so this is the deck's SELECTED art;
-// CommanderSalt's imageUri is only a default print, used as a fallback.
-function deckPrintImages() {
+// Map decklist rows → normalized name → { img, href }. A card's id in its
+// /cards/<id>- link is printing-specific, so `img` is the deck's SELECTED art
+// (CommanderSalt's imageUri is only a default print, used as a fallback); `href`
+// is the on-page card link we click to open Moxfield's card view.
+function deckPrintMap() {
   const map = {};
   for (const link of document.querySelectorAll('a.table-deck-row-link[href^="/cards/"]')) {
-    const m = (link.getAttribute('href') || '').match(/\/cards\/([^/-]+)-/);
+    const href = link.getAttribute('href') || '';
+    const m = href.match(/\/cards\/([^/-]+)-/);
     if (!m) continue;
     const parts = [...link.querySelectorAll('.underline')].map((s) => s.textContent).join('');
     const name = normName(parts || link.textContent || '');
-    if (name && !(name in map)) map[name] = `https://assets.moxfield.net/cards/card-${m[1]}-normal.webp`;
+    if (name && !(name in map)) map[name] = { img: `https://assets.moxfield.net/cards/card-${m[1]}-normal.webp`, href };
   }
   return map;
 }
 
 // Synergy anchor chips — each previews the card's deck print on hover (the deck's
-// selected art when the card is on the page, else CommanderSalt's default print).
+// selected art when the card is on the page, else CommanderSalt's default print)
+// and, for cards in the deck, opens Moxfield's card view on click.
 function synChips(anchors) {
   installCardHover();
-  const prints = deckPrintImages();
+  const prints = deckPrintMap();
   return el('div', { class: 'solring-cm-chips' }, anchors.map((a) => {
-    const img = prints[normName(a.name)] || a.image;
-    return el('span', { class: 'solring-tag solring-syn-chip', text: a.name, attrs: img ? { 'data-img': img } : {} });
+    const hit = prints[normName(a.name)];
+    const deckImg = hit && hit.img;
+    const primary = deckImg || a.image; // deck's selected art, else CommanderSalt print
+    const attrs = {};
+    if (primary) attrs['data-img'] = primary;
+    // Keep CommanderSalt's print as a fallback for when the synthesized deck-print
+    // URL 404s (double-faced cards use a different, face-keyed URL we can't derive).
+    if (deckImg && a.image && a.image !== deckImg) attrs['data-img-cs'] = a.image;
+    if (hit && hit.href) { attrs['data-href'] = hit.href; attrs.role = 'link'; attrs.tabindex = '0'; }
+    return el('span', { class: 'solring-tag solring-syn-chip', text: a.name, attrs });
   }));
 }
 
