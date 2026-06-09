@@ -77,3 +77,19 @@ export function deckAvgPower(cards, powerScoreTotal) {
   for (const k of ids) sum += cards[k].powerTotal || 0;
   return (powerScoreTotal || sum) / ids.length;
 }
+
+// ---- per-card "marks" (which cards to highlight) — thresholds configurable ----
+// A mark is decoupled from the A–D grade ramp: power/salt get their own threshold
+// + color, applied to the decklist columns and the modal/sidebar tiles. Defaults
+// below; the options panel overrides the threshold per call.
+export const SALT_MARK_THRESHOLD = 5; // mark saltiness at/above this (absolute)
+
+// Power is a standout when it exceeds `multiple`× the deck's average per-card power.
+export function powerMark(powerTotal, avgPower, multiple = POWER_MARK_MULTIPLE) {
+  return typeof powerTotal === 'number' && avgPower > 0 && powerTotal > avgPower * multiple;
+}
+
+// Saltiness is a standout at/above the threshold.
+export function saltMark(salt, threshold = SALT_MARK_THRESHOLD) {
+  return typeof salt === 'number' && salt >= threshold;
+}

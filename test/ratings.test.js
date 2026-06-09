@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   csRatingGrade, csGradeFromPct, csRatingPct,
   saltTier, powerTier, deckAvgPower,
+  powerMark, saltMark,
 } from '../src/ratings.js';
 
 test('grades from the reference deck (verified against CommanderSalt)', () => {
@@ -46,4 +47,22 @@ test('deckAvgPower — uses scoring.total when given, else sums cards', () => {
   assert.equal(deckAvgPower(cards, 789.8), 789.8 / 3);
   assert.equal(deckAvgPower(cards, 0), 30 / 3);   // falsy total → sum fallback (=10)
   assert.equal(deckAvgPower({}, 100), 0);
+});
+
+test('powerMark — default 2x avg, and a custom multiple', () => {
+  const avg = 10;
+  assert.equal(powerMark(20.1, avg), true);     // > 2x default
+  assert.equal(powerMark(20, avg), false);      // strictly greater
+  assert.equal(powerMark(15.1, avg, 1.5), true); // custom 1.5x
+  assert.equal(powerMark(15, avg, 1.5), false);
+  assert.equal(powerMark(99, 0), false);        // no average
+  assert.equal(powerMark(undefined, avg), false);
+});
+
+test('saltMark — default >=5, and a custom threshold', () => {
+  assert.equal(saltMark(5), true);
+  assert.equal(saltMark(4.9), false);
+  assert.equal(saltMark(4, 3.5), true);  // custom cutoff
+  assert.equal(saltMark(3, 3.5), false);
+  assert.equal(saltMark(undefined), false);
 });
