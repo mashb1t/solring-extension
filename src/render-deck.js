@@ -310,13 +310,13 @@ export async function mount({ waitFor }) {
   let lastSync = null;
   function setSynced(ts) {
     lastSync = ts || null;
-    synced.textContent = lastSync ? `synced ${relTime(lastSync)}` : '';
+    synced.textContent = lastSync ? `analyzed ${relTime(lastSync)}` : '';
     synced.title = lastSync ? new Date(lastSync).toLocaleString() : '';
   }
   // Keep the relative "synced …ago" label current without re-fetching. Clear any
   // ticker left by a prior mount so intervals never stack across SPA navigations.
   clearInterval(syncTimer);
-  syncTimer = setInterval(() => { if (lastSync) synced.textContent = `synced ${relTime(lastSync)}`; }, 30000);
+  syncTimer = setInterval(() => { if (lastSync) synced.textContent = `analyzed ${relTime(lastSync)}`; }, 30000);
   // The sync button always forces a fresh re-analysis (POST /decks?url=…&oldDeckId=md5),
   // not just a re-fetch — so decklist edits are reflected. Spins the icon while the
   // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)
@@ -334,7 +334,7 @@ export async function mount({ waitFor }) {
   installOnce();
   installCommanderSaltLink(md5);
 
-  renderMessage(body, 'Loading CommanderSalt…');
+  renderMessage(body, 'Loading statistics…');
   setOpen(false);
 
   setRefreshSpinning(true); // spin the icon while the initial fetch runs
@@ -349,7 +349,7 @@ export async function mount({ waitFor }) {
       wrap.remove();
       mount({ waitFor });
     });
-    renderMessage(body, 'Couldn’t reach CommanderSalt.', retry);
+    renderMessage(body, 'Couldn’t reach API.', retry);
     setOpen(true);
     return;
   }

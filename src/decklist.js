@@ -309,7 +309,7 @@ function buildActionsCell(entry) {
   // ↻ in its own span so spinning rotates only the icon, not the bordered button.
   const sync = el('button', {
     class: 'solring-row-act solring-row-sync',
-    attrs: { type: 'button', title: 'Re-analyze on CommanderSalt' },
+    attrs: { type: 'button', title: 'Re-analyze' },
   }, [el('span', { class: 'solring-spin-icon', text: '↻' })]);
   sync.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); syncDeck(entry, sync); });
   return el('span', { class: 'solring-row-acts' }, [cs, sync]);
@@ -356,7 +356,7 @@ function renderRowCells(entry, idx) {
       td.append(inner || el('span', { class: 'solring-num', text: '—' }));
       if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
-        td.title = 'Scan this deck on CommanderSalt';
+        td.title = 'Analyze this deck';
         td.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, td); });
       }
     }
@@ -564,7 +564,7 @@ function buildColumnMenu(sortClassName) {
     attrs: { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
   }, [el('span', {}, [columnsIcon(), 'Stats'])]);
   const inner = el('div', { class: 'dropdown-menu-parent', attrs: { tabindex: '-1' } }, [
-    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'CommanderSalt columns' })]),
+    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'Statistics columns' })]),
   ]);
   const list = el('div', { class: 'solring-colmenu-list' });
   for (const c of orderedColumns()) list.append(buildSolringItem(c, list));
@@ -634,9 +634,9 @@ function probeCache(md5) {
 
 // Manual "Scan" → force a fetch (GET/import) of the full payload.
 async function expandEntry(entry, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
   const ok = await loadFull(entry.md5, { allowFetch: true });
-  if (!ok && btn) { btn.disabled = false; btn.textContent = 'Scan — retry'; }
+  if (!ok && btn) { btn.disabled = false; btn.textContent = 'Analysis - retry'; }
 }
 
 // Re-render the metric cells of every row showing this deck (duplicate folder rows

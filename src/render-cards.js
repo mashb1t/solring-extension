@@ -55,7 +55,7 @@ function statsDetail(card, prefs) {
     if (parts.length) rows.push(detailLine('Combos:', document.createTextNode(parts.join('  ·  '))));
   }
   if (!rows.length) {
-    rows.push(detailLine('Stats:', document.createTextNode('no extra CommanderSalt data for this card')));
+    rows.push(detailLine('Stats:', document.createTextNode('no extra data for this card')));
   }
   return el('div', { class: 'solring-card-detail' }, rows);
 }
@@ -104,14 +104,14 @@ export function annotate(fields, prefs, options = {}) {
       place(el('span', {
         class: `solring-power-cell text-end solring-card-anno${mark(powerMark(card.powerTotal, avgPower, options.powerThreshold), 'solring-mark-power')}`,
         text: card.powerTotal.toFixed(1),
-        title: 'CommanderSalt power contribution',
+        title: 'power contribution',
       }));
     }
     if (prefs.saltValue && typeof card.salt === 'number') {
       place(el('span', {
         class: `solring-salt-cell text-end solring-card-anno${mark(saltMark(card.salt, options.saltThreshold), 'solring-mark-salt')}`,
         text: card.salt.toFixed(1),
-        title: 'CommanderSalt saltiness',
+        title: 'saltiness',
       }));
     }
 
