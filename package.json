@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Chrome extension showing CommanderSalt deck metrics on Moxfield.",
+  "description": "Chrome extension showing metrics and useful information for evaluating decks on Moxfield.",
   "scripts": {
     "test": "node --test"
   }

@@ -46,16 +46,16 @@
     <p class="sub">Settings apply immediately to open Moxfield tabs.</p>
 
     <section>
-      <h2>Data Sync</h2>
+      <h2>Analysis</h2>
       <div class="row">
-        <span class="label">Auto-sync uncached decks
-          <small>Get statistics for decks not yet cached, and re-analyze decks edited since their last scan. Off = show cached only. Reload page for auto-sync after edit.</small>
+        <span class="label">Automatically analyze uncached decks
+          <small>Get statistics for decks not yet cached, and re-analyze decks edited since their last scan. Off = show cached only. Reload page for auto-analysis after edit.</small>
         </span>
         <input type="checkbox" id="autoFetch">
       </div>
       <div class="row">
         <span class="label">Cache lifetime
-          <small>Cached analyses older than this count as stale (re-synced on page load when auto-sync is on).</small>
+          <small>Cached analyses older than this count as stale (re-analyzed on page load when auto-analysis is on).</small>
         </span>
         <select id="cacheLifetimeDays">
           <option value="1">1 day</option>
@@ -133,7 +133,7 @@
       </div>
     </section>
 
-    <footer>Solring - Stats for Moxfield · CommanderSalt data</footer>
+    <footer>Solring - Stats for Moxfield</footer>
   </main>
   <script type="module" src="options.js"></script>
 </body>
