@@ -165,7 +165,7 @@ function renderBody(body, f) {
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
   // grade-style tile: big colored letter grade + raw score sub (like Saltiness)
   const gradeTile = (label, key, field) =>
-    tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `raw ${num(f[key])}` : '—');
+    tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `${num(f[key])} total` : '—');
 
   // Row 1: the headline tiles. Power subline shows the precise 0–10 rating and the
   // deck's raw total power score (scoring.total) — what per-card contributions sum to.
@@ -243,14 +243,15 @@ export async function mount({ waitFor }) {
   const parent = anchor.parentElement;
   if (!parent || parent.querySelector(':scope > .solring-container')) return; // already injected
 
-  const md5 = deckMd5(canonicalDeckUrl(publicId));
+  const canonicalUrl = canonicalDeckUrl(publicId);
+  const md5 = deckMd5(canonicalUrl);
 
   const body = el('div', { class: 'solring-panel-body' });
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
   const refreshBtn = el('button', {
     class: 'solring-refresh', text: '↻',
-    attrs: { type: 'button', 'aria-label': 'Refresh from CommanderSalt', title: 'Refresh from CommanderSalt' },
+    attrs: { type: 'button', 'aria-label': 'Re-analyze on CommanderSalt', title: 'Re-analyze on CommanderSalt (~5s)' },
   });
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
@@ -290,10 +291,13 @@ export async function mount({ waitFor }) {
   // ticker left by a prior mount so intervals never stack across SPA navigations.
   clearInterval(syncTimer);
   syncTimer = setInterval(() => { if (lastSync) synced.textContent = `synced ${relTime(lastSync)}`; }, 30000);
+  // The sync button always forces a fresh re-analysis (POST /decks?url=…&oldDeckId=md5),
+  // not just a re-fetch — so decklist edits are reflected. Spins the icon while the
+  // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)
   async function doRefresh() {
     refreshBtn.classList.add('solring-spin');
     refreshBtn.disabled = true;
-    const fresh = await guardAsync(() => getDeck(md5, true));
+    const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
     refreshBtn.classList.remove('solring-spin');
     refreshBtn.disabled = false;
     if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }

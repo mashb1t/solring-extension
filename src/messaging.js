@@ -7,4 +7,4 @@ export function send(msg) {
 
 export const getDeck = (md5, force = false) => send({ type: 'getDeck', md5, force });
 export const getUserDecks = (username, cursor) => send({ type: 'getUserDecks', username, cursor });
-export const importDeck = (canonicalUrl, md5) => send({ type: 'importDeck', canonicalUrl, md5 });
+export const importDeck = (canonicalUrl, md5, oldDeckId) => send({ type: 'importDeck', canonicalUrl, md5, oldDeckId });

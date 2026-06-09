@@ -40,12 +40,13 @@ async function getUserDecks({ username, cursor }) {
   return result;
 }
 
-async function importDeck({ canonicalUrl, md5 }) {
-  const raw = await importByUrl(canonicalUrl); // single attempt, never retried
+async function importDeck({ canonicalUrl, md5, oldDeckId }) {
+  const raw = await importByUrl(canonicalUrl, oldDeckId); // single attempt, never retried
   if (isStub(raw)) return { unanalyzable: true };
   const fields = extractDeck(raw);
-  if (md5) await setEntry(`deck:${md5}`, fields);
-  return { fields };
+  let fetchedAt;
+  if (md5) ({ fetchedAt } = await setEntry(`deck:${md5}`, fields));
+  return { fields, fetchedAt };
 }
 
 const HANDLERS = { getDeck, getUserDecks, importDeck };
