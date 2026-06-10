@@ -107,6 +107,8 @@ let hiddenNative = []; // prefs:hiddenNativeCols — Moxfield native columns to 
 let sortState = { key: null, dir: 'desc' }; // prefs:sort — active score-sort (null = none)
 let nativeIdx = new WeakMap(); // row → Moxfield's native ordinal, snapshotted while no sort is active (to restore on clear)
 let pendingNativeRestore = false; // set only by our own "clear sort" click → restore the page default ONCE, then leave Moxfield's own sort alone
+let nativeSortClause = null; // Moxfield's own "sorted by X in Y order" caption clause, captured before we override it (restored on clear)
+let resultsCaptionEl = null; // cached "Showing … sorted by … order" element
 let prefSubscribed = false; // onPrefChange wired only once
 let nativeSortYieldInstalled = false;
 const subscribers = new Set();
@@ -351,6 +353,57 @@ function updateSortIndicators(htr) {
     } else if (ind) {
       ind.remove();
     }
+  }
+}
+
+// Lowercase field names for Moxfield's results caption ("…sorted by <field> in … order").
+const SORT_TITLE_LABEL = {
+  power: 'power', bracket: 'bracket', salt: 'saltiness', synergy: 'synergy',
+  threat: 'threat', interaction: 'interaction', wincons: 'win conditions',
+  tier: 'commander tier', combos: 'combos',
+};
+const RESULTS_CLAUSE = /sorted by .+? in (?:ascending|descending) order/i;
+const directText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('');
+// The text node that holds the sort clause (so we edit only it, preserving any element
+// siblings Moxfield may add — e.g. a bolded count). null if the clause spans nodes.
+function clauseTextNode(el) {
+  for (const n of el.childNodes) if (n.nodeType === 3 && RESULTS_CLAUSE.test(n.textContent)) return n;
+  return null;
+}
+// Moxfield's "Showing … sorted by … order" caption (a <span> on /users/{name}, a <div>
+// on /decks/personal). Cached; re-found when detached. Our own overridden text still
+// matches RESULTS_CLAUSE, so the cache stays valid after we rewrite it.
+function findResultsCaption() {
+  if (resultsCaptionEl && resultsCaptionEl.isConnected && RESULTS_CLAUSE.test(directText(resultsCaptionEl))) return resultsCaptionEl;
+  resultsCaptionEl = null;
+  // Document-wide: the caption is a <span> in .flex-grow-1 on /users/{name} but a <div>
+  // elsewhere on /decks/personal. directText() matches only the element whose own text
+  // node holds the clause, so no ancestor false-matches and a child-wrapped count is fine.
+  for (const el of document.querySelectorAll('div, span')) {
+    if (RESULTS_CLAUSE.test(directText(el))) { resultsCaptionEl = el; break; }
+  }
+  return resultsCaptionEl;
+}
+
+// Rewrite the caption's sort clause to reflect our active score-sort ("…sorted by power
+// in descending order"), preserving Moxfield's count/prefix. We capture Moxfield's own
+// clause the first time we override so clearing the sort restores it. Idempotent; editing
+// the text node is characterData, which the (childList-only) observer ignores → no loop.
+function updateResultsTitle() {
+  const cap = findResultsCaption();
+  const node = cap && clauseTextNode(cap);
+  if (!node) return;
+  const cur = node.nodeValue;
+  const label = sortState.key && SORT_TITLE_LABEL[sortState.key];
+  if (label) {
+    if (nativeSortClause === null) nativeSortClause = (cur.match(RESULTS_CLAUSE) || [])[0] || null;
+    const want = `sorted by ${label} in ${sortState.dir === 'asc' ? 'ascending' : 'descending'} order`;
+    const next = cur.replace(RESULTS_CLAUSE, want);
+    if (next !== cur) node.nodeValue = next;
+  } else if (nativeSortClause) { // sort cleared → restore Moxfield's own clause once
+    const next = cur.replace(RESULTS_CLAUSE, nativeSortClause);
+    if (next !== cur) node.nodeValue = next;
+    nativeSortClause = null;
   }
 }
 
@@ -611,6 +664,7 @@ function reconcileColumns() {
   for (const cell of document.querySelectorAll('.solring-col')) {
     if (!decorated.has(cell.closest('table.table'))) cell.remove();
   }
+  guard('deck-list results title', updateResultsTitle); // reflect our sort in Moxfield's results caption
 }
 
 // ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
@@ -943,4 +997,6 @@ export function teardownDeckList() {
   hitMap = new Map();
   fullByMd5 = new Map();
   checkedCache = new Set();
+  nativeSortClause = null; // new page → re-capture its own caption clause on next override
+  resultsCaptionEl = null;
 }
