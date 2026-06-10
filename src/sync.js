@@ -8,7 +8,7 @@
 import { el, guard } from './dom.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
-import { getEntries, onDeckListChange, setFull } from './decklist.js';
+import { getEntries, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
 import { getSync, setSync } from './cache.js';
 
 const THROTTLE_MS = 400; // breathing room between requests, so we don't hammer the API
@@ -63,6 +63,7 @@ async function run({ force }) {
   for (const e of entries) {
     if (cancelFlag) break;
     if (controls) controls.status.textContent = `${force ? 'Re-analyzing' : 'Analyzing'} ${done + 1}/${entries.length}…`;
+    setRowSpinning(e.md5, true); // spin this deck's per-row ↻ while it's processing
     try {
       let res;
       if (force) {
@@ -77,6 +78,7 @@ async function run({ force }) {
       failed += 1;
       console.warn('[solring] sync failed for', e.publicId, err);
     }
+    setRowSpinning(e.md5, false); // stop (a successful scan already rerendered it un-spun)
     done += 1;
     if (!cancelFlag) await delay(THROTTLE_MS);
   }
@@ -109,7 +111,7 @@ function buildControls(btnClass) {
     e.stopPropagation();
     const n = syncableEntries().length;
     // eslint-disable-next-line no-alert
-    if (window.confirm(`Re-analyze all ${n} listed deck${n === 1 ? '' : 's'} on CommanderSalt? This sends one analysis request per deck and can take a while.`)) run({ force: true });
+    if (window.confirm(`Re-analyze all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
   });
   cancelBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); cancelFlag = true; });
   const wrap = el('div', { class: 'solring-sync', attrs: { 'data-solring-root': '' } }, [status, scanBtn, rescanBtn, cancelBtn]);

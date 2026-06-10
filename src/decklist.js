@@ -449,6 +449,22 @@ async function syncDeck(entry, btn) {
   }
 }
 
+/** Spin (or stop) the per-row ↻ icon for every main-list row showing this deck — used
+    by bulk Analyze to mark the deck currently being processed. A successful scan
+    rerenders the row (fresh, un-spun icon), so callers still flip it off for the
+    failure/cancel paths. The button is disabled while spinning to avoid a conflicting
+    per-row re-analysis. No-op when the actions column is hidden. */
+export function setRowSpinning(md5, on) {
+  for (const e of rowEntries) {
+    if (e.md5 !== md5 || !inMainList(e.row)) continue;
+    const btn = e.row.querySelector('.solring-row-sync');
+    if (!btn) continue;
+    btn.disabled = on;
+    const icon = btn.querySelector('.solring-spin-icon');
+    if (icon) icon.classList.toggle('solring-spin', on);
+  }
+}
+
 // Build/rebuild one row's metric cells from its current view, inserted before the
 // "Updated" column (idx). A blank full-only cell (deck not yet scanned) is clickable
 // to scan just that deck. idx omitted → resolve it from the row's own table header.
