@@ -824,9 +824,12 @@ function annotate() {
     probeCache(md5); // fold in an already-cached full payload (no network)
   }
   rowEntries = next;
-  // While no score-sort is active the DOM is in Moxfield's native order — snapshot each
-  // row's ordinal so a later "clear sort" can put the rows back the way Moxfield had them.
-  if (!sortState.key) next.forEach((e, i) => nativeIdx.set(e.row, i));
+  // Record each row's ordinal the FIRST time we see it — that moment is always Moxfield's
+  // default order (it just rendered the row; our applySort runs later, in reconcileColumns).
+  // Capturing on first sight (rather than only while unsorted) means "clear sort" can
+  // restore the page default even when a sort was already active at load (persisted prefs),
+  // and our own reorders (which move existing rows, never new ones) can't overwrite it.
+  next.forEach((e, i) => { if (!nativeIdx.has(e.row)) nativeIdx.set(e.row, i); });
   reconcileColumns(); // add/refresh/heal our columns across all deck tables
   ensureToolbarMenu(); // (re)inject the Stats-columns toggle into the toolbar
   emitChange();
