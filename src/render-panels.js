@@ -71,7 +71,8 @@ export function buildSynergyPanel(anchors, hubs) {
 function manaCurveChart(curve) {
   const pts = (curve || []).filter((p) => Number.isFinite(p.turn));
   if (!pts.length) return '';
-  const W = 280; const H = 96; const padL = 20; const padR = 8; const padT = 8; const padB = 16;
+  // Same viewBox + paddings as openingHandMultiChart so the two charts align exactly.
+  const W = 220; const H = 110; const padL = 20; const padR = 6; const padT = 8; const padB = 16;
   const turns = pts.map((p) => p.turn);
   const tMin = Math.min(...turns); const tMax = Math.max(...turns);
   const span = Math.max(1, tMax - tMin);
@@ -126,7 +127,8 @@ function openingHandMultiChart(series) {
   if (!ss.length) return '';
   const kMax = Math.max(...ss.flatMap((s) => s.dist.map((d) => d.k)), 1);
   const pMax = Math.max(...ss.flatMap((s) => s.dist.map((d) => d.p || 0)), 0.01);
-  const W = 200; const H = 92; const padL = 22; const padR = 6; const padT = 6; const padB = 15;
+  // Same viewBox + paddings as manaCurveChart so the two charts align exactly.
+  const W = 220; const H = 110; const padL = 20; const padR = 6; const padT = 8; const padB = 16;
   const X = (k) => padL + (k / kMax) * (W - padL - padR);
   const Y = (p) => padT + (1 - (p || 0) / pMax) * (H - padT - padB);
   const grid = [0, 0.5, 1].map((f) => {
@@ -138,7 +140,7 @@ function openingHandMultiChart(series) {
     const d = s.dist.map((pt, i) => `${i ? 'L' : 'M'}${X(pt.k).toFixed(1)} ${Y(pt.p).toFixed(1)}`).join(' ');
     return `<path d="${d}" class="solring-mb-oh-line solring-mb-oh-${s.key === '*' ? 'any' : s.key}"/>`;
   }).join('');
-  const xl = Array.from({ length: kMax + 1 }, (_, k) => `<text x="${X(k).toFixed(1)}" y="${H - 3}" class="solring-mc-axis" text-anchor="middle">${k}</text>`).join('');
+  const xl = Array.from({ length: kMax + 1 }, (_, k) => `<text x="${X(k).toFixed(1)}" y="${H - 4}" class="solring-mc-axis" text-anchor="middle">${k}</text>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="Opening-hand producer probabilities">${grid}${lines}${xl}</svg>`;
 }
 
@@ -170,31 +172,36 @@ function colorReqProdChart(perColor) {
   }).join('');
 }
 
-// One titled diagram cell in the manabase diagram row.
+// One titled chart cell in the manabase content row.
 function diagramCell(title, svgHtml, caption) {
   if (!svgHtml) return null;
-  return el('div', { class: 'solring-mb-cell' }, [
+  return el('div', { class: 'solring-mb-cell solring-mb-cell-chart' }, [
     el('div', { class: 'solring-pl-h', text: title }),
     el('div', { class: 'solring-mb-fig', html: svgHtml }),
     caption ? el('div', { class: 'solring-pl-desc', text: caption }) : null,
   ]);
 }
 
-// Compact key/value strip of the headline manabase counts.
-function statsStrip(s) {
+// A titled block of bar rows for the bars column (Mana quality / Colour coverage).
+// `content` is either an array of row elements or an HTML string.
+function barBlock(title, content, caption) {
+  return el('div', { class: 'solring-mb-block' }, [
+    el('div', { class: 'solring-pl-h', text: title }),
+    typeof content === 'string' ? el('div', { html: content }) : el('div', {}, content),
+    caption ? el('div', { class: 'solring-pl-desc', text: caption }) : null,
+  ]);
+}
+
+// "38 lands · 66 sources · 2.05 avg CMC · 4 fast mana · 0 MDFC" for the header band.
+function statsLine(s) {
   if (!s) return null;
-  const items = [
-    ['Lands', s.lands != null ? String(s.lands) : null],
-    ['Sources', s.sources != null ? String(Math.round(s.sources)) : null],
-    ['Avg CMC', s.avgCmc != null ? s.avgCmc.toFixed(2) : null],
-    ['Fast mana', s.fastMana != null ? String(s.fastMana) : null],
-    ['MDFC', s.mdfc != null ? String(s.mdfc) : null],
-  ].filter(([, v]) => v != null);
-  if (!items.length) return null;
-  return el('div', { class: 'solring-mb-stats' }, items.map(([k, v]) => el('div', { class: 'solring-mb-stat' }, [
-    el('div', { class: 'solring-mb-stat-v', text: v }),
-    el('div', { class: 'solring-mb-stat-k', text: k }),
-  ])));
+  const parts = [];
+  if (s.lands != null) parts.push(`${s.lands} lands`);
+  if (s.sources != null) parts.push(`${Math.round(s.sources)} sources`);
+  if (s.avgCmc != null) parts.push(`${s.avgCmc.toFixed(2)} avg CMC`);
+  if (s.fastMana != null) parts.push(`${s.fastMana} fast mana`);
+  if (s.mdfc != null) parts.push(`${s.mdfc} MDFC`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 // CommanderSalt's own actionable nudges (profile.improve), mapped to short labels.
@@ -213,29 +220,42 @@ function improveHints(improve) {
   ]);
 }
 
-// Manabase: stats strip on top, then ONE consistent grid of equal cells — Mana quality
-// (the /100 axis bars, compact) sits alongside the three charts instead of stretching
-// full-width above them — and CommanderSalt's improve hints at the bottom.
+// Manabase, structured by visual mass: a header band (title + headline score left, the
+// key counts right), then one content row — the two label·bar·value widgets stacked in a
+// bars column beside the two charts (which share a viewBox so they align) — and
+// CommanderSalt's improve hints as a footer behind a divider.
 export function buildManabasePanel(m) {
+  const max = m.overallMax || 300;
   const children = [];
-  const strip = statsStrip(m.stats);
-  if (strip) children.push(strip);
-  const cells = [];
-  // Axis bars are /100 — each axis is scored against its own 100 benchmark (100 = met;
-  // bonuses exceed and cap the bar full). Only the headline score is on the /300 scale.
+  const stats = statsLine(m.stats);
+  children.push(el('div', { class: 'solring-mb-head' }, [
+    el('div', { class: 'solring-mb-head-title' }, [
+      'Manabase',
+      typeof m.overall === 'number'
+        ? el('span', { class: 'solring-mb-head-score', text: ` · ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%` })
+        : null,
+    ]),
+    stats ? el('div', { class: 'solring-mb-head-stats', text: stats }) : null,
+  ]));
+
+  // Bars column: Mana quality + Colour coverage share a visual language and are each too
+  // short for a full cell — stacked, they fill one column to roughly chart height.
+  // Axis bars are /100 — each axis vs its own 100 benchmark (100 = met; bonuses cap full).
+  const barsCol = [];
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
     .filter(([, v]) => typeof v === 'number')
     .map(([label, v]) => barRow(label, String(Math.round(v)), v));
-  if (rows.length) {
-    const max = m.overallMax || 300;
-    cells.push(el('div', { class: 'solring-mb-cell' }, [
-      el('div', { class: 'solring-pl-h', text: 'Mana quality' }),
-      typeof m.overall === 'number'
-        ? el('div', { class: 'solring-pl-desc', text: `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%` })
-        : null,
-      ...rows,
-    ]));
+  if (rows.length) barsCol.push(barBlock('Mana quality', rows, null));
+  const cpr = colorReqProdChart(m.perColor);
+  if (cpr) {
+    barsCol.push(barBlock('Colour produced vs required', cpr, 'Grey = required · red = under-produced'));
+  } else {
+    const mix = sourceMixChart(m.composition || {});
+    if (mix) barsCol.push(barBlock('Mana sources', mix, sourceMixCaption(m.composition || {})));
   }
+
+  const cells = [];
+  if (barsCol.length) cells.push(el('div', { class: 'solring-mb-col-bars' }, barsCol));
   const curveHtml = m.curve && m.curve.length
     ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
     : '';
@@ -243,11 +263,8 @@ export function buildManabasePanel(m) {
   const ohHtml = m.openingHand && m.openingHand.length
     ? `${openingHandMultiChart(m.openingHand)}${openingHandLegend(m.openingHand)}` : '';
   if (ohHtml) cells.push(diagramCell('Opening-hand producers', ohHtml, '% chance of N in opening 7'));
-  const cpr = colorReqProdChart(m.perColor);
-  cells.push(cpr
-    ? diagramCell('Colour produced vs required', cpr, 'Grey = required · red = under-produced')
-    : diagramCell('Mana sources', sourceMixChart(m.composition || {}), sourceMixCaption(m.composition || {})));
-  if (cells.filter(Boolean).length) children.push(el('div', { class: 'solring-mb-diagrams' }, cells.filter(Boolean)));
+  if (cells.length) children.push(el('div', { class: 'solring-mb-grid' }, cells));
+
   const imp = improveHints(m.improve);
   if (imp) children.push(imp);
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);

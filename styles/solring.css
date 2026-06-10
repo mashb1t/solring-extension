@@ -151,17 +151,25 @@
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
-/* Manabase stats strip: compact key/value cells. */
-.solring-mb-stats { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin: 0.1rem 0 0.7rem; }
-.solring-mb-stat-v { font-size: 1rem; font-weight: 700; line-height: 1.1; }
-.solring-mb-stat-k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--solring-text-2); }
+/* Manabase header band: title + headline score left, the key counts right. */
+.solring-mb-head {
+  display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap;
+  gap: 0.2rem 1rem; padding-bottom: 0.55rem; margin-bottom: 0.7rem;
+  border-bottom: 1px solid var(--solring-border);
+}
+.solring-mb-head-title { font-size: 0.8rem; font-weight: 600; }
+.solring-mb-head-score { font-weight: 400; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
+.solring-mb-head-stats { font-size: 0.72rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
 
-/* Manabase: ONE grid of equal cells (Mana quality + the three charts) so nothing
-   stretches full-width while its neighbours sit in narrow columns. */
-.solring-mb-diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.9rem 1.4rem; margin-top: 0.4rem; align-items: start; }
-.solring-mb-cell { min-width: 0; }
-/* Compact bar rows inside a cell (the page-wide 9rem label grid would overflow it). */
-.solring-mb-cell .solring-pl-row { grid-template-columns: 3.6rem 1fr 2.4rem; font-size: 0.74rem; }
+/* Manabase content row: the stacked bars column beside the two charts. Flex (not grid)
+   so the columns keep an asymmetric grow (bars 0.9 / charts 1.2) yet still wrap to
+   full-width blocks when the panel is narrow. */
+.solring-mb-grid { display: flex; flex-wrap: wrap; gap: 0.9rem 1.4rem; align-items: flex-start; }
+.solring-mb-col-bars { flex: 0.9 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+.solring-mb-cell-chart { flex: 1.2 1 240px; }
+.solring-mb-cell, .solring-mb-block { min-width: 0; }
+/* Compact bar rows inside the bars column (the page-wide 9rem label grid would overflow). */
+.solring-mb-col-bars .solring-pl-row { grid-template-columns: 3.6rem 1fr 2.4rem; font-size: 0.74rem; }
 .solring-mb-fig { margin: 0.3rem 0 0.15rem; }
 .solring-mb-fig svg { width: 100%; height: auto; display: block; }
 
@@ -172,7 +180,9 @@
 .solring-mb-oh-any { stroke: var(--solring-accent); } .solring-mb-oh-c { stroke: #9aa0a6; } .solring-mb-oh-fastmana { stroke: #eab308; stroke-dasharray: 3 2; }
 .solring-mb-oh-key-w::before { background: #c9a94e; } .solring-mb-oh-key-u::before { background: #3b82f6; } .solring-mb-oh-key-b::before { background: #8b5cf6; }
 .solring-mb-oh-key-r::before { background: #ef4444; } .solring-mb-oh-key-g::before { background: #22c55e; }
-.solring-mb-oh-key-any::before { background: var(--solring-accent); } .solring-mb-oh-key-c::before { background: #9aa0a6; } .solring-mb-oh-key-fastmana::before { background: #eab308; }
+.solring-mb-oh-key-any::before { background: var(--solring-accent); } .solring-mb-oh-key-c::before { background: #9aa0a6; }
+/* dashed swatch to match the fast-mana line's dash pattern */
+.solring-mb-oh-key-fastmana::before { background: repeating-linear-gradient(90deg, #eab308 0 3px, transparent 3px 5px); }
 
 /* Colour produced vs required: grey "required" bar over a "produced" bar, both on one
    shared count scale (×ratio label). The mana colour rides on the letter; the produced
@@ -191,7 +201,8 @@
 .solring-mb-cp-deficit-t { color: var(--solring-rating-a); }
 
 /* Improve hints (CommanderSalt's profile.improve). */
-.solring-mb-improve { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.8rem; }
+/* Footer behind a divider — reads as the panel's conclusion, not an orphan row. */
+.solring-mb-improve { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid var(--solring-border); }
 .solring-mb-improve-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-right: 0.15rem; }
 .solring-mb-improve-chip { font-size: 0.72rem; padding: 0.1rem 0.45rem; border: 1px solid var(--solring-border); border-radius: 999px; color: var(--solring-text); }
 /* source-mix stacked bar + legend */
@@ -203,7 +214,8 @@
 .solring-mb-seg-treasure { fill: var(--solring-rating-c); }
 .solring-mb-leg { display: flex; flex-wrap: wrap; gap: 0.12rem 0.6rem; margin-top: 0.3rem; font-size: 0.68rem; color: var(--solring-text-2); }
 .solring-mb-key { display: inline-flex; align-items: center; }
-.solring-mb-key::before { content: ''; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+/* Line swatches (not squares) — one legend style across all the panel's charts. */
+.solring-mb-key::before { content: ''; width: 14px; height: 2px; margin-right: 5px; }
 .solring-mb-key-land::before { background: var(--solring-accent); }
 .solring-mb-key-rock::before { background: var(--solring-text-2); }
 .solring-mb-key-dork::before { background: var(--solring-rating-d); }
