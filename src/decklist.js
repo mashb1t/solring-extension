@@ -105,6 +105,7 @@ let listColumns = {}; // prefs:listColumns — which metric columns are enabled
 let columnOrder = []; // prefs:listColumnOrder — display order of the metric columns
 let hiddenNative = []; // prefs:hiddenNativeCols — Moxfield native columns to hide
 let sortState = { key: null, dir: 'desc' }; // prefs:sort — active score-sort (null = none)
+let nativeIdx = new WeakMap(); // row → Moxfield's native ordinal, snapshotted while no sort is active (to restore on clear)
 let prefSubscribed = false; // onPrefChange wired only once
 let nativeSortYieldInstalled = false;
 const subscribers = new Set();
@@ -307,12 +308,14 @@ function buildHeaderCells() {
   });
 }
 
-// Click a sortable header: same column → flip direction; new column → that column,
-// descending. Persisted (prefs:sort) → onPrefChange('sort') re-applies + repaints.
+// Click a sortable header, cycling: unsorted → descending → ascending → cleared. A new
+// column starts at descending; the third click on the active column clears the sort and
+// restores Moxfield's native order. Persisted (prefs:sort) → onPrefChange('sort') re-applies.
 function toggleSort(key) {
-  const next = sortState.key === key
-    ? { key, dir: sortState.dir === 'desc' ? 'asc' : 'desc' }
-    : { key, dir: 'desc' };
+  let next;
+  if (sortState.key !== key) next = { key, dir: 'desc' };
+  else if (sortState.dir === 'desc') next = { key, dir: 'asc' };
+  else next = { key: null, dir: 'desc' };
   setSortPref(next);
 }
 
@@ -363,6 +366,23 @@ function applySort(tbl) {
   if (deckRows.every((r, i) => r === sorted[i])) return; // already sorted → no DOM ops
   let si = 0;
   const target = allRows.map((tr) => (rowMap.get(tr) ? sorted[si++] : tr)); // fill deck slots, pin folders
+  target.forEach((tr) => tbody.appendChild(tr));
+}
+
+// Restore Moxfield's native row order after the score-sort is cleared. Mirrors applySort
+// (incl. the STRICT no-op guard, so it never drives the observer): rows sort by their
+// snapshotted native ordinal; any without one (rendered mid-sort) sort stably to the end.
+function applyNativeOrder(tbl) {
+  const tbody = tbl.querySelector(':scope > tbody');
+  if (!tbody) return;
+  const allRows = [...tbody.children].filter((n) => n.tagName === 'TR');
+  const deckRows = allRows.filter((tr) => rowMap.get(tr));
+  if (deckRows.length < 2) return;
+  const ord = (tr) => (nativeIdx.has(tr) ? nativeIdx.get(tr) : Number.MAX_SAFE_INTEGER);
+  const sorted = [...deckRows].sort((a, b) => ord(a) - ord(b));
+  if (deckRows.every((r, i) => r === sorted[i])) return; // already native → no DOM ops
+  let si = 0;
+  const target = allRows.map((tr) => (rowMap.get(tr) ? sorted[si++] : tr));
   target.forEach((tr) => tbody.appendChild(tr));
 }
 
@@ -559,7 +579,8 @@ function reconcileColumns() {
     }
     applyNativeHide(tbl, htr);
     updateSortIndicators(htr); // ▲/▼ on the active sort column
-    applySort(tbl); // reorder deck rows by the active sort (no-op if already sorted)
+    if (sortState.key) applySort(tbl); // reorder deck rows by the active sort (no-op if already sorted)
+    else applyNativeOrder(tbl); // sort cleared → restore Moxfield's native order (no-op if already native)
   }
   // Sweep stray cells anywhere outside the tables we decorated. Moxfield's sidebar
   // ("Most Recent Deck") transiently renders as a table we may decorate before it
@@ -803,6 +824,9 @@ function annotate() {
     probeCache(md5); // fold in an already-cached full payload (no network)
   }
   rowEntries = next;
+  // While no score-sort is active the DOM is in Moxfield's native order — snapshot each
+  // row's ordinal so a later "clear sort" can put the rows back the way Moxfield had them.
+  if (!sortState.key) next.forEach((e, i) => nativeIdx.set(e.row, i));
   reconcileColumns(); // add/refresh/heal our columns across all deck tables
   ensureToolbarMenu(); // (re)inject the Stats-columns toggle into the toolbar
   emitChange();
