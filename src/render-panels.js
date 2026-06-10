@@ -149,11 +149,13 @@ function diagramCell(title, svgHtml, caption) {
 // three diagrams — on-curve castability, mana-source mix, and opening-hand source odds.
 export function buildManabasePanel(m) {
   const children = [];
+  const max = m.overallMax || 300;
+  // Bars scaled to /300 (the overall scale), so the Curve bar lines up with the headline
+  // score and Fixing/Quality show their position on the same axis. Labels keep raw values.
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
     .filter(([, v]) => typeof v === 'number')
-    .map(([label, v]) => barRow(label, String(Math.round(v)), v));
+    .map(([label, v]) => barRow(label, String(Math.round(v)), (v / max) * 100));
   if (rows.length) {
-    const max = m.overallMax || 300;
     const desc = typeof m.overall === 'number'
       ? `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%`
       : 'Fixing / quality / curve, each out of 100';

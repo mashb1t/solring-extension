@@ -176,8 +176,8 @@ function renderBody(body, f) {
   const mbc = mb.composition || {};
   const mbMax = mb.overallMax || 300;
   const manabaseTile = tile('Manabase',
-    el('span', { class: 'solring-num', text: typeof mb.overall === 'number' ? String(Math.round(mb.overall)) : '—' }),
-    typeof mb.overall === 'number' ? `/ ${mbMax} · ${Math.round((mb.overall / mbMax) * 100)}%` : null);
+    el('span', { class: 'solring-num', text: typeof mb.overall === 'number' ? `${Math.round(mb.overall)} / ${mbMax}` : '—' }),
+    typeof mb.overall === 'number' ? `${Math.round((mb.overall / mbMax) * 100)}%` : null);
   const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
   const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, manabaseTile, archTile]);
 
