@@ -235,10 +235,10 @@ function synergyHubs(dt, idToName) {
     .slice(0, 6)
     .map((h) => ({ name: idToName[h.cardId] || titleCase(h.cardId), connections: h.connections }));
 }
-// Manabase quality. CommanderSalt's headline "MANABASE SCORE" is `percentages.overall`
-// out of `thresholds.overall` (300) — which equals the curve-appeal axis (rounded), NOT
-// the sum of the axes. (`score`/totalCalories IS that sum, a separate number.) The three
-// /100 axes are manaFixing, quality, curve (bonuses can push an axis past 100). curveChart
+// Manabase quality. CommanderSalt's headline number is `percentages.overall` — the curve
+// axis as a PERCENT of its 100 benchmark (rounded). (`score`/totalCalories is the sum
+// of the axes, a separate number.) The three /100 axes are manaFixing, quality, curve
+// (bonuses can push an axis past 100). curveChart
 // gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`);
 // composition counts the mana sources (lands / rocks / dorks / rituals / treasures + land
 // sub-types: MDFC / fetch / utility / tapped); strengths/risks/improve are the scorer's
@@ -246,7 +246,6 @@ function synergyHubs(dt, idToName) {
 function manabase(dt) {
   const m = g(dt, 'manabase') || {};
   const pct = m.percentages || {};
-  const th = m.thresholds || {};
   const prof = m.profile || {};
   const comp = prof.composition || {};
   const fix = prof.fixing || {};
@@ -283,10 +282,9 @@ function manabase(dt) {
   });
 
   return {
-    // headline score CommanderSalt shows: percentages.overall (= round(curve)), out of 300
+    // headline percent vs benchmark: percentages.overall (= round(curve); 111 = 11% over)
     overall: n(pct.overall) != null ? n(pct.overall) : (n(pct.curve) != null ? Math.round(n(pct.curve)) : null),
-    overallMax: n(th.overall) || 300,
-    score: n(m.score), // the SUM of the three axes (a different number; not the headline)
+    score: n(m.score), // the SUM of the three axes ("total calories"; not the headline)
     // axes are each scored vs their own /100 benchmark (100 = met; bonuses exceed)
     fixing: n(pct.manaFixing),
     quality: n(pct.quality),

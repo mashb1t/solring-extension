@@ -65,14 +65,14 @@ export function mergeView(hit, full) {
 // → needs the full payload (rows lacking it sort last). HIGH grades (salt/threat/
 // interaction/synergy) are "more" by raw value, which is what sort exposes.
 export const SORT_KEYS = {
+  tier: { label: 'Commander tier', get: (v) => v.commanderTier, hit: false },
   power: { label: 'Power', get: (v) => v.power, hit: true },
   bracket: { label: 'Bracket', get: (v) => v.bracketRealistic, hit: true },
-  saltiness: { label: 'Saltiness', get: (v) => v.salt, hit: true },
-  synergy: { label: 'Synergy', get: (v) => v.synergy, hit: true },
   threat: { label: 'Threat', get: (v) => v.threat, hit: false },
+  saltiness: { label: 'Saltiness', get: (v) => v.salt, hit: true },
   interaction: { label: 'Interaction', get: (v) => v.interaction, hit: false },
   wincons: { label: 'Wincons', get: (v) => v.wincons, hit: false },
-  tier: { label: 'Commander tier', get: (v) => v.commanderTier, hit: false },
+  synergy: { label: 'Synergy', get: (v) => v.synergy, hit: true },
 };
 
 // Comparator over views: rows with the metric present sort by value (asc/desc);
@@ -670,9 +670,8 @@ function reconcileColumns() {
 // ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
 
 const COLUMN_NAMES = {
-  power: 'Power', bracket: 'Bracket', salt: 'Saltiness', synergy: 'Synergy',
-  threat: 'Threat', interaction: 'Interaction', wincons: 'Wincons',
-  tier: 'Commander tier', combos: 'Combos', archetype: 'Archetype',
+  tier: 'Commander tier', power: 'Power', bracket: 'Bracket', threat: 'Threat', salt: 'Saltiness',
+  interaction: 'Interaction', wincons: 'Wincons', synergy: 'Synergy', combos: 'Combos', archetype: 'Archetype',
   actions: 'CS link + analysis',
 };
 

@@ -169,15 +169,18 @@ function renderBody(body, f) {
   const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
-  // Manabase: CommanderSalt's headline score (percentages.overall ≈ the curve axis) out
-  // of 300, shown like CS's widget — "<score>" with "/ 300 · NN%" beneath. A score, not an
-  // A–D grade — high manabase is GOOD, opposite the grade ramp.
+  // Manabase: percentages.overall is a PERCENT of the benchmark (the curve axis vs its
+  // 100 par — CommanderSalt's Nutrition Facts total "% daily value"), so 111% = 11% over
+  // par. NOT shown as "/300" — that widget framing divides a percent by the sum of the
+  // axis benchmarks and makes a solid manabase (100%) read as a failing 33%.
   const mb = f.manabase || {};
   const mbc = mb.composition || {};
-  const mbMax = mb.overallMax || 300;
+  const mbOv = typeof mb.overall === 'number' ? Math.round(mb.overall) : null;
+  const mbBench = mbOv == null ? null
+    : (mbOv > 100 ? `${mbOv - 100}% over benchmark` : mbOv < 100 ? `${100 - mbOv}% under benchmark` : 'meets benchmark');
   const manabaseTile = tile('Manabase',
-    el('span', { class: 'solring-num', text: typeof mb.overall === 'number' ? `${Math.round(mb.overall)} / ${mbMax}` : '—' }),
-    typeof mb.overall === 'number' ? `${Math.round((mb.overall / mbMax) * 100)}%` : null);
+    el('span', { class: 'solring-num', text: mbOv != null ? `${mbOv}%` : '—' }),
+    mbBench);
   const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
   const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, manabaseTile, archTile]);
 

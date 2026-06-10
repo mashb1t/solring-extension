@@ -222,14 +222,15 @@ function profileTable(strengths, risks, improve) {
 // second, the castability chart in the third — and the raw Strengths / Risks /
 // Suggestions profile table as the footer.
 export function buildManabasePanel(m) {
-  const max = m.overallMax || 300;
   const children = [];
+  // overall is a percent of the benchmark (curve axis vs its 100 par), not a /300 score.
+  const ov = typeof m.overall === 'number' ? Math.round(m.overall) : null;
+  const bench = ov == null ? null
+    : (ov > 100 ? `${ov - 100}% over benchmark` : ov < 100 ? `${100 - ov}% under benchmark` : 'meets benchmark');
   children.push(el('div', { class: 'solring-mb-head' }, [
     el('div', { class: 'solring-mb-head-title' }, [
       'Manabase',
-      typeof m.overall === 'number'
-        ? el('span', { class: 'solring-mb-head-score', text: ` · ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%` })
-        : null,
+      ov != null ? el('span', { class: 'solring-mb-head-score', text: ` · ${ov}% · ${bench}` }) : null,
     ]),
     statTiles(m.stats),
   ]));
