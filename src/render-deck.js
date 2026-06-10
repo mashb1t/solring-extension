@@ -169,13 +169,15 @@ function renderBody(body, f) {
   const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
-  // Manabase: an overall score out of 300 (the sum of fixing/quality/curve, each /100).
-  // Shown as a score, not an A–D grade — high manabase is GOOD, opposite the grade ramp.
+  // Manabase: CommanderSalt's headline score (percentages.overall ≈ the curve axis) out
+  // of 300, shown like CS's widget — "<score>" with "/ 300 · NN%" beneath. A score, not an
+  // A–D grade — high manabase is GOOD, opposite the grade ramp.
   const mb = f.manabase || {};
   const mbc = mb.composition || {};
+  const mbMax = mb.overallMax || 300;
   const manabaseTile = tile('Manabase',
-    el('span', { class: 'solring-num', text: typeof mb.score === 'number' ? `${Math.round(mb.score)} / ${mb.overallMax || 300}` : '—' }),
-    mbc.lands ? `${mbc.lands} lands · ${mbc.rocks} rock${mbc.rocks === 1 ? '' : 's'}` : (mb.sources ? `${mb.sources} mana sources` : null));
+    el('span', { class: 'solring-num', text: typeof mb.overall === 'number' ? String(Math.round(mb.overall)) : '—' }),
+    typeof mb.overall === 'number' ? `/ ${mbMax} · ${Math.round((mb.overall / mbMax) * 100)}%` : null);
   const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
   const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, manabaseTile, archTile]);
 

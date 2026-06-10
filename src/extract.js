@@ -235,12 +235,14 @@ function synergyHubs(dt, idToName) {
     .slice(0, 6)
     .map((h) => ({ name: idToName[h.cardId] || titleCase(h.cardId), connections: h.connections }));
 }
-// Manabase quality. The overall `score` is out of `thresholds.overall` (300) — the sum
-// of three /100 axes: manaFixing, quality, curve (bonuses can push an axis past 100).
-// curveChart gives on-curve castability per turn (this deck's `actual` vs a typical
-// `baseline`); composition counts the mana sources (lands / rocks / dorks / rituals /
-// treasures + land sub-types: MDFC / fetch / utility / tapped); openingHand["*"] is the
-// P(k mana sources in the opening 7). Full payload only (— in search hits).
+// Manabase quality. CommanderSalt's headline "MANABASE SCORE" is `percentages.overall`
+// out of `thresholds.overall` (300) — which equals the curve-appeal axis (rounded), NOT
+// the sum of the axes. (`score`/totalCalories IS that sum, a separate number.) The three
+// /100 axes are manaFixing, quality, curve (bonuses can push an axis past 100). curveChart
+// gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`);
+// composition counts the mana sources (lands / rocks / dorks / rituals / treasures + land
+// sub-types: MDFC / fetch / utility / tapped); openingHand["*"] is the P(k mana sources in
+// the opening 7). Full payload only (— in search hits).
 function manabase(dt) {
   const m = g(dt, 'manabase') || {};
   const pct = m.percentages || {};
@@ -263,8 +265,10 @@ function manabase(dt) {
     .map((k) => ({ k, p: oh[ohKey][k] })) : [];
 
   return {
-    score: n(m.score), // out of overallMax (300)
+    // headline score CommanderSalt shows: percentages.overall (= round(curve)), out of 300
+    overall: n(pct.overall) != null ? n(pct.overall) : (n(pct.curve) != null ? Math.round(n(pct.curve)) : null),
     overallMax: n(th.overall) || 300,
+    score: n(m.score), // the SUM of the three axes (a different number; not the headline)
     fixing: n(pct.manaFixing),
     quality: n(pct.quality),
     curveScore: n(pct.curve),

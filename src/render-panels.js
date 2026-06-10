@@ -153,7 +153,10 @@ export function buildManabasePanel(m) {
     .filter(([, v]) => typeof v === 'number')
     .map(([label, v]) => barRow(label, String(Math.round(v)), v));
   if (rows.length) {
-    const desc = typeof m.score === 'number' ? `Overall ${Math.round(m.score)} / ${m.overallMax || 300}` : 'Fixing / quality / curve, each out of 100';
+    const max = m.overallMax || 300;
+    const desc = typeof m.overall === 'number'
+      ? `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%`
+      : 'Fixing / quality / curve, each out of 100';
     children.push(group('Mana quality', desc, rows));
   }
   const curveHtml = m.curve && m.curve.length
