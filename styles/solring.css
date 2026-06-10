@@ -138,8 +138,11 @@
 .solring-pl-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-bottom: 0.4rem; }
 /* One-line description under a group header (e.g. Synergy → Anchors / Hubs). */
 .solring-pl-desc { font-size: 0.7rem; color: var(--solring-text-2); margin: -0.25rem 0 0.45rem; line-height: 1.3; }
-/* Stack of labelled groups within one panel; space them apart. */
-.solring-pl-group + .solring-pl-group { margin-top: 0.7rem; }
+/* Synergy lays its groups (Anchors / Hubs) side by side when there's room, collapsing
+   to one column when narrow. auto-fit + minmax keys off the panel's real width (so it
+   stacks on small viewports without a fixed media query); grid gap spaces both axes, so
+   the groups need no margins of their own. */
+.solring-syn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 0.7rem 1.5rem; align-items: start; }
 .solring-pl-row { display: grid; grid-template-columns: 9rem 1fr 3rem; align-items: center; gap: 0.5rem; font-size: 0.78rem; margin: 0.18rem 0; }
 .solring-pl-label { color: var(--solring-text-2); }
 /* display:block so the track keeps its height when used as a plain child (the

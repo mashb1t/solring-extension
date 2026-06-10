@@ -61,7 +61,7 @@ export function buildSynergyPanel(anchors, hubs) {
     groups.push(group('Hubs', 'Cards referenced most by other entries — connective tissue',
       hubs.map((h) => barRow(h.name, String(h.connections), ((h.connections || 0) / max) * 100))));
   }
-  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, groups);
+  return el('div', { class: 'solring-panel-section solring-syn-grid', attrs: { hidden: '' } }, groups);
 }
 
 const PART_LABELS = { counters: 'counterspells', boardWipes: 'board wipes', otherControl: 'control', spotRemoval: 'removal', graveyard: 'graveyard' };
