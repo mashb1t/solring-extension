@@ -64,31 +64,37 @@ export function buildSynergyPanel(anchors, hubs) {
   return el('div', { class: 'solring-panel-section solring-syn-grid', attrs: { hidden: '' } }, groups);
 }
 
-// An inline SVG line chart of on-curve castability per turn: this deck's `actual`
-// (solid, filled) against a typical `baseline` (dashed). Values are fractions 0–1.
-// Returned as a string and injected via el({ html }); strokes use non-scaling-stroke
-// so they stay crisp as the SVG scales to the panel width.
+// On-curve castability per turn: this deck's `actual` (solid, filled) against a typical
+// `baseline` (dashed). Values are fractions 0–1. The SVG holds ONLY geometry — axis
+// labels live in HTML around it, because SVG <text> scales with the viewBox (there is no
+// non-scaling-size vector-effect in browsers) while HTML text keeps its font size at any
+// panel width. Strokes stay crisp via non-scaling-stroke.
 function manaCurveChart(curve) {
   const pts = (curve || []).filter((p) => Number.isFinite(p.turn));
   if (!pts.length) return '';
-  const W = 220; const H = 110; const padL = 20; const padR = 6; const padT = 8; const padB = 16;
+  const W = 220; const H = 110; const pad = 2; // pad keeps strokes from clipping at the edges
   const turns = pts.map((p) => p.turn);
   const tMin = Math.min(...turns); const tMax = Math.max(...turns);
   const span = Math.max(1, tMax - tMin);
   const clamp = (v) => Math.max(0, Math.min(1, typeof v === 'number' ? v : 0));
-  const X = (t) => padL + ((t - tMin) / span) * (W - padL - padR);
-  const Y = (v) => padT + (1 - clamp(v)) * (H - padT - padB);
+  const X = (t) => pad + ((t - tMin) / span) * (W - 2 * pad);
+  const Y = (v) => pad + (1 - clamp(v)) * (H - 2 * pad);
   const path = (key) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.turn).toFixed(1)} ${Y(p[key]).toFixed(1)}`).join(' ');
   const area = `${path('actual')} L${X(tMax).toFixed(1)} ${Y(0).toFixed(1)} L${X(tMin).toFixed(1)} ${Y(0).toFixed(1)} Z`;
-  const grid = [0, 0.5, 1].map((v) => `<line x1="${padL}" y1="${Y(v).toFixed(1)}" x2="${W - padR}" y2="${Y(v).toFixed(1)}" class="solring-mc-grid"/>`
-    + `<text x="${padL - 3}" y="${(Y(v) + 3).toFixed(1)}" class="solring-mc-axis" text-anchor="end">${v * 100}</text>`).join('');
-  const xl = pts.map((p) => `<text x="${X(p.turn).toFixed(1)}" y="${H - 4}" class="solring-mc-axis" text-anchor="middle">${p.turn}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="On-curve castability by turn: this deck vs a typical baseline">`
+  const grid = [0, 0.5, 1].map((v) => `<line x1="${pad}" y1="${Y(v).toFixed(1)}" x2="${W - pad}" y2="${Y(v).toFixed(1)}" class="solring-mc-grid"/>`).join('');
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="On-curve castability by turn: this deck vs a typical baseline">`
     + grid
     + `<path d="${area}" class="solring-mc-fill"/>`
     + `<path d="${path('baseline')}" class="solring-mc-base"/>`
     + `<path d="${path('actual')}" class="solring-mc-line"/>`
-    + xl + '</svg>';
+    + '</svg>';
+  const xl = [];
+  for (let t = Math.ceil(tMin); t <= tMax; t += 1) xl.push(`<span>${t}</span>`);
+  return `<div class="solring-mc-wrap">`
+    + `<div class="solring-mc-y"><span>100</span><span>50</span><span>0</span></div>`
+    + `<div class="solring-mc-plot">${svg}</div>`
+    + `<div class="solring-mc-x">${xl.join('')}</div>`
+    + `</div>`;
 }
 
 // Mana source breakdown: card count per source category as label·bar·value rows
