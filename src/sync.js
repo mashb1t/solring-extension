@@ -47,6 +47,7 @@ function setBusy(on) {
 async function refreshStatus() {
   if (!controls || running || !username) return;
   const s = await getSync(username);
+  if (!controls || running) return; // controls may have been torn down (SPA nav) or a run started during the await
   controls.status.textContent = s && s.at ? `analyzed ${relTime(s.at)}` : '';
 }
 
