@@ -241,8 +241,8 @@ function synergyHubs(dt, idToName) {
 // /100 axes are manaFixing, quality, curve (bonuses can push an axis past 100). curveChart
 // gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`);
 // composition counts the mana sources (lands / rocks / dorks / rituals / treasures + land
-// sub-types: MDFC / fetch / utility / tapped); openingHand["*"] is the P(k mana sources in
-// the opening 7). Full payload only (— in search hits).
+// sub-types: MDFC / fetch / utility / tapped); strengths/risks/improve are the scorer's
+// raw profile signals. Full payload only (— in search hits).
 function manabase(dt) {
   const m = g(dt, 'manabase') || {};
   const pct = m.percentages || {};
@@ -261,15 +261,9 @@ function manabase(dt) {
     .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
     .map((t) => ({ turn: t, actual: turns[t].actualPercentage, baseline: turns[t].baseLinePercentage }));
 
-  // Opening-hand: one P(k sources) series per color present, plus fast mana. Ordered
-  // WUBRG, then "*" (any source) and "c" (colorless), then fast mana.
-  const ohc = g(m, 'probabilities', 'openingHand', 'color') || {};
-  const fm = g(m, 'probabilities', 'openingHand', 'fastmana');
-  const dist = (obj) => Object.keys(obj || {})
-    .map(Number).filter(Number.isFinite).sort((a, b) => a - b).map((k) => ({ k, p: obj[k] }));
-  const openingHand = [];
-  for (const key of ['w', 'u', 'b', 'r', 'g', '*', 'c']) if (ohc[key]) openingHand.push({ key, dist: dist(ohc[key]) });
-  if (fm) openingHand.push({ key: 'fastmana', dist: dist(fm) });
+  // Strengths / risks / improve suggestions: passed through RAW ({ id, data }) — the
+  // panel renders the id + data pairs directly, no sentence templating.
+  const rawList = (list) => (list || []).filter((it) => it && it.id).map((it) => ({ id: it.id, data: it.data || {} }));
 
   // Per-color production vs requirement (empty on colorless decks).
   const perColor = Object.entries(fix.perColor || {}).map(([color, v]) => ({
@@ -286,22 +280,30 @@ function manabase(dt) {
     quality: n(pct.quality),
     curveScore: n(pct.curve),
     curve, // [{ turn, actual, baseline }] — fractions 0–1
-    openingHand, // [{ key, dist:[{k,p}] }] — P(k producers of each color in opening 7)
     perColor, // [{ color, req, prod, ratio, deficit }]
     composition: {
-      lands: c0(comp.landCount), basics: c0(comp.basicCount), rocks: c0(comp.rockCount),
+      // "lands" = mana-producing lands (what CommanderSalt's Lands figures count;
+      // pure-utility lands are excluded), falling back to the total land count.
+      lands: c0(comp.manaProducingLandCount) || c0(comp.landCount),
+      basics: c0(comp.basicCount), rocks: c0(comp.rockCount),
       dorks: c0(comp.dorkCount), rituals: c0(comp.ritualCount), treasures: c0(comp.treasureCount),
-      mdfc: c0(comp.mdfcLandCount), fetch: c0(comp.fetchCount), utility: c0(comp.utilityLandCount), tapped: c0(comp.tapLandCount),
+      landRamp: c0(comp.landRampCount), mdfc: c0(comp.mdfcLandCount), fetch: c0(comp.fetchCount),
+      utility: c0(comp.utilityLandCount), tapped: c0(comp.tapLandCount),
     },
     stats: {
-      lands: c0(comp.landCount),
+      lands: c0(comp.manaProducingLandCount) || c0(comp.landCount),
       sources: n(dbg.totalManaSourceCount) != null ? n(dbg.totalManaSourceCount) : n(cons.sourceCount),
       expected: n(cons.expectedSourceCount) != null ? n(cons.expectedSourceCount) : n(dbg.expectedMinSources),
       avgCmc: n(cons.avgCmc) != null ? n(cons.avgCmc) : n(dbg.avgCMC),
       fastMana: c0(speed.fastManaLandCount),
       mdfc: c0(comp.mdfcLandCount),
+      baseCmc: n(g(m, 'breakdown', 'baseTotalCmc')),
+      costReducers: Object.keys(g(m, 'breakdown', 'genericManaReducers') || {}).length,
+      reducedCards: n(g(m, 'details', 'totalReducedCostCards')),
     },
-    improve: (prof.improve || []).map((it) => ({ id: it.id, count: it.data && it.data.currentCount })),
+    strengths: rawList(prof.strengths), // [{ id, data }] — raw scorer signals
+    risks: rawList(prof.risks),
+    improve: rawList(prof.improve),
     sources: Object.keys(m.manaProducers || {}).length,
   };
 }

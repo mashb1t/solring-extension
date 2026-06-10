@@ -151,15 +151,15 @@
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
-/* Manabase header band: title + headline score left, the key counts right. */
-.solring-mb-head {
-  display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap;
-  gap: 0.2rem 1rem; padding-bottom: 0.55rem; margin-bottom: 0.7rem;
-  border-bottom: 1px solid var(--solring-border);
-}
+/* Manabase header band: title + headline score, then the stat tiles, behind a divider. */
+.solring-mb-head { padding-bottom: 0.6rem; margin-bottom: 0.7rem; border-bottom: 1px solid var(--solring-border); }
 .solring-mb-head-title { font-size: 0.8rem; font-weight: 600; }
 .solring-mb-head-score { font-weight: 400; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
-.solring-mb-head-stats { font-size: 0.72rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
+/* Stat tiles: label / value / sub-note. */
+.solring-mb-stats { display: flex; flex-wrap: wrap; gap: 0.5rem 1.8rem; margin-top: 0.55rem; }
+.solring-mb-stat-k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); }
+.solring-mb-stat-v { font-size: 1.05rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.solring-mb-stat-s { font-size: 0.66rem; color: var(--solring-text-2); }
 
 /* Manabase content row: the stacked bars column beside the two charts. Flex (not grid)
    so the columns keep an asymmetric grow (bars 0.9 / charts 1.2) yet still wrap to
@@ -172,17 +172,6 @@
 .solring-mb-col-bars .solring-pl-row { grid-template-columns: 3.6rem 1fr 2.4rem; font-size: 0.74rem; }
 .solring-mb-fig { margin: 0.3rem 0 0.15rem; }
 .solring-mb-fig svg { width: 100%; height: auto; display: block; }
-
-/* Opening-hand multi-line chart: one stroke per colour + fast mana. */
-.solring-mb-oh-line { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-.solring-mb-oh-w { stroke: #c9a94e; } .solring-mb-oh-u { stroke: #3b82f6; } .solring-mb-oh-b { stroke: #8b5cf6; }
-.solring-mb-oh-r { stroke: #ef4444; } .solring-mb-oh-g { stroke: #22c55e; }
-.solring-mb-oh-any { stroke: var(--solring-accent); } .solring-mb-oh-c { stroke: #9aa0a6; } .solring-mb-oh-fastmana { stroke: #eab308; stroke-dasharray: 3 2; }
-.solring-mb-oh-key-w::before { background: #c9a94e; } .solring-mb-oh-key-u::before { background: #3b82f6; } .solring-mb-oh-key-b::before { background: #8b5cf6; }
-.solring-mb-oh-key-r::before { background: #ef4444; } .solring-mb-oh-key-g::before { background: #22c55e; }
-.solring-mb-oh-key-any::before { background: var(--solring-accent); } .solring-mb-oh-key-c::before { background: #9aa0a6; }
-/* dashed swatch to match the fast-mana line's dash pattern */
-.solring-mb-oh-key-fastmana::before { background: repeating-linear-gradient(90deg, #eab308 0 3px, transparent 3px 5px); }
 
 /* Colour produced vs required: grey "required" bar over a "produced" bar, both on one
    shared count scale (×ratio label). The mana colour rides on the letter; the produced
@@ -200,29 +189,21 @@
 .solring-mb-cp-v { font-size: 0.72rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 .solring-mb-cp-deficit-t { color: var(--solring-rating-a); }
 
-/* Improve hints (CommanderSalt's profile.improve). */
-/* Footer behind a divider — reads as the panel's conclusion, not an orphan row. */
-.solring-mb-improve { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid var(--solring-border); }
-.solring-mb-improve-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-right: 0.15rem; }
-.solring-mb-improve-chip { font-size: 0.72rem; padding: 0.1rem 0.45rem; border: 1px solid var(--solring-border); border-radius: 999px; color: var(--solring-text); }
-/* source-mix stacked bar + legend */
-.solring-mb-bar { border-radius: 2px; overflow: hidden; }
-.solring-mb-seg-land { fill: var(--solring-accent); }
-.solring-mb-seg-rock { fill: var(--solring-text-2); }
-.solring-mb-seg-dork { fill: var(--solring-rating-d); }
-.solring-mb-seg-ritual { fill: var(--solring-rating-b); }
-.solring-mb-seg-treasure { fill: var(--solring-rating-c); }
-.solring-mb-leg { display: flex; flex-wrap: wrap; gap: 0.12rem 0.6rem; margin-top: 0.3rem; font-size: 0.68rem; color: var(--solring-text-2); }
-.solring-mb-key { display: inline-flex; align-items: center; }
-/* Line swatches (not squares) — one legend style across all the panel's charts. */
-.solring-mb-key::before { content: ''; width: 14px; height: 2px; margin-right: 5px; }
-.solring-mb-key-land::before { background: var(--solring-accent); }
-.solring-mb-key-rock::before { background: var(--solring-text-2); }
-.solring-mb-key-dork::before { background: var(--solring-rating-d); }
-.solring-mb-key-ritual::before { background: var(--solring-rating-b); }
-.solring-mb-key-treasure::before { background: var(--solring-rating-c); }
-/* opening-hand source-count bars */
-.solring-mb-ohbar { fill: var(--solring-accent); opacity: 0.78; }
+/* Profile table footer: Strengths / Risks / Suggestions — raw scorer signals
+   ({ id, data }) in three columns behind a divider. */
+.solring-mb-prof { display: flex; flex-wrap: wrap; gap: 0.9rem 1.6rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--solring-border); }
+.solring-mb-prof-col { flex: 1 1 220px; min-width: 0; }
+.solring-mb-prof-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.15rem; }
+.solring-mb-prof-head .solring-pl-h { margin-bottom: 0; }
+.solring-mb-prof-count {
+  font-size: 0.62rem; font-variant-numeric: tabular-nums; color: var(--solring-text-2);
+  background: var(--solring-surface-2); border-radius: 999px; padding: 0 0.4rem; line-height: 1.4;
+}
+.solring-mb-prof-item { padding: 0.3rem 0; border-top: 1px solid var(--solring-border); }
+.solring-mb-prof-item:first-of-type { border-top: 0; }
+.solring-mb-prof-id { font-size: 0.76rem; }
+.solring-mb-prof-data { font-size: 0.68rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.solring-mb-prof-empty { font-size: 0.74rem; color: var(--solring-text-2); font-style: italic; padding: 0.3rem 0; }
 
 /* On-curve castability chart: this deck (solid + faint fill) vs a typical baseline
    (dashed). Non-scaling strokes stay crisp as the SVG scales to its column. */

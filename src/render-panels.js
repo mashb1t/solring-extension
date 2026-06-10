@@ -71,7 +71,6 @@ export function buildSynergyPanel(anchors, hubs) {
 function manaCurveChart(curve) {
   const pts = (curve || []).filter((p) => Number.isFinite(p.turn));
   if (!pts.length) return '';
-  // Same viewBox + paddings as openingHandMultiChart so the two charts align exactly.
   const W = 220; const H = 110; const padL = 20; const padR = 6; const padT = 8; const padB = 16;
   const turns = pts.map((p) => p.turn);
   const tMin = Math.min(...turns); const tMax = Math.max(...turns);
@@ -92,25 +91,20 @@ function manaCurveChart(curve) {
     + xl + '</svg>';
 }
 
-// Horizontal stacked bar of mana sources by type (land / rock / dork / ritual /
-// treasure), proportional to count. Segment colours come from solring-mb-seg-* classes.
-function sourceMixChart(c) {
-  const segs = [['land', c.lands], ['rock', c.rocks], ['dork', c.dorks], ['ritual', c.rituals], ['treasure', c.treasures]]
-    .filter(([, v]) => v > 0);
-  if (!segs.length) return '';
-  const total = segs.reduce((s, [, v]) => s + v, 0);
-  const W = 150; const H = 12; let x = 0;
-  const rects = segs.map(([key, v]) => {
-    const w = (v / total) * W;
-    const r = `<rect x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="${H}" class="solring-mb-seg solring-mb-seg-${key}"><title>${v} ${key}${v === 1 ? '' : 's'}</title></rect>`;
-    x += w; return r;
-  }).join('');
-  const legend = segs.map(([key, v]) => `<span class="solring-mb-key solring-mb-key-${key}">${v} ${key}${v === 1 ? '' : 's'}</span>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mb-bar" preserveAspectRatio="none">${rects}</svg><div class="solring-mb-leg">${legend}</div>`;
+// Mana source breakdown: card count per source category as label·bar·value rows
+// (normalised to the largest category — lands dominate by design).
+function sourceBreakdownRows(c) {
+  const cats = [
+    ['Lands', c.lands], ['Land ramp', c.landRamp], ['Rocks', c.rocks],
+    ['Dorks', c.dorks], ['Treasures', c.treasures], ['Rituals', c.rituals],
+  ].filter(([, v]) => v > 0);
+  if (!cats.length) return null;
+  const max = Math.max(...cats.map(([, v]) => v), 1);
+  return cats.map(([label, v]) => barRow(label, String(v), (v / max) * 100));
 }
 
-// Land sub-types worth calling out beneath the source mix.
-function sourceMixCaption(c) {
+// Land sub-types worth calling out beneath the source breakdown.
+function sourceBreakdownCaption(c) {
   const parts = [];
   if (c.basics) parts.push(`${c.basics} basic`);
   if (c.utility) parts.push(`${c.utility} utility`);
@@ -118,35 +112,6 @@ function sourceMixCaption(c) {
   if (c.fetch) parts.push(`${c.fetch} fetch`);
   if (c.tapped) parts.push(`${c.tapped} tapped`);
   return parts.join(' · ') || null;
-}
-
-// Multi-line chart: P(k producers of each colour — plus fast mana — in the opening 7).
-// One line per series; stroke colours via the solring-mb-oh-* classes.
-function openingHandMultiChart(series) {
-  const ss = (series || []).filter((s) => s.dist && s.dist.length);
-  if (!ss.length) return '';
-  const kMax = Math.max(...ss.flatMap((s) => s.dist.map((d) => d.k)), 1);
-  const pMax = Math.max(...ss.flatMap((s) => s.dist.map((d) => d.p || 0)), 0.01);
-  // Same viewBox + paddings as manaCurveChart so the two charts align exactly.
-  const W = 220; const H = 110; const padL = 20; const padR = 6; const padT = 8; const padB = 16;
-  const X = (k) => padL + (k / kMax) * (W - padL - padR);
-  const Y = (p) => padT + (1 - (p || 0) / pMax) * (H - padT - padB);
-  const grid = [0, 0.5, 1].map((f) => {
-    const y = (padT + (1 - f) * (H - padT - padB));
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" class="solring-mc-grid"/>`
-      + `<text x="${padL - 3}" y="${(y + 3).toFixed(1)}" class="solring-mc-axis" text-anchor="end">${Math.round(f * pMax * 100)}</text>`;
-  }).join('');
-  const lines = ss.map((s) => {
-    const d = s.dist.map((pt, i) => `${i ? 'L' : 'M'}${X(pt.k).toFixed(1)} ${Y(pt.p).toFixed(1)}`).join(' ');
-    return `<path d="${d}" class="solring-mb-oh-line solring-mb-oh-${s.key === '*' ? 'any' : s.key}"/>`;
-  }).join('');
-  const xl = Array.from({ length: kMax + 1 }, (_, k) => `<text x="${X(k).toFixed(1)}" y="${H - 4}" class="solring-mc-axis" text-anchor="middle">${k}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="Opening-hand producer probabilities">${grid}${lines}${xl}</svg>`;
-}
-
-const OH_KEY_LABEL = { w: 'W', u: 'U', b: 'B', r: 'R', g: 'G', '*': 'Any', c: 'C', fastmana: 'Fast' };
-function openingHandLegend(series) {
-  return `<div class="solring-mb-leg">${(series || []).map((s) => `<span class="solring-mb-key solring-mb-oh-key-${s.key === '*' ? 'any' : s.key}">${OH_KEY_LABEL[s.key] || s.key}</span>`).join('')}</div>`;
 }
 
 // Per-colour production vs requirement, CommanderSalt-style: a grey "required" bar over a
@@ -192,42 +157,68 @@ function barBlock(title, content, caption) {
   ]);
 }
 
-// "38 lands · 66 sources · 2.05 avg CMC · 4 fast mana · 0 MDFC" for the header band.
-function statsLine(s) {
+// Header stat tiles: label / value / sub-note, CommanderSalt-style.
+function statTiles(s) {
   if (!s) return null;
-  const parts = [];
-  if (s.lands != null) parts.push(`${s.lands} lands`);
-  if (s.sources != null) parts.push(`${Math.round(s.sources)} sources`);
-  if (s.avgCmc != null) parts.push(`${s.avgCmc.toFixed(2)} avg CMC`);
-  if (s.fastMana != null) parts.push(`${s.fastMana} fast mana`);
-  if (s.mdfc != null) parts.push(`${s.mdfc} MDFC`);
-  return parts.length ? parts.join(' · ') : null;
+  const tiles = [
+    ['Lands', s.lands, s.expected != null ? `vs ${Math.round(s.expected)} expected` : null],
+    ['Total sources', s.sources != null ? Math.round(s.sources) : null, 'lands + rocks + dorks'],
+    ['Fast mana', s.fastMana, 'fast-mana lands'],
+    ['Avg CMC', s.avgCmc != null ? s.avgCmc.toFixed(2) : null, 'nonland average'],
+    ['Base CMC', s.baseCmc, 'sum across nonland'],
+    ['Cost reducers', s.costReducers, 'generic mana'],
+    ['Reduced cards', s.reducedCards, 'with cost reduction'],
+  ].filter(([, v]) => v != null);
+  if (!tiles.length) return null;
+  return el('div', { class: 'solring-mb-stats' }, tiles.map(([label, value, sub]) => el('div', { class: 'solring-mb-stat' }, [
+    el('div', { class: 'solring-mb-stat-k', text: label }),
+    el('div', { class: 'solring-mb-stat-v', text: String(value) }),
+    sub ? el('div', { class: 'solring-mb-stat-s', text: sub }) : null,
+  ])));
 }
 
-// CommanderSalt's own actionable nudges (profile.improve), mapped to short labels.
-const IMPROVE_LABELS = {
-  addFastManaLands: 'Add fast-mana lands', addFastMana: 'Add fast mana', increaseRamp: 'Increase ramp',
-  addRamp: 'Add ramp', addTutors: 'Add tutors', addCounterspells: 'Add counterspells',
-  addFetches: 'Add fetch lands', addMdfcLands: 'Add MDFC lands', reduceTapLands: 'Cut tapped lands',
-  addUtilityLands: 'Add utility lands', improveFixing: 'Improve fixing',
+// camelCase scorer id → readable words ("pipCoverageHigh" → "Pip coverage high").
+const humanizeId = (id) => {
+  const s = String(id).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 };
-function improveHints(improve) {
-  const hints = (improve || []).map((it) => IMPROVE_LABELS[it.id]).filter(Boolean);
-  if (!hints.length) return null;
-  return el('div', { class: 'solring-mb-improve' }, [
-    el('span', { class: 'solring-mb-improve-h', text: 'To improve' }),
-    ...hints.map((h) => el('span', { class: 'solring-mb-improve-chip', text: h })),
+
+// One column of the profile table: header + count badge over the RAW { id, data }
+// entries — the id humanized as the title, the data key/value pairs beneath verbatim.
+function profileColumn(title, entries, emptyText) {
+  const items = (entries || []).map(({ id, data }) => {
+    const pairs = Object.entries(data || {}).map(([k, v]) => `${k}: ${v}`).join(' · ');
+    return el('div', { class: 'solring-mb-prof-item' }, [
+      el('div', { class: 'solring-mb-prof-id', text: humanizeId(id) }),
+      pairs ? el('div', { class: 'solring-mb-prof-data', text: pairs }) : null,
+    ]);
+  });
+  return el('div', { class: 'solring-mb-prof-col' }, [
+    el('div', { class: 'solring-mb-prof-head' }, [
+      el('span', { class: 'solring-pl-h', text: title }),
+      el('span', { class: 'solring-mb-prof-count', text: String((entries || []).length) }),
+    ]),
+    ...(items.length ? items : [el('div', { class: 'solring-mb-prof-empty', text: emptyText })]),
   ]);
 }
 
-// Manabase, structured by visual mass: a header band (title + headline score left, the
-// key counts right), then one content row — the two label·bar·value widgets stacked in a
-// bars column beside the two charts (which share a viewBox so they align) — and
-// CommanderSalt's improve hints as a footer behind a divider.
+// Strengths / Risks / Suggestions, three columns of raw scorer signals.
+function profileTable(strengths, risks, improve) {
+  if (!(strengths || []).length && !(risks || []).length && !(improve || []).length) return null;
+  return el('div', { class: 'solring-mb-prof' }, [
+    profileColumn('Strengths', strengths, 'None flagged.'),
+    profileColumn('Risks', risks, 'No risks flagged.'),
+    profileColumn('Suggestions', improve, 'None.'),
+  ]);
+}
+
+// Manabase: a header band (title + headline score, then the stat tiles), one content row
+// — quality + colour-coverage bars stacked in one column, the source breakdown in a
+// second, the castability chart in the third — and the raw Strengths / Risks /
+// Suggestions profile table as the footer.
 export function buildManabasePanel(m) {
   const max = m.overallMax || 300;
   const children = [];
-  const stats = statsLine(m.stats);
   children.push(el('div', { class: 'solring-mb-head' }, [
     el('div', { class: 'solring-mb-head-title' }, [
       'Manabase',
@@ -235,11 +226,10 @@ export function buildManabasePanel(m) {
         ? el('span', { class: 'solring-mb-head-score', text: ` · ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%` })
         : null,
     ]),
-    stats ? el('div', { class: 'solring-mb-head-stats', text: stats }) : null,
+    statTiles(m.stats),
   ]));
 
-  // Bars column: Mana quality + Colour coverage share a visual language and are each too
-  // short for a full cell — stacked, they fill one column to roughly chart height.
+  // Bars column 1: Mana quality + Colour coverage (same visual language, stacked).
   // Axis bars are /100 — each axis vs its own 100 benchmark (100 = met; bonuses cap full).
   const barsCol = [];
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
@@ -247,26 +237,25 @@ export function buildManabasePanel(m) {
     .map(([label, v]) => barRow(label, String(Math.round(v)), v));
   if (rows.length) barsCol.push(barBlock('Mana quality', rows, null));
   const cpr = colorReqProdChart(m.perColor);
-  if (cpr) {
-    barsCol.push(barBlock('Colour produced vs required', cpr, 'Grey = required · red = under-produced'));
-  } else {
-    const mix = sourceMixChart(m.composition || {});
-    if (mix) barsCol.push(barBlock('Mana sources', mix, sourceMixCaption(m.composition || {})));
-  }
+  if (cpr) barsCol.push(barBlock('Colour produced vs required', cpr, 'Grey = required · red = under-produced'));
 
   const cells = [];
   if (barsCol.length) cells.push(el('div', { class: 'solring-mb-col-bars' }, barsCol));
+  // Bars column 2: card count per source category.
+  const breakdownRows = sourceBreakdownRows(m.composition || {});
+  if (breakdownRows) {
+    cells.push(el('div', { class: 'solring-mb-col-bars' }, [
+      barBlock('Mana source breakdown', breakdownRows, sourceBreakdownCaption(m.composition || {})),
+    ]));
+  }
   const curveHtml = m.curve && m.curve.length
     ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
     : '';
   if (curveHtml) cells.push(diagramCell('On-curve castability', curveHtml, null));
-  const ohHtml = m.openingHand && m.openingHand.length
-    ? `${openingHandMultiChart(m.openingHand)}${openingHandLegend(m.openingHand)}` : '';
-  if (ohHtml) cells.push(diagramCell('Opening-hand producers', ohHtml, '% chance of N in opening 7'));
   if (cells.length) children.push(el('div', { class: 'solring-mb-grid' }, cells));
 
-  const imp = improveHints(m.improve);
-  if (imp) children.push(imp);
+  const table = profileTable(m.strengths, m.risks, m.improve);
+  if (table) children.push(table);
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
 }
 
