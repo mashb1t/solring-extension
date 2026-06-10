@@ -156,9 +156,12 @@
 .solring-mb-stat-v { font-size: 1rem; font-weight: 700; line-height: 1.1; }
 .solring-mb-stat-k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--solring-text-2); }
 
-/* Manabase diagrams: responsive 2–3 up (richer charts than a forced 3-up could hold). */
-.solring-mb-diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.9rem 1.2rem; margin-top: 0.4rem; align-items: start; }
+/* Manabase: ONE grid of equal cells (Mana quality + the three charts) so nothing
+   stretches full-width while its neighbours sit in narrow columns. */
+.solring-mb-diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.9rem 1.4rem; margin-top: 0.4rem; align-items: start; }
 .solring-mb-cell { min-width: 0; }
+/* Compact bar rows inside a cell (the page-wide 9rem label grid would overflow it). */
+.solring-mb-cell .solring-pl-row { grid-template-columns: 3.6rem 1fr 2.4rem; font-size: 0.74rem; }
 .solring-mb-fig { margin: 0.3rem 0 0.15rem; }
 .solring-mb-fig svg { width: 100%; height: auto; display: block; }
 
@@ -171,16 +174,19 @@
 .solring-mb-oh-key-r::before { background: #ef4444; } .solring-mb-oh-key-g::before { background: #22c55e; }
 .solring-mb-oh-key-any::before { background: var(--solring-accent); } .solring-mb-oh-key-c::before { background: #9aa0a6; } .solring-mb-oh-key-fastmana::before { background: #eab308; }
 
-/* Colour coverage: a parity midline (100%); fill past it = surplus, short + red = deficit.
-   The mana colour rides on the letter; the fill is neutral (red only for real deficits). */
-.solring-mb-cp-row { display: grid; grid-template-columns: 1.4rem 1fr 2.6rem; align-items: center; gap: 0.4rem; margin: 0.3rem 0; }
+/* Colour produced vs required: grey "required" bar over a "produced" bar, both on one
+   shared count scale (×ratio label). The mana colour rides on the letter; the produced
+   fill stays the neutral accent, turning red only on a real deficit. */
+.solring-mb-cp-row { display: grid; grid-template-columns: 1.4rem 1fr 2.6rem; align-items: center; gap: 0.4rem; margin: 0.34rem 0; }
 .solring-mb-cp-c { font-size: 0.72rem; font-weight: 700; text-align: center; }
 .solring-mb-cp-w { color: #c9a94e; } .solring-mb-cp-u { color: #3b82f6; } .solring-mb-cp-b { color: #8b5cf6; }
 .solring-mb-cp-r { color: #ef4444; } .solring-mb-cp-g { color: #22c55e; }
-.solring-mb-cp-track { position: relative; height: 7px; background: var(--solring-surface-2); border-radius: 4px; overflow: hidden; }
-.solring-mb-cp-fill { display: block; height: 100%; background: var(--solring-accent); }
-.solring-mb-cp-fill.solring-mb-cp-deficit { background: var(--solring-rating-a); }
-.solring-mb-cp-parity { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--solring-text-2); opacity: 0.7; z-index: 1; }
+.solring-mb-cp-bars { display: flex; flex-direction: column; gap: 2px; }
+.solring-mb-cp-track { height: 5px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
+.solring-mb-cp-track > span { display: block; height: 100%; }
+.solring-mb-cp-req { background: var(--solring-text-2); opacity: 0.5; }
+.solring-mb-cp-prod { background: var(--solring-accent); }
+.solring-mb-cp-prod.solring-mb-cp-deficit { background: var(--solring-rating-a); }
 .solring-mb-cp-v { font-size: 0.72rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 .solring-mb-cp-deficit-t { color: var(--solring-rating-a); }
 

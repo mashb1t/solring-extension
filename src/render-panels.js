@@ -147,21 +147,25 @@ function openingHandLegend(series) {
   return `<div class="solring-mb-leg">${(series || []).map((s) => `<span class="solring-mb-key solring-mb-oh-key-${s.key === '*' ? 'any' : s.key}">${OH_KEY_LABEL[s.key] || s.key}</span>`).join('')}</div>`;
 }
 
-// Per-colour coverage: how much of each colour's requirement the deck produces
-// (coverageRatio). A midline marks parity (100%); fill past it = surplus, short + red =
-// under-produced. The colour letter carries the mana colour, while the fill stays neutral
-// so a red-mana SURPLUS isn't mistaken for a deficit warning.
+// Per-colour production vs requirement, CommanderSalt-style: a grey "required" bar over a
+// "produced" bar, both on one shared count scale — so a 6× white surplus reads as a long
+// bar over a short one instead of a meaningless saturated fill. The ×ratio label compacts
+// huge surpluses (×6.8, not 684%); deficits (<×1) turn the produced bar + label red.
 function colorReqProdChart(perColor) {
-  const pc = (perColor || []).filter((c) => c.ratio != null);
+  const pc = (perColor || []).filter((c) => c.req != null || c.prod != null);
   if (!pc.length) return '';
+  const maxC = Math.max(...pc.flatMap((c) => [c.req || 0, c.prod || 0]), 1);
+  const w = (v) => Math.round(((v || 0) / maxC) * 100);
+  const ratioText = (r) => (r == null ? '' : `×${r >= 10 ? Math.round(r) : r.toFixed(1)}`);
   return pc.map((c) => {
-    const deficit = c.ratio < 1;
-    const fill = Math.max(0, Math.min(1, c.ratio / 2)) * 100; // parity (ratio 1.0) sits at 50%
+    const deficit = c.ratio != null && c.ratio < 1;
     return `<div class="solring-mb-cp-row">`
       + `<span class="solring-mb-cp-c solring-mb-cp-${c.color}">${(c.color || '').toUpperCase()}</span>`
-      + `<span class="solring-mb-cp-track"><span class="solring-mb-cp-parity"></span>`
-      + `<span class="solring-mb-cp-fill${deficit ? ' solring-mb-cp-deficit' : ''}" style="width:${fill.toFixed(0)}%"></span></span>`
-      + `<span class="solring-mb-cp-v${deficit ? ' solring-mb-cp-deficit-t' : ''}">${Math.round(c.ratio * 100)}%</span>`
+      + `<span class="solring-mb-cp-bars">`
+      + `<span class="solring-mb-cp-track"><span class="solring-mb-cp-req" style="width:${w(c.req)}%"></span></span>`
+      + `<span class="solring-mb-cp-track"><span class="solring-mb-cp-prod${deficit ? ' solring-mb-cp-deficit' : ''}" style="width:${w(c.prod)}%"></span></span>`
+      + `</span>`
+      + `<span class="solring-mb-cp-v${deficit ? ' solring-mb-cp-deficit-t' : ''}">${ratioText(c.ratio)}</span>`
       + `</div>`;
   }).join('');
 }
@@ -209,13 +213,14 @@ function improveHints(improve) {
   ]);
 }
 
-// Manabase: stats strip + a score header (axes vs their /100 benchmark) + a row of
-// diagrams (on-curve castability · opening-hand producers · colour produced-vs-required,
-// falling back to the source mix on colourless decks) + CommanderSalt's improve hints.
+// Manabase: stats strip on top, then ONE consistent grid of equal cells — Mana quality
+// (the /100 axis bars, compact) sits alongside the three charts instead of stretching
+// full-width above them — and CommanderSalt's improve hints at the bottom.
 export function buildManabasePanel(m) {
   const children = [];
   const strip = statsStrip(m.stats);
   if (strip) children.push(strip);
+  const cells = [];
   // Axis bars are /100 — each axis is scored against its own 100 benchmark (100 = met;
   // bonuses exceed and cap the bar full). Only the headline score is on the /300 scale.
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
@@ -223,26 +228,26 @@ export function buildManabasePanel(m) {
     .map(([label, v]) => barRow(label, String(Math.round(v)), v));
   if (rows.length) {
     const max = m.overallMax || 300;
-    const desc = typeof m.overall === 'number'
-      ? `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}% · axes vs their 100 benchmark`
-      : 'Each axis vs its 100 benchmark';
-    children.push(group('Mana quality', desc, rows));
+    cells.push(el('div', { class: 'solring-mb-cell' }, [
+      el('div', { class: 'solring-pl-h', text: 'Mana quality' }),
+      typeof m.overall === 'number'
+        ? el('div', { class: 'solring-pl-desc', text: `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%` })
+        : null,
+      ...rows,
+    ]));
   }
   const curveHtml = m.curve && m.curve.length
     ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
     : '';
+  if (curveHtml) cells.push(diagramCell('On-curve castability', curveHtml, null));
   const ohHtml = m.openingHand && m.openingHand.length
     ? `${openingHandMultiChart(m.openingHand)}${openingHandLegend(m.openingHand)}` : '';
+  if (ohHtml) cells.push(diagramCell('Opening-hand producers', ohHtml, '% chance of N in opening 7'));
   const cpr = colorReqProdChart(m.perColor);
-  const thirdCell = cpr
-    ? diagramCell('Colour produced vs required', cpr, 'Past the midline = covered · red = under-produced')
-    : diagramCell('Mana sources', sourceMixChart(m.composition || {}), sourceMixCaption(m.composition || {}));
-  const cells = [
-    diagramCell('On-curve castability', curveHtml, null),
-    ohHtml ? diagramCell('Opening-hand producers', ohHtml, '% chance of N in opening 7') : null,
-    thirdCell,
-  ].filter(Boolean);
-  if (cells.length) children.push(el('div', { class: 'solring-mb-diagrams' }, cells));
+  cells.push(cpr
+    ? diagramCell('Colour produced vs required', cpr, 'Grey = required · red = under-produced')
+    : diagramCell('Mana sources', sourceMixChart(m.composition || {}), sourceMixCaption(m.composition || {})));
+  if (cells.filter(Boolean).length) children.push(el('div', { class: 'solring-mb-diagrams' }, cells.filter(Boolean)));
   const imp = improveHints(m.improve);
   if (imp) children.push(imp);
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
