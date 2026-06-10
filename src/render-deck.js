@@ -169,12 +169,13 @@ function renderBody(body, f) {
   const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
-  // Manabase: an overall % of an ideal manabase (100 = solid; bonuses can exceed it).
+  // Manabase: an overall score out of 300 (the sum of fixing/quality/curve, each /100).
   // Shown as a score, not an A–D grade — high manabase is GOOD, opposite the grade ramp.
   const mb = f.manabase || {};
+  const mbc = mb.composition || {};
   const manabaseTile = tile('Manabase',
-    el('span', { class: 'solring-num', text: typeof mb.overall === 'number' ? `${Math.round(mb.overall)}%` : '—' }),
-    mb.sources ? `${mb.sources} mana sources` : null);
+    el('span', { class: 'solring-num', text: typeof mb.score === 'number' ? `${Math.round(mb.score)} / ${mb.overallMax || 300}` : '—' }),
+    mbc.lands ? `${mbc.lands} lands · ${mbc.rocks} rock${mbc.rocks === 1 ? '' : 's'}` : (mb.sources ? `${mb.sources} mana sources` : null));
   const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
   const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, manabaseTile, archTile]);
 
@@ -196,7 +197,7 @@ function renderBody(body, f) {
 
   // Each tile expands its own detail panel (hidden until clicked).
   if (hasCombos) makeExpandable(winconsTile, buildCombosSection(f.combos), body);
-  if (mb.curve && mb.curve.length) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
+  if ((mb.curve && mb.curve.length) || mbc.lands || (mb.openingHand && mb.openingHand.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
   if (f.powerPillars && Object.keys(f.powerPillars).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars), body);
   if (f.bracketCategories && f.bracketCategories.length) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);

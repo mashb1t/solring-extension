@@ -151,10 +151,32 @@
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
-/* Manabase on-curve castability chart: this deck (solid + faint fill) vs a typical
-   baseline (dashed). The SVG scales to the panel width; non-scaling strokes stay crisp. */
-.solring-mana-curve { margin-top: 0.7rem; }
-.solring-mc-wrap { max-width: 420px; margin-top: 0.3rem; }
+/* Manabase: a row of three compact diagrams (castability / source mix / opening hand).
+   Forced 3-up so they share one row on the deck panel; each SVG scales to its column. */
+.solring-mb-diagrams { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem 1.1rem; margin-top: 0.8rem; align-items: start; }
+.solring-mb-cell { min-width: 0; }
+.solring-mb-fig { margin: 0.3rem 0 0.15rem; }
+.solring-mb-fig svg { width: 100%; height: auto; display: block; }
+/* source-mix stacked bar + legend */
+.solring-mb-bar { border-radius: 2px; overflow: hidden; }
+.solring-mb-seg-land { fill: var(--solring-accent); }
+.solring-mb-seg-rock { fill: var(--solring-text-2); }
+.solring-mb-seg-dork { fill: var(--solring-rating-d); }
+.solring-mb-seg-ritual { fill: var(--solring-rating-b); }
+.solring-mb-seg-treasure { fill: var(--solring-rating-c); }
+.solring-mb-leg { display: flex; flex-wrap: wrap; gap: 0.12rem 0.6rem; margin-top: 0.3rem; font-size: 0.68rem; color: var(--solring-text-2); }
+.solring-mb-key { display: inline-flex; align-items: center; }
+.solring-mb-key::before { content: ''; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.solring-mb-key-land::before { background: var(--solring-accent); }
+.solring-mb-key-rock::before { background: var(--solring-text-2); }
+.solring-mb-key-dork::before { background: var(--solring-rating-d); }
+.solring-mb-key-ritual::before { background: var(--solring-rating-b); }
+.solring-mb-key-treasure::before { background: var(--solring-rating-c); }
+/* opening-hand source-count bars */
+.solring-mb-ohbar { fill: var(--solring-accent); opacity: 0.78; }
+
+/* On-curve castability chart: this deck (solid + faint fill) vs a typical baseline
+   (dashed). Non-scaling strokes stay crisp as the SVG scales to its column. */
 .solring-mc { width: 100%; height: auto; display: block; }
 .solring-mc-grid { stroke: var(--solring-border); stroke-width: 0.5; }
 .solring-mc-axis { fill: var(--solring-text-2); font-size: 7px; font-variant-numeric: tabular-nums; }

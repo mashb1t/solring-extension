@@ -235,24 +235,54 @@ function synergyHubs(dt, idToName) {
     .slice(0, 6)
     .map((h) => ({ name: idToName[h.cardId] || titleCase(h.cardId), connections: h.connections }));
 }
-// Manabase quality. CommanderSalt scores fixing / quality / curve (each ~0–100+, where
-// 100 = meets the benchmark and bonuses can exceed it) plus an overall %. curveChart
-// gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`),
-// which drives the diagram. Present only in the full payload (— in search hits).
+// Manabase quality. The overall `score` is out of `thresholds.overall` (300) — the sum
+// of three /100 axes: manaFixing, quality, curve (bonuses can push an axis past 100).
+// curveChart gives on-curve castability per turn (this deck's `actual` vs a typical
+// `baseline`); composition counts the mana sources (lands / rocks / dorks / rituals /
+// treasures + land sub-types: MDFC / fetch / utility / tapped); openingHand["*"] is the
+// P(k mana sources in the opening 7). Full payload only (— in search hits).
 function manabase(dt) {
   const m = g(dt, 'manabase') || {};
   const pct = m.percentages || {};
-  const turns = g(m, 'curveChart', 'turns') || {};
+  const th = m.thresholds || {};
+  const comp = g(m, 'profile', 'composition') || {};
+  const fix = g(m, 'profile', 'fixing') || {};
   const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  const c0 = (x) => n(x) || 0;
+
+  const turns = g(m, 'curveChart', 'turns') || {};
   const curve = Object.keys(turns)
     .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
     .map((t) => ({ turn: t, actual: turns[t].actualPercentage, baseline: turns[t].baseLinePercentage }));
+
+  // Opening-hand mana-source count distribution: prefer the "*" (any source) series.
+  const oh = g(m, 'probabilities', 'openingHand', 'color') || {};
+  const ohKey = oh['*'] ? '*' : Object.keys(oh)[0];
+  const openingHand = ohKey ? Object.keys(oh[ohKey])
+    .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+    .map((k) => ({ k, p: oh[ohKey][k] })) : [];
+
   return {
-    overall: n(pct.overall),
+    score: n(m.score), // out of overallMax (300)
+    overallMax: n(th.overall) || 300,
     fixing: n(pct.manaFixing),
     quality: n(pct.quality),
     curveScore: n(pct.curve),
     curve, // [{ turn, actual, baseline }] — fractions 0–1
+    openingHand, // [{ k, p }] — P(k mana sources in opening 7)
+    composition: {
+      lands: c0(comp.landCount),
+      basics: c0(comp.basicCount),
+      rocks: c0(comp.rockCount),
+      dorks: c0(comp.dorkCount),
+      rituals: c0(comp.ritualCount),
+      treasures: c0(comp.treasureCount),
+      mdfc: c0(comp.mdfcLandCount),
+      fetch: c0(comp.fetchCount),
+      utility: c0(comp.utilityLandCount),
+      tapped: c0(comp.tapLandCount),
+    },
+    rainbowSources: n(fix.rainbowSourceCount),
     sources: Object.keys(m.manaProducers || {}).length,
   };
 }

@@ -91,27 +91,80 @@ function manaCurveChart(curve) {
     + xl + '</svg>';
 }
 
-// Manabase: fixing / quality / curve scores (each ~/100) + the castability diagram.
+// Horizontal stacked bar of mana sources by type (land / rock / dork / ritual /
+// treasure), proportional to count. Segment colours come from solring-mb-seg-* classes.
+function sourceMixChart(c) {
+  const segs = [['land', c.lands], ['rock', c.rocks], ['dork', c.dorks], ['ritual', c.rituals], ['treasure', c.treasures]]
+    .filter(([, v]) => v > 0);
+  if (!segs.length) return '';
+  const total = segs.reduce((s, [, v]) => s + v, 0);
+  const W = 150; const H = 12; let x = 0;
+  const rects = segs.map(([key, v]) => {
+    const w = (v / total) * W;
+    const r = `<rect x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="${H}" class="solring-mb-seg solring-mb-seg-${key}"><title>${v} ${key}${v === 1 ? '' : 's'}</title></rect>`;
+    x += w; return r;
+  }).join('');
+  const legend = segs.map(([key, v]) => `<span class="solring-mb-key solring-mb-key-${key}">${v} ${key}${v === 1 ? '' : 's'}</span>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mb-bar" preserveAspectRatio="none">${rects}</svg><div class="solring-mb-leg">${legend}</div>`;
+}
+
+// Land sub-types worth calling out beneath the source mix.
+function sourceMixCaption(c) {
+  const parts = [];
+  if (c.basics) parts.push(`${c.basics} basic`);
+  if (c.utility) parts.push(`${c.utility} utility`);
+  if (c.mdfc) parts.push(`${c.mdfc} MDFC`);
+  if (c.fetch) parts.push(`${c.fetch} fetch`);
+  if (c.tapped) parts.push(`${c.tapped} tapped`);
+  return parts.join(' · ') || null;
+}
+
+// Vertical bars: P(k mana sources in the opening 7), labelled 0..n along the x-axis.
+function openingHandChart(oh) {
+  const pts = (oh || []).filter((d) => Number.isFinite(d.k));
+  if (!pts.length) return '';
+  const maxP = Math.max(...pts.map((d) => d.p || 0), 0.01);
+  const W = 150; const H = 56; const padB = 11; const padT = 3; const gap = 1.5;
+  const bw = (W - (pts.length - 1) * gap) / pts.length;
+  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mb-oh" role="img" aria-label="Mana sources in the opening hand">`
+    + pts.map((d, i) => {
+      const h = ((d.p || 0) / maxP) * (H - padT - padB);
+      const x = i * (bw + gap); const y = H - padB - Math.max(0, h);
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" class="solring-mb-ohbar"><title>${d.k} sources: ${Math.round((d.p || 0) * 100)}%</title></rect>`
+        + `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 3}" class="solring-mc-axis" text-anchor="middle">${d.k}</text>`;
+    }).join('') + '</svg>';
+}
+
+// One titled diagram cell in the 3-up manabase row.
+function diagramCell(title, svgHtml, caption) {
+  if (!svgHtml) return null;
+  return el('div', { class: 'solring-mb-cell' }, [
+    el('div', { class: 'solring-pl-h', text: title }),
+    el('div', { class: 'solring-mb-fig', html: svgHtml }),
+    caption ? el('div', { class: 'solring-pl-desc', text: caption }) : null,
+  ]);
+}
+
+// Manabase: a score-out-of-300 header (fixing / quality / curve, each /100) over a row of
+// three diagrams — on-curve castability, mana-source mix, and opening-hand source odds.
 export function buildManabasePanel(m) {
   const children = [];
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
     .filter(([, v]) => typeof v === 'number')
     .map(([label, v]) => barRow(label, String(Math.round(v)), v));
   if (rows.length) {
-    const desc = typeof m.overall === 'number' ? `Overall ${Math.round(m.overall)}% of an ideal manabase` : 'Scores out of ~100 (100 = solid)';
+    const desc = typeof m.score === 'number' ? `Overall ${Math.round(m.score)} / ${m.overallMax || 300}` : 'Fixing / quality / curve, each out of 100';
     children.push(group('Mana quality', desc, rows));
   }
-  if (m.curve && m.curve.length) {
-    children.push(el('div', { class: 'solring-mana-curve' }, [
-      el('div', { class: 'solring-pl-h', text: 'On-curve castability' }),
-      el('div', { class: 'solring-pl-desc', text: 'Chance your hand is castable by each turn — solid is this deck, dashed is a typical curve.' }),
-      el('div', { class: 'solring-mc-wrap', html: manaCurveChart(m.curve) }),
-      el('div', { class: 'solring-mc-legend' }, [
-        el('span', { class: 'solring-mc-k-actual', text: 'This deck' }),
-        el('span', { class: 'solring-mc-k-base', text: 'Baseline' }),
-      ]),
-    ]));
-  }
+  const curveHtml = m.curve && m.curve.length
+    ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Baseline</span></div>`
+    : '';
+  const cells = [
+    diagramCell('On-curve castability', curveHtml, null),
+    diagramCell('Mana sources', sourceMixChart(m.composition || {}), sourceMixCaption(m.composition || {})),
+    m.openingHand && m.openingHand.length ? diagramCell('Opening-hand sources', openingHandChart(m.openingHand), 'P(sources in opening 7)') : null,
+  ].filter(Boolean);
+  if (cells.length) children.push(el('div', { class: 'solring-mb-diagrams' }, cells));
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
 }
 
