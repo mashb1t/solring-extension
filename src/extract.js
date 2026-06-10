@@ -265,10 +265,22 @@ function manabase(dt) {
   // panel renders the id + data pairs directly, no sentence templating.
   const rawList = (list) => (list || []).filter((it) => it && it.id).map((it) => ({ id: it.id, data: it.data || {} }));
 
-  // Per-color production vs requirement (empty on colorless decks).
-  const perColor = Object.entries(fix.perColor || {}).map(([color, v]) => ({
-    color, req: n(v.requirementCount), prod: n(v.productionCount), ratio: n(v.coverageRatio), deficit: !!v.deficit,
-  }));
+  // Per-color production vs requirement (empty on colorless decks). The comparable
+  // REQ/PROD pair is breakdown.production.breakdown[color].percentages (what the
+  // CommanderSalt bars plot — fractions of one shared scale, sometimes strings); the
+  // raw requirementCount/productionCount are different units (pips vs producers).
+  const prodBd = g(m, 'breakdown', 'production', 'breakdown') || {};
+  const pf = (x) => { const v = parseFloat(x); return Number.isFinite(v) ? v : null; };
+  const perColor = Object.entries(fix.perColor || {}).map(([color, v]) => {
+    const pcts = (prodBd[color] || {}).percentages || {};
+    return {
+      color,
+      req: pf(pcts.requirements), // fraction 0–1
+      prod: pf(pcts.production),
+      ratio: n(v.coverageRatio) != null ? n(v.coverageRatio) : pf(pcts.productionToRequirementRatio),
+      deficit: !!v.deficit,
+    };
+  });
 
   return {
     // headline score CommanderSalt shows: percentages.overall (= round(curve)), out of 300

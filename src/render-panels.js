@@ -115,14 +115,13 @@ function sourceBreakdownCaption(c) {
 }
 
 // Per-colour production vs requirement, CommanderSalt-style: a grey "required" bar over a
-// "produced" bar, both on one shared count scale — so a 6× white surplus reads as a long
-// bar over a short one instead of a meaningless saturated fill. The ×ratio label compacts
-// huge surpluses (×6.8, not 684%); deficits (<×1) turn the produced bar + label red.
+// "produced" bar — req/prod are CS's own percentages (fractions of one shared scale), so
+// the bars compare directly. The ×ratio label compacts huge surpluses (×6.8, not 684%);
+// deficits (<×1) turn the produced bar + label red.
 function colorReqProdChart(perColor) {
   const pc = (perColor || []).filter((c) => c.req != null || c.prod != null);
   if (!pc.length) return '';
-  const maxC = Math.max(...pc.flatMap((c) => [c.req || 0, c.prod || 0]), 1);
-  const w = (v) => Math.round(((v || 0) / maxC) * 100);
+  const w = (v) => Math.round(Math.min(1, v || 0) * 100);
   const ratioText = (r) => (r == null ? '' : `×${r >= 10 ? Math.round(r) : r.toFixed(1)}`);
   return pc.map((c) => {
     const deficit = c.ratio != null && c.ratio < 1;
