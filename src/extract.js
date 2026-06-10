@@ -247,8 +247,12 @@ function manabase(dt) {
   const m = g(dt, 'manabase') || {};
   const pct = m.percentages || {};
   const th = m.thresholds || {};
-  const comp = g(m, 'profile', 'composition') || {};
-  const fix = g(m, 'profile', 'fixing') || {};
+  const prof = m.profile || {};
+  const comp = prof.composition || {};
+  const fix = prof.fixing || {};
+  const speed = prof.speed || {};
+  const cons = prof.consistency || {};
+  const dbg = m.debugManabase || {};
   const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
   const c0 = (x) => n(x) || 0;
 
@@ -257,36 +261,47 @@ function manabase(dt) {
     .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
     .map((t) => ({ turn: t, actual: turns[t].actualPercentage, baseline: turns[t].baseLinePercentage }));
 
-  // Opening-hand mana-source count distribution: prefer the "*" (any source) series.
-  const oh = g(m, 'probabilities', 'openingHand', 'color') || {};
-  const ohKey = oh['*'] ? '*' : Object.keys(oh)[0];
-  const openingHand = ohKey ? Object.keys(oh[ohKey])
-    .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
-    .map((k) => ({ k, p: oh[ohKey][k] })) : [];
+  // Opening-hand: one P(k sources) series per color present, plus fast mana. Ordered
+  // WUBRG, then "*" (any source) and "c" (colorless), then fast mana.
+  const ohc = g(m, 'probabilities', 'openingHand', 'color') || {};
+  const fm = g(m, 'probabilities', 'openingHand', 'fastmana');
+  const dist = (obj) => Object.keys(obj || {})
+    .map(Number).filter(Number.isFinite).sort((a, b) => a - b).map((k) => ({ k, p: obj[k] }));
+  const openingHand = [];
+  for (const key of ['w', 'u', 'b', 'r', 'g', '*', 'c']) if (ohc[key]) openingHand.push({ key, dist: dist(ohc[key]) });
+  if (fm) openingHand.push({ key: 'fastmana', dist: dist(fm) });
+
+  // Per-color production vs requirement (empty on colorless decks).
+  const perColor = Object.entries(fix.perColor || {}).map(([color, v]) => ({
+    color, req: n(v.requirementCount), prod: n(v.productionCount), ratio: n(v.coverageRatio), deficit: !!v.deficit,
+  }));
 
   return {
     // headline score CommanderSalt shows: percentages.overall (= round(curve)), out of 300
     overall: n(pct.overall) != null ? n(pct.overall) : (n(pct.curve) != null ? Math.round(n(pct.curve)) : null),
     overallMax: n(th.overall) || 300,
     score: n(m.score), // the SUM of the three axes (a different number; not the headline)
+    // axes are each scored vs their own /100 benchmark (100 = met; bonuses exceed)
     fixing: n(pct.manaFixing),
     quality: n(pct.quality),
     curveScore: n(pct.curve),
     curve, // [{ turn, actual, baseline }] — fractions 0–1
-    openingHand, // [{ k, p }] — P(k mana sources in opening 7)
+    openingHand, // [{ key, dist:[{k,p}] }] — P(k producers of each color in opening 7)
+    perColor, // [{ color, req, prod, ratio, deficit }]
     composition: {
-      lands: c0(comp.landCount),
-      basics: c0(comp.basicCount),
-      rocks: c0(comp.rockCount),
-      dorks: c0(comp.dorkCount),
-      rituals: c0(comp.ritualCount),
-      treasures: c0(comp.treasureCount),
-      mdfc: c0(comp.mdfcLandCount),
-      fetch: c0(comp.fetchCount),
-      utility: c0(comp.utilityLandCount),
-      tapped: c0(comp.tapLandCount),
+      lands: c0(comp.landCount), basics: c0(comp.basicCount), rocks: c0(comp.rockCount),
+      dorks: c0(comp.dorkCount), rituals: c0(comp.ritualCount), treasures: c0(comp.treasureCount),
+      mdfc: c0(comp.mdfcLandCount), fetch: c0(comp.fetchCount), utility: c0(comp.utilityLandCount), tapped: c0(comp.tapLandCount),
     },
-    rainbowSources: n(fix.rainbowSourceCount),
+    stats: {
+      lands: c0(comp.landCount),
+      sources: n(dbg.totalManaSourceCount) != null ? n(dbg.totalManaSourceCount) : n(cons.sourceCount),
+      expected: n(cons.expectedSourceCount) != null ? n(cons.expectedSourceCount) : n(dbg.expectedMinSources),
+      avgCmc: n(cons.avgCmc) != null ? n(cons.avgCmc) : n(dbg.avgCMC),
+      fastMana: c0(speed.fastManaLandCount),
+      mdfc: c0(comp.mdfcLandCount),
+    },
+    improve: (prof.improve || []).map((it) => ({ id: it.id, count: it.data && it.data.currentCount })),
     sources: Object.keys(m.manaProducers || {}).length,
   };
 }

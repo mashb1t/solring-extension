@@ -119,23 +119,54 @@ function sourceMixCaption(c) {
   return parts.join(' · ') || null;
 }
 
-// Vertical bars: P(k mana sources in the opening 7), labelled 0..n along the x-axis.
-function openingHandChart(oh) {
-  const pts = (oh || []).filter((d) => Number.isFinite(d.k));
-  if (!pts.length) return '';
-  const maxP = Math.max(...pts.map((d) => d.p || 0), 0.01);
-  const W = 150; const H = 56; const padB = 11; const padT = 3; const gap = 1.5;
-  const bw = (W - (pts.length - 1) * gap) / pts.length;
-  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mb-oh" role="img" aria-label="Mana sources in the opening hand">`
-    + pts.map((d, i) => {
-      const h = ((d.p || 0) / maxP) * (H - padT - padB);
-      const x = i * (bw + gap); const y = H - padB - Math.max(0, h);
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" class="solring-mb-ohbar"><title>${d.k} sources: ${Math.round((d.p || 0) * 100)}%</title></rect>`
-        + `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 3}" class="solring-mc-axis" text-anchor="middle">${d.k}</text>`;
-    }).join('') + '</svg>';
+// Multi-line chart: P(k producers of each colour — plus fast mana — in the opening 7).
+// One line per series; stroke colours via the solring-mb-oh-* classes.
+function openingHandMultiChart(series) {
+  const ss = (series || []).filter((s) => s.dist && s.dist.length);
+  if (!ss.length) return '';
+  const kMax = Math.max(...ss.flatMap((s) => s.dist.map((d) => d.k)), 1);
+  const pMax = Math.max(...ss.flatMap((s) => s.dist.map((d) => d.p || 0)), 0.01);
+  const W = 200; const H = 92; const padL = 22; const padR = 6; const padT = 6; const padB = 15;
+  const X = (k) => padL + (k / kMax) * (W - padL - padR);
+  const Y = (p) => padT + (1 - (p || 0) / pMax) * (H - padT - padB);
+  const grid = [0, 0.5, 1].map((f) => {
+    const y = (padT + (1 - f) * (H - padT - padB));
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" class="solring-mc-grid"/>`
+      + `<text x="${padL - 3}" y="${(y + 3).toFixed(1)}" class="solring-mc-axis" text-anchor="end">${Math.round(f * pMax * 100)}</text>`;
+  }).join('');
+  const lines = ss.map((s) => {
+    const d = s.dist.map((pt, i) => `${i ? 'L' : 'M'}${X(pt.k).toFixed(1)} ${Y(pt.p).toFixed(1)}`).join(' ');
+    return `<path d="${d}" class="solring-mb-oh-line solring-mb-oh-${s.key === '*' ? 'any' : s.key}"/>`;
+  }).join('');
+  const xl = Array.from({ length: kMax + 1 }, (_, k) => `<text x="${X(k).toFixed(1)}" y="${H - 3}" class="solring-mc-axis" text-anchor="middle">${k}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="Opening-hand producer probabilities">${grid}${lines}${xl}</svg>`;
 }
 
-// One titled diagram cell in the 3-up manabase row.
+const OH_KEY_LABEL = { w: 'W', u: 'U', b: 'B', r: 'R', g: 'G', '*': 'Any', c: 'C', fastmana: 'Fast' };
+function openingHandLegend(series) {
+  return `<div class="solring-mb-leg">${(series || []).map((s) => `<span class="solring-mb-key solring-mb-oh-key-${s.key === '*' ? 'any' : s.key}">${OH_KEY_LABEL[s.key] || s.key}</span>`).join('')}</div>`;
+}
+
+// Per-colour coverage: how much of each colour's requirement the deck produces
+// (coverageRatio). A midline marks parity (100%); fill past it = surplus, short + red =
+// under-produced. The colour letter carries the mana colour, while the fill stays neutral
+// so a red-mana SURPLUS isn't mistaken for a deficit warning.
+function colorReqProdChart(perColor) {
+  const pc = (perColor || []).filter((c) => c.ratio != null);
+  if (!pc.length) return '';
+  return pc.map((c) => {
+    const deficit = c.ratio < 1;
+    const fill = Math.max(0, Math.min(1, c.ratio / 2)) * 100; // parity (ratio 1.0) sits at 50%
+    return `<div class="solring-mb-cp-row">`
+      + `<span class="solring-mb-cp-c solring-mb-cp-${c.color}">${(c.color || '').toUpperCase()}</span>`
+      + `<span class="solring-mb-cp-track"><span class="solring-mb-cp-parity"></span>`
+      + `<span class="solring-mb-cp-fill${deficit ? ' solring-mb-cp-deficit' : ''}" style="width:${fill.toFixed(0)}%"></span></span>`
+      + `<span class="solring-mb-cp-v${deficit ? ' solring-mb-cp-deficit-t' : ''}">${Math.round(c.ratio * 100)}%</span>`
+      + `</div>`;
+  }).join('');
+}
+
+// One titled diagram cell in the manabase diagram row.
 function diagramCell(title, svgHtml, caption) {
   if (!svgHtml) return null;
   return el('div', { class: 'solring-mb-cell' }, [
@@ -145,31 +176,75 @@ function diagramCell(title, svgHtml, caption) {
   ]);
 }
 
-// Manabase: a score-out-of-300 header (fixing / quality / curve, each /100) over a row of
-// three diagrams — on-curve castability, mana-source mix, and opening-hand source odds.
+// Compact key/value strip of the headline manabase counts.
+function statsStrip(s) {
+  if (!s) return null;
+  const items = [
+    ['Lands', s.lands != null ? String(s.lands) : null],
+    ['Sources', s.sources != null ? String(Math.round(s.sources)) : null],
+    ['Avg CMC', s.avgCmc != null ? s.avgCmc.toFixed(2) : null],
+    ['Fast mana', s.fastMana != null ? String(s.fastMana) : null],
+    ['MDFC', s.mdfc != null ? String(s.mdfc) : null],
+  ].filter(([, v]) => v != null);
+  if (!items.length) return null;
+  return el('div', { class: 'solring-mb-stats' }, items.map(([k, v]) => el('div', { class: 'solring-mb-stat' }, [
+    el('div', { class: 'solring-mb-stat-v', text: v }),
+    el('div', { class: 'solring-mb-stat-k', text: k }),
+  ])));
+}
+
+// CommanderSalt's own actionable nudges (profile.improve), mapped to short labels.
+const IMPROVE_LABELS = {
+  addFastManaLands: 'Add fast-mana lands', addFastMana: 'Add fast mana', increaseRamp: 'Increase ramp',
+  addRamp: 'Add ramp', addTutors: 'Add tutors', addCounterspells: 'Add counterspells',
+  addFetches: 'Add fetch lands', addMdfcLands: 'Add MDFC lands', reduceTapLands: 'Cut tapped lands',
+  addUtilityLands: 'Add utility lands', improveFixing: 'Improve fixing',
+};
+function improveHints(improve) {
+  const hints = (improve || []).map((it) => IMPROVE_LABELS[it.id]).filter(Boolean);
+  if (!hints.length) return null;
+  return el('div', { class: 'solring-mb-improve' }, [
+    el('span', { class: 'solring-mb-improve-h', text: 'To improve' }),
+    ...hints.map((h) => el('span', { class: 'solring-mb-improve-chip', text: h })),
+  ]);
+}
+
+// Manabase: stats strip + a score header (axes vs their /100 benchmark) + a row of
+// diagrams (on-curve castability · opening-hand producers · colour produced-vs-required,
+// falling back to the source mix on colourless decks) + CommanderSalt's improve hints.
 export function buildManabasePanel(m) {
   const children = [];
-  const max = m.overallMax || 300;
-  // Bars scaled to /300 (the overall scale), so the Curve bar lines up with the headline
-  // score and Fixing/Quality show their position on the same axis. Labels keep raw values.
+  const strip = statsStrip(m.stats);
+  if (strip) children.push(strip);
+  // Axis bars are /100 — each axis is scored against its own 100 benchmark (100 = met;
+  // bonuses exceed and cap the bar full). Only the headline score is on the /300 scale.
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
     .filter(([, v]) => typeof v === 'number')
-    .map(([label, v]) => barRow(label, String(Math.round(v)), (v / max) * 100));
+    .map(([label, v]) => barRow(label, String(Math.round(v)), v));
   if (rows.length) {
+    const max = m.overallMax || 300;
     const desc = typeof m.overall === 'number'
-      ? `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}%`
-      : 'Fixing / quality / curve, each out of 100';
+      ? `Score ${Math.round(m.overall)} / ${max} · ${Math.round((m.overall / max) * 100)}% · axes vs their 100 benchmark`
+      : 'Each axis vs its 100 benchmark';
     children.push(group('Mana quality', desc, rows));
   }
   const curveHtml = m.curve && m.curve.length
-    ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Baseline</span></div>`
+    ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
     : '';
+  const ohHtml = m.openingHand && m.openingHand.length
+    ? `${openingHandMultiChart(m.openingHand)}${openingHandLegend(m.openingHand)}` : '';
+  const cpr = colorReqProdChart(m.perColor);
+  const thirdCell = cpr
+    ? diagramCell('Colour produced vs required', cpr, 'Past the midline = covered · red = under-produced')
+    : diagramCell('Mana sources', sourceMixChart(m.composition || {}), sourceMixCaption(m.composition || {}));
   const cells = [
     diagramCell('On-curve castability', curveHtml, null),
-    diagramCell('Mana sources', sourceMixChart(m.composition || {}), sourceMixCaption(m.composition || {})),
-    m.openingHand && m.openingHand.length ? diagramCell('Opening-hand sources', openingHandChart(m.openingHand), 'P(sources in opening 7)') : null,
+    ohHtml ? diagramCell('Opening-hand producers', ohHtml, '% chance of N in opening 7') : null,
+    thirdCell,
   ].filter(Boolean);
   if (cells.length) children.push(el('div', { class: 'solring-mb-diagrams' }, cells));
+  const imp = improveHints(m.improve);
+  if (imp) children.push(imp);
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
 }
 
