@@ -186,10 +186,16 @@ function isDeckLink(a) {
   return a.tagName === 'A' && a.href && parseDeckId(a.href);
 }
 
-// The repeating "row unit" for a deck link: climb until an ancestor has ≥2 siblings
-// that each contain a deck link (the list's repeating element). Falls back to the
-// nearest li/tr, then the link's parent. Content-anchored — no class names.
+// The "row unit" for a deck link. In Moxfield's deck tables/lists that's the enclosing
+// <tr>/<li> — the element our columns attach to — so prefer it. Climbing for a "repeating
+// element" instead over-shoots when a profile shows a single deck across several tables:
+// the per-table wrappers then look like the repeating siblings and we'd key the row off a
+// <div>, so reconcileColumns (which matches <tbody tr>) finds nothing and renders no
+// columns. Only when there's no <tr>/<li> (non-table layouts) fall back to the repeating
+// element: an ancestor with ≥2 sibling deck-link containers. Content-anchored, no classes.
 function rowOf(link) {
+  const cell = link.closest('tr, li');
+  if (cell) return cell;
   let n = link;
   while (n && n.parentElement && n.parentElement !== document.body) {
     const parent = n.parentElement;
@@ -199,7 +205,7 @@ function rowOf(link) {
     if (deckSiblings.length >= 2 && deckSiblings.includes(n)) return n;
     n = parent;
   }
-  return link.closest('li, tr') || link.parentElement || link;
+  return link.parentElement || link;
 }
 
 // Distinct deck rows on the page (deduped — a row may hold multiple deck links).
