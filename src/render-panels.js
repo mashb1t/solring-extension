@@ -58,10 +58,61 @@ export function buildSynergyPanel(anchors, hubs) {
   }
   if (hubs && hubs.length) {
     const max = Math.max(...hubs.map((h) => h.connections || 0), 1);
-    groups.push(group('Hubs', 'Cards referenced most by other entries — connective tissue',
+    groups.push(group('Hubs', 'Cards referenced most by other entries',
       hubs.map((h) => barRow(h.name, String(h.connections), ((h.connections || 0) / max) * 100))));
   }
   return el('div', { class: 'solring-panel-section solring-syn-grid', attrs: { hidden: '' } }, groups);
+}
+
+// An inline SVG line chart of on-curve castability per turn: this deck's `actual`
+// (solid, filled) against a typical `baseline` (dashed). Values are fractions 0–1.
+// Returned as a string and injected via el({ html }); strokes use non-scaling-stroke
+// so they stay crisp as the SVG scales to the panel width.
+function manaCurveChart(curve) {
+  const pts = (curve || []).filter((p) => Number.isFinite(p.turn));
+  if (!pts.length) return '';
+  const W = 280; const H = 96; const padL = 20; const padR = 8; const padT = 8; const padB = 16;
+  const turns = pts.map((p) => p.turn);
+  const tMin = Math.min(...turns); const tMax = Math.max(...turns);
+  const span = Math.max(1, tMax - tMin);
+  const clamp = (v) => Math.max(0, Math.min(1, typeof v === 'number' ? v : 0));
+  const X = (t) => padL + ((t - tMin) / span) * (W - padL - padR);
+  const Y = (v) => padT + (1 - clamp(v)) * (H - padT - padB);
+  const path = (key) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.turn).toFixed(1)} ${Y(p[key]).toFixed(1)}`).join(' ');
+  const area = `${path('actual')} L${X(tMax).toFixed(1)} ${Y(0).toFixed(1)} L${X(tMin).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+  const grid = [0, 0.5, 1].map((v) => `<line x1="${padL}" y1="${Y(v).toFixed(1)}" x2="${W - padR}" y2="${Y(v).toFixed(1)}" class="solring-mc-grid"/>`
+    + `<text x="${padL - 3}" y="${(Y(v) + 3).toFixed(1)}" class="solring-mc-axis" text-anchor="end">${v * 100}</text>`).join('');
+  const xl = pts.map((p) => `<text x="${X(p.turn).toFixed(1)}" y="${H - 4}" class="solring-mc-axis" text-anchor="middle">${p.turn}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="On-curve castability by turn: this deck vs a typical baseline">`
+    + grid
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path('baseline')}" class="solring-mc-base"/>`
+    + `<path d="${path('actual')}" class="solring-mc-line"/>`
+    + xl + '</svg>';
+}
+
+// Manabase: fixing / quality / curve scores (each ~/100) + the castability diagram.
+export function buildManabasePanel(m) {
+  const children = [];
+  const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
+    .filter(([, v]) => typeof v === 'number')
+    .map(([label, v]) => barRow(label, String(Math.round(v)), v));
+  if (rows.length) {
+    const desc = typeof m.overall === 'number' ? `Overall ${Math.round(m.overall)}% of an ideal manabase` : 'Scores out of ~100 (100 = solid)';
+    children.push(group('Mana quality', desc, rows));
+  }
+  if (m.curve && m.curve.length) {
+    children.push(el('div', { class: 'solring-mana-curve' }, [
+      el('div', { class: 'solring-pl-h', text: 'On-curve castability' }),
+      el('div', { class: 'solring-pl-desc', text: 'Chance your hand is castable by each turn — solid is this deck, dashed is a typical curve.' }),
+      el('div', { class: 'solring-mc-wrap', html: manaCurveChart(m.curve) }),
+      el('div', { class: 'solring-mc-legend' }, [
+        el('span', { class: 'solring-mc-k-actual', text: 'This deck' }),
+        el('span', { class: 'solring-mc-k-base', text: 'Baseline' }),
+      ]),
+    ]));
+  }
+  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
 }
 
 const PART_LABELS = { counters: 'counterspells', boardWipes: 'board wipes', otherControl: 'control', spotRemoval: 'removal', graveyard: 'graveyard' };

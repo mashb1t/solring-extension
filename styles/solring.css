@@ -151,6 +151,23 @@
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
+/* Manabase on-curve castability chart: this deck (solid + faint fill) vs a typical
+   baseline (dashed). The SVG scales to the panel width; non-scaling strokes stay crisp. */
+.solring-mana-curve { margin-top: 0.7rem; }
+.solring-mc-wrap { max-width: 420px; margin-top: 0.3rem; }
+.solring-mc { width: 100%; height: auto; display: block; }
+.solring-mc-grid { stroke: var(--solring-border); stroke-width: 0.5; }
+.solring-mc-axis { fill: var(--solring-text-2); font-size: 7px; font-variant-numeric: tabular-nums; }
+.solring-mc-fill { fill: var(--solring-accent); opacity: 0.12; }
+.solring-mc-base { fill: none; stroke: var(--solring-text-2); stroke-width: 1.3; stroke-dasharray: 3 2.5; opacity: 0.65; vector-effect: non-scaling-stroke; }
+.solring-mc-line { fill: none; stroke: var(--solring-accent); stroke-width: 1.8; vector-effect: non-scaling-stroke; }
+.solring-mc-legend { display: flex; gap: 1rem; margin-top: 0.3rem; font-size: 0.7rem; color: var(--solring-text-2); }
+.solring-mc-legend span { display: inline-flex; align-items: center; }
+.solring-mc-legend span::before { content: ''; width: 14px; margin-right: 5px; border-top: 2px solid currentColor; }
+.solring-mc-k-actual::before { border-top-color: var(--solring-accent); }
+.solring-mc-k-base { color: var(--solring-text-2); }
+.solring-mc-k-base::before { border-top-style: dashed; }
+
 /* Per-combo toggle: the whole combo card expands the collapsible body; a chevron
    (rotated 180° when closed, like the metric tiles) sits at the end of the meta. */
 .solring-combo[role='button'] { cursor: pointer; }

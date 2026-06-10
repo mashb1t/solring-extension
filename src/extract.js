@@ -235,6 +235,27 @@ function synergyHubs(dt, idToName) {
     .slice(0, 6)
     .map((h) => ({ name: idToName[h.cardId] || titleCase(h.cardId), connections: h.connections }));
 }
+// Manabase quality. CommanderSalt scores fixing / quality / curve (each ~0–100+, where
+// 100 = meets the benchmark and bonuses can exceed it) plus an overall %. curveChart
+// gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`),
+// which drives the diagram. Present only in the full payload (— in search hits).
+function manabase(dt) {
+  const m = g(dt, 'manabase') || {};
+  const pct = m.percentages || {};
+  const turns = g(m, 'curveChart', 'turns') || {};
+  const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  const curve = Object.keys(turns)
+    .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+    .map((t) => ({ turn: t, actual: turns[t].actualPercentage, baseline: turns[t].baseLinePercentage }));
+  return {
+    overall: n(pct.overall),
+    fixing: n(pct.manaFixing),
+    quality: n(pct.quality),
+    curveScore: n(pct.curve),
+    curve, // [{ turn, actual, baseline }] — fractions 0–1
+    sources: Object.keys(m.manaProducers || {}).length,
+  };
+}
 
 /** Full deck payload → DeckFields. */
 export function extractDeck(p) {
@@ -249,6 +270,7 @@ export function extractDeck(p) {
     archetypeMajors: archetypeMajors(dt),
     synergyAnchors: synergyAnchors(dt, idToName),
     synergyHubs: synergyHubs(dt, idToName),
+    manabase: manabase(dt),
     interactionParts: interactionParts(dt),
     deckId: p.id,
     commander: (p.commanders || [])[0],

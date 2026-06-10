@@ -17,7 +17,7 @@ import { installCommanderSaltLink } from './links-menu.js';
 import { installCardModal } from './render-card-modal.js';
 import { installCardSidebar } from './render-card-sidebar.js';
 import { buildCombosSection } from './render-combos.js';
-import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel } from './render-panels.js';
+import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -133,20 +133,6 @@ function startAnnotations(fields) {
   reannotate();
 }
 
-// "2 2-card · 9 3-card · 2 4+ card" — combos grouped by how many cards each needs.
-function comboSizeBreakdown(combos) {
-  let two = 0; let three = 0; let four = 0;
-  for (const c of combos) {
-    const n = (c.pieces || []).length;
-    if (n >= 4) four += 1; else if (n === 3) three += 1; else two += 1;
-  }
-  const parts = [];
-  if (two) parts.push(`${two} 2-card`);
-  if (three) parts.push(`${three} 3-card`);
-  if (four) parts.push(`${four} 4+ card`);
-  return parts.join(' · ');
-}
-
 // Make a tile expand/collapse a detail section (appended to `body`, hidden by
 // default). The chevron swaps glyph on toggle (⌄ closed / ⌃ open) — no rotation.
 function makeExpandable(tile, section, body) {
@@ -183,26 +169,34 @@ function renderBody(body, f) {
   const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
-  const saltTile = gradeTile('Saltiness', 'salt', 'saltRating');
+  // Manabase: an overall % of an ideal manabase (100 = solid; bonuses can exceed it).
+  // Shown as a score, not an A–D grade — high manabase is GOOD, opposite the grade ramp.
+  const mb = f.manabase || {};
+  const manabaseTile = tile('Manabase',
+    el('span', { class: 'solring-num', text: typeof mb.overall === 'number' ? `${Math.round(mb.overall)}%` : '—' }),
+    mb.sources ? `${mb.sources} mana sources` : null);
   const archTile = tile('Archetype', el('span', { class: 'solring-archetype', text: f.archetype || '—' }));
-  const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, saltTile, archTile]);
+  const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, manabaseTile, archTile]);
 
-  // Row 2: the report-card grades + a Combos count (5th tile, keeps both rows at 5).
+  // Row 2: the report-card grades. Wincons folds in the deck's combos (its panel holds
+  // the combo list); Saltiness moves down here so Manabase can take its slot up top.
   const threatTile = gradeTile('Threat', 'threat', 'threatRating');
   const interactionTile = gradeTile('Interaction', 'interaction', 'interactionRating');
-  const winconsTile = gradeTile('Wincons', 'wincons', 'comboRating');
-  const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
   const hasCombos = !!(f.combos && f.combos.length);
-  const comboTile = tile('Combos',
-    el('span', { class: 'solring-num', text: f.combosCount != null ? String(f.combosCount) : '—' }),
-    hasCombos ? comboSizeBreakdown(f.combos) : null);
+  const winconsSub = typeof f.wincons === 'number'
+    ? `${num(f.wincons)} total${f.combosCount != null ? ` · ${f.combosCount} combo${f.combosCount === 1 ? '' : 's'}` : ''}`
+    : '—';
+  const winconsTile = tile('Wincons', gradeChip(csRatingGrade(f.wincons, 'comboRating')), winconsSub);
+  const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
+  const saltTile = gradeTile('Saltiness', 'salt', 'saltRating');
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
-    [threatTile, interactionTile, winconsTile, synergyTile, comboTile]);
+    [threatTile, interactionTile, winconsTile, synergyTile, saltTile]);
 
   body.append(mainTiles, gradeTiles);
 
   // Each tile expands its own detail panel (hidden until clicked).
-  if (hasCombos) makeExpandable(comboTile, buildCombosSection(f.combos), body);
+  if (hasCombos) makeExpandable(winconsTile, buildCombosSection(f.combos), body);
+  if (mb.curve && mb.curve.length) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
   if (f.powerPillars && Object.keys(f.powerPillars).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars), body);
   if (f.bracketCategories && f.bracketCategories.length) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
