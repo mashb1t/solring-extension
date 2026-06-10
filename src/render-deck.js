@@ -207,7 +207,7 @@ function renderBody(body, f) {
   if (f.bracketCategories && f.bracketCategories.length) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
   if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);
-  if (f.synergyAnchors && f.synergyAnchors.length) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors), body);
+  if ((f.synergyAnchors && f.synergyAnchors.length) || (f.synergyHubs && f.synergyHubs.length)) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors, f.synergyHubs), body);
   if (f.interactionParts && f.interactionParts.length) makeExpandable(interactionTile, buildInteractionPanel(f.interactionParts), body);
 }
 
@@ -274,7 +274,7 @@ export async function mount({ waitFor }) {
   const refreshIcon = el('span', { class: 'solring-spin-icon', text: '↻' });
   const refreshBtn = el('button', {
     class: 'solring-refresh',
-    attrs: { type: 'button', 'aria-label': 'Re-analyze on CommanderSalt', title: 'Re-analyze on CommanderSalt (~5s)' },
+    attrs: { type: 'button', 'aria-label': 'Re-analyze', title: 'Re-analyze (~5s)' },
   }, [refreshIcon]);
   // Spin the refresh icon (and disable the button) whenever a fetch is in flight —
   // the initial load, an edit re-analysis, or a manual ↻.

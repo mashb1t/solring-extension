@@ -226,6 +226,15 @@ function synergyAnchors(dt, idToName) {
     .slice(0, 6)
     .map((a) => ({ name: idToName[a.cardId] || titleCase(a.cardId), share: a.share, score: a.score }));
 }
+// Synergy hubs: the cards referenced by the most other entries (graph connections) —
+// the deck's connective tissue. Distinct from anchors, which carry the most score.
+function synergyHubs(dt, idToName) {
+  return (g(dt, 'synergy', 'profile', 'hubs') || [])
+    .filter((h) => h && h.cardId)
+    .sort((a, b) => (b.connections || 0) - (a.connections || 0))
+    .slice(0, 6)
+    .map((h) => ({ name: idToName[h.cardId] || titleCase(h.cardId), connections: h.connections }));
+}
 
 /** Full deck payload → DeckFields. */
 export function extractDeck(p) {
@@ -239,6 +248,7 @@ export function extractDeck(p) {
     bracketCategories: bracketCategories(dt),
     archetypeMajors: archetypeMajors(dt),
     synergyAnchors: synergyAnchors(dt, idToName),
+    synergyHubs: synergyHubs(dt, idToName),
     interactionParts: interactionParts(dt),
     deckId: p.id,
     commander: (p.commanders || [])[0],

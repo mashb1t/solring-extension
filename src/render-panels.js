@@ -39,8 +39,29 @@ export function buildArchetypePanel(majors, label) {
   return section(label || 'Archetype mix', majors.map((m) => barRow(titleWord(m.name), `${Math.round(m.pct)}%`, m.pct)));
 }
 
-export function buildSynergyPanel(anchors) {
-  return section('Synergy anchors', anchors.map((a) => barRow(a.name, `${Math.round((a.share || 0) * 100)}%`, (a.share || 0) * 100)));
+// A labelled group inside a panel: header + one-line description + bar rows.
+function group(title, desc, rows) {
+  return el('div', { class: 'solring-pl-group' }, [
+    el('div', { class: 'solring-pl-h', text: title }),
+    el('div', { class: 'solring-pl-desc', text: desc }),
+    ...rows,
+  ]);
+}
+
+// Synergy: two complementary lenses on the synergy web — Anchors carry the most score,
+// Hubs are referenced by the most other entries (connective tissue). Either may be empty.
+export function buildSynergyPanel(anchors, hubs) {
+  const groups = [];
+  if (anchors && anchors.length) {
+    groups.push(group('Anchors', 'Cards carrying the biggest share of synergy score',
+      anchors.map((a) => barRow(a.name, `${Math.round((a.share || 0) * 100)}%`, (a.share || 0) * 100))));
+  }
+  if (hubs && hubs.length) {
+    const max = Math.max(...hubs.map((h) => h.connections || 0), 1);
+    groups.push(group('Hubs', 'Cards referenced most by other entries — connective tissue',
+      hubs.map((h) => barRow(h.name, String(h.connections), ((h.connections || 0) / max) * 100))));
+  }
+  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, groups);
 }
 
 const PART_LABELS = { counters: 'counterspells', boardWipes: 'board wipes', otherControl: 'control', spotRemoval: 'removal', graveyard: 'graveyard' };
