@@ -325,12 +325,11 @@
 /* ---- deck-list metric columns (user profile + personal deck manager) ----
    Injected <th>/<td> into Moxfield's deck table; they inherit the table's cell
    styling, so we only add our own touches. */
-.solring-col-h { font-weight: 600; }
-/* Clickable score-sort headers + active ▲/▼ indicator. */
+/* Headers match Moxfield's native column headers: we don't override the th's inherited
+   weight/color, so they look identical at rest. Sortable ones add only a pointer cursor
+   and a ▲/▼ arrow on the active sort column (the active column otherwise stays native). */
 .solring-col-sortable { cursor: pointer; }
-.solring-col-sortable:hover { color: var(--solring-text); }
-.solring-col-h.solring-sort-active { color: var(--solring-accent); }
-.solring-sort-ind { font-size: 0.85em; }
+.solring-sort-ind { font-size: 0.85em; margin-left: 0.15em; }
 .solring-col .solring-num,
 .solring-col .solring-grade { font-variant-numeric: tabular-nums; }
 /* Align grade letters + bracket numbers across rows: the suffix (+/– or arrow) rides
