@@ -320,7 +320,22 @@ function toggleSort(key) {
   setSortPref(next);
 }
 
-// Reflect the active sort on the header (▲/▼ + active class), idempotently — only
+// Moxfield's own "caret-down" icon (FontAwesome, inline SVG) so our sort indicator
+// matches the native UI; the wrapping span is rotated 180° for the ascending state.
+// viewBox + path copied verbatim from Moxfield's rendered FA icon.
+function sortCaretSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 320 512');
+  svg.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('fill', 'currentColor');
+  p.setAttribute('d', 'M140.3 376.8c12.6 10.2 31.1 9.5 42.8-2.2l128-128c9.2-9.2 11.9-22.9 6.9-34.9S301.4 192 288.5 192l-256 0c-12.9 0-24.6 7.8-29.6 19.8S.7 237.5 9.9 246.6l128 128 2.4 2.2z');
+  svg.appendChild(p);
+  return svg;
+}
+
+// Reflect the active sort on the header (caret + active class), idempotently — only
 // touches the DOM when something actually changed, so it never drives the observer.
 function updateSortIndicators(htr) {
   for (const th of htr.querySelectorAll(':scope > th.solring-col')) {
@@ -328,9 +343,11 @@ function updateSortIndicators(htr) {
     th.classList.toggle('solring-sort-active', active);
     let ind = th.querySelector(':scope > .solring-sort-ind');
     if (active) {
-      if (!ind) { ind = el('span', { class: 'solring-sort-ind' }); th.appendChild(ind); }
-      const glyph = sortState.dir === 'asc' ? ' ▲' : ' ▼';
-      if (ind.textContent !== glyph) ind.textContent = glyph;
+      if (!ind) { ind = el('span', { class: 'solring-sort-ind', attrs: { 'aria-hidden': 'true' } }, [sortCaretSvg()]); th.appendChild(ind); }
+      if (ind.dataset.dir !== sortState.dir) { // desc = caret down (default), asc = flipped up
+        ind.dataset.dir = sortState.dir;
+        ind.classList.toggle('solring-sort-asc', sortState.dir === 'asc');
+      }
     } else if (ind) {
       ind.remove();
     }

@@ -329,7 +329,10 @@
    weight/color, so they look identical at rest. Sortable ones add only a pointer cursor
    and a ▲/▼ arrow on the active sort column (the active column otherwise stays native). */
 .solring-col-sortable { cursor: pointer; }
-.solring-sort-ind { font-size: 0.85em; margin-left: 0.15em; }
+/* Sort indicator = Moxfield's own caret SVG; flipped up for ascending. */
+.solring-sort-ind { margin-left: 0.3em; }
+.solring-sort-ind svg { height: 0.75em; width: auto; vertical-align: middle; }
+.solring-sort-ind.solring-sort-asc svg { transform: rotate(180deg); }
 .solring-col .solring-num,
 .solring-col .solring-grade { font-variant-numeric: tabular-nums; }
 /* Align grade letters + bracket numbers across rows: the suffix (+/– or arrow) rides
