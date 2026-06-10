@@ -36,8 +36,9 @@ async function render() {
 async function refreshCacheSize() {
   const { bytes, count } = await cachedBytes();
   const MB = 1024 * 1024;
+  const QUOTA_MB = 10; // chrome.storage.local quota on Chrome ≥114 (older builds cap at 5 MB); the API doesn't expose it, so it's a constant
   const size = bytes >= MB ? `${(bytes / MB).toFixed(1)} MB` : `${(bytes / 1024).toFixed(1)} KB`;
-  $('cacheSize').textContent = `${size} · ${count} cached ${count === 1 ? 'deck' : 'decks'}`;
+  $('cacheSize').textContent = `${size} / ${QUOTA_MB} MB · ${count} cached ${count === 1 ? 'deck' : 'decks'}`;
 }
 
 function bind() {
