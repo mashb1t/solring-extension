@@ -106,6 +106,7 @@ let columnOrder = []; // prefs:listColumnOrder — display order of the metric c
 let hiddenNative = []; // prefs:hiddenNativeCols — Moxfield native columns to hide
 let sortState = { key: null, dir: 'desc' }; // prefs:sort — active score-sort (null = none)
 let nativeIdx = new WeakMap(); // row → Moxfield's native ordinal, snapshotted while no sort is active (to restore on clear)
+let pendingNativeRestore = false; // set only by our own "clear sort" click → restore the page default ONCE, then leave Moxfield's own sort alone
 let prefSubscribed = false; // onPrefChange wired only once
 let nativeSortYieldInstalled = false;
 const subscribers = new Set();
@@ -315,7 +316,7 @@ function toggleSort(key) {
   let next;
   if (sortState.key !== key) next = { key, dir: 'desc' };
   else if (sortState.dir === 'desc') next = { key, dir: 'asc' };
-  else next = { key: null, dir: 'desc' };
+  else { next = { key: null, dir: 'desc' }; pendingNativeRestore = true; } // 3rd click → restore the page default once
   setSortPref(next);
 }
 
@@ -580,8 +581,12 @@ function reconcileColumns() {
     applyNativeHide(tbl, htr);
     updateSortIndicators(htr); // ▲/▼ on the active sort column
     if (sortState.key) applySort(tbl); // reorder deck rows by the active sort (no-op if already sorted)
-    else applyNativeOrder(tbl); // sort cleared → restore Moxfield's native order (no-op if already native)
+    else if (pendingNativeRestore) applyNativeOrder(tbl); // our clear → restore the page default order, once
   }
+  // One-shot: consume the restore only once the sort is actually cleared (a reconcile that
+  // still sees the old active sort must keep it pending). After this, cleared-state reconciles
+  // leave the rows alone, so Moxfield's own Sort options aren't fought.
+  if (!sortState.key) pendingNativeRestore = false;
   // Sweep stray cells anywhere outside the tables we decorated. Moxfield's sidebar
   // ("Most Recent Deck") transiently renders as a table we may decorate before it
   // lands in .flex-shrink-0, then React re-renders it into <div>s — orphaning our
