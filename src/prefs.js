@@ -19,13 +19,14 @@ const SORT_DEFAULT = { key: null, dir: 'desc' };
 export const LIST_COLUMNS_DEFAULT = {
   power: true,
   bracket: true,
-  salt: true,
-  synergy: false,
+  tier: false,
+  manabase: false,
   threat: false,
+  salt: true,
   interaction: false,
   wincons: false,
-  tier: false,
   combos: false,
+  synergy: false,
   archetype: false,
   actions: true,
 };

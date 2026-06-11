@@ -57,6 +57,7 @@ export function mergeView(hit, full) {
     interaction: f && f.interaction != null ? f.interaction : null,
     wincons: f && f.wincons != null ? f.wincons : null,
     commanderTier: f && f.commanderTier != null ? f.commanderTier : null,
+    manabaseOverall: f && f.manabase && f.manabase.overall != null ? f.manabase.overall : null,
     combosCount: f && f.combosCount != null ? f.combosCount : null,
   };
 }
@@ -66,6 +67,7 @@ export function mergeView(hit, full) {
 // interaction/synergy) are "more" by raw value, which is what sort exposes.
 export const SORT_KEYS = {
   tier: { label: 'Commander tier', get: (v) => v.commanderTier, hit: false },
+  manabase: { label: 'Manabase', get: (v) => v.manabaseOverall, hit: false },
   power: { label: 'Power', get: (v) => v.power, hit: true },
   bracket: { label: 'Bracket', get: (v) => v.bracketRealistic, hit: true },
   threat: { label: 'Threat', get: (v) => v.threat, hit: false },
@@ -247,6 +249,7 @@ const COLUMNS = [
   { key: 'interaction', label: 'Int', title: 'Interaction grade', hit: false, cell: (v) => gradeNode(v.interaction, 'interactionRating') },
   { key: 'wincons', label: 'Win', title: 'Wincons grade', hit: false, cell: (v) => gradeNode(v.wincons, 'comboRating') },
   { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
+  { key: 'manabase', label: 'Mana', title: 'Manabase (% vs benchmark)', hit: false, cell: (v) => (v.manabaseOverall != null ? textNode(`${Math.round(v.manabaseOverall)}%`) : null) },
   { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
   { key: 'archetype', label: 'Arch', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
   // Per-row actions (CS link + Analysis) — built from the entry, not the view; see
@@ -286,6 +289,7 @@ const SORT_VALUE = {
   interaction: (v) => v.interaction,
   wincons: (v) => v.wincons,
   tier: (v) => v.commanderTier,
+  manabase: (v) => v.manabaseOverall,
   combos: (v) => v.combosCount,
 };
 const isSortable = (key) => Object.prototype.hasOwnProperty.call(SORT_VALUE, key);
@@ -358,9 +362,9 @@ function updateSortIndicators(htr) {
 
 // Lowercase field names for Moxfield's results caption ("…sorted by <field> in … order").
 const SORT_TITLE_LABEL = {
-  power: 'power', bracket: 'bracket', salt: 'saltiness', synergy: 'synergy',
-  threat: 'threat', interaction: 'interaction', wincons: 'win conditions',
-  tier: 'commander tier', combos: 'combos',
+  power: 'power', bracket: 'bracket', tier: 'commander tier', manabase: 'manabase',
+  threat: 'threat', salt: 'saltiness', interaction: 'interaction', wincons: 'win conditions', combos: 'combos',
+  synergy: 'synergy'
 };
 const RESULTS_CLAUSE = /sorted by .+? in (?:ascending|descending) order/i;
 const directText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('');
@@ -670,7 +674,7 @@ function reconcileColumns() {
 // ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
 
 const COLUMN_NAMES = {
-  tier: 'Commander tier', power: 'Power', bracket: 'Bracket', threat: 'Threat', salt: 'Saltiness',
+  tier: 'Commander tier', manabase: 'Manabase', power: 'Power', bracket: 'Bracket', threat: 'Threat', salt: 'Saltiness',
   interaction: 'Interaction', wincons: 'Wincons', synergy: 'Synergy', combos: 'Combos', archetype: 'Archetype',
   actions: 'CS link + analysis',
 };
