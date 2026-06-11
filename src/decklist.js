@@ -571,6 +571,18 @@ export function setRowSpinning(md5, on) {
   }
 }
 
+// Native tooltip for a cell whose displayed value hides the raw number — the grade
+// columns show a letter, so hovering surfaces the underlying cumulative score (e.g.
+// Synergy B+ → "1787.3 total"). Keyed by column; rounded to 1 decimal.
+const totalTitle = (n) => (typeof n === 'number' && Number.isFinite(n) ? `${Math.round(n * 10) / 10} total` : null);
+const CELL_TITLE = {
+  salt: (v) => totalTitle(v.salt),
+  synergy: (v) => totalTitle(v.synergy),
+  threat: (v) => totalTitle(v.threat),
+  interaction: (v) => totalTitle(v.interaction),
+  wincons: (v) => totalTitle(v.wincons),
+};
+
 // Build/rebuild one row's metric cells from its current view, inserted before the
 // "Updated" column (idx). A blank full-only cell (deck not yet scanned) is clickable
 // to scan just that deck. idx omitted → resolve it from the row's own table header.
@@ -590,7 +602,9 @@ function renderRowCells(entry, idx) {
     } else {
       const inner = c.cell(view);
       td.append(inner || el('span', { class: 'solring-num', text: '—' }));
-      if (!inner && !c.hit && !view.analyzed) {
+      const titleFn = CELL_TITLE[c.key];
+      if (inner && titleFn) { const t = titleFn(view); if (t) td.title = t; } // hover → raw total
+      else if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
         td.title = 'Analyze this deck';
         td.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); expandEntry(entry, td); });
