@@ -235,8 +235,9 @@ export function buildManabasePanel(m) {
     statTiles(m.stats),
   ]));
 
-  // Bars column 1: Mana quality + Colour coverage (same visual language, stacked).
-  // Axis bars are /100 — each axis vs its own 100 benchmark (100 = met; bonuses cap full).
+  // Column 1: the three bar widgets stacked — Mana quality, Colour coverage, and the
+  // mana-source breakdown (all share the label·bar·value language). Axis bars are /100,
+  // each vs its own 100 benchmark (100 = met; bonuses cap full).
   const barsCol = [];
   const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
     .filter(([, v]) => typeof v === 'number')
@@ -244,16 +245,12 @@ export function buildManabasePanel(m) {
   if (rows.length) barsCol.push(barBlock('Mana quality', rows, null));
   const cpr = colorReqProdChart(m.perColor);
   if (cpr) barsCol.push(barBlock('Colour produced vs required', cpr, 'Grey = required · red = under-produced'));
+  const breakdownRows = sourceBreakdownRows(m.composition || {});
+  if (breakdownRows) barsCol.push(barBlock('Mana source breakdown', breakdownRows, sourceBreakdownCaption(m.composition || {})));
 
+  // Column 2: the on-curve castability chart.
   const cells = [];
   if (barsCol.length) cells.push(el('div', { class: 'solring-mb-col-bars' }, barsCol));
-  // Bars column 2: card count per source category.
-  const breakdownRows = sourceBreakdownRows(m.composition || {});
-  if (breakdownRows) {
-    cells.push(el('div', { class: 'solring-mb-col-bars' }, [
-      barBlock('Mana source breakdown', breakdownRows, sourceBreakdownCaption(m.composition || {})),
-    ]));
-  }
   const curveHtml = m.curve && m.curve.length
     ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
     : '';
