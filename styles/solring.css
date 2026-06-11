@@ -170,6 +170,12 @@
 .solring-mb-cell, .solring-mb-block { min-width: 0; }
 /* Compact bar rows inside the bars column (the page-wide 9rem label grid would overflow). */
 .solring-mb-col-bars .solring-pl-row { grid-template-columns: 3.6rem 1fr 2.4rem; font-size: 0.74rem; }
+/* Row dividers within each bar widget, like the profile-table items: a top border on
+   every row, dropped on the first so it sits flush under the header. */
+.solring-mb-block .solring-pl-row,
+.solring-mb-block .solring-mb-cp-row { margin: 0; padding: 0.3rem 0; border-top: 1px solid var(--solring-border); }
+.solring-mb-block .solring-pl-row:first-child,
+.solring-mb-block .solring-mb-cp-row:first-child { border-top: 0; }
 .solring-mb-fig { margin: 0.3rem 0 0.15rem; }
 .solring-mb-fig svg { width: 100%; height: auto; display: block; }
 
