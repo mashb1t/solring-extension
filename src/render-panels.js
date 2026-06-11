@@ -82,7 +82,9 @@ function manaCurveChart(curve) {
   const path = (key) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.turn).toFixed(1)} ${Y(p[key]).toFixed(1)}`).join(' ');
   const area = `${path('actual')} L${X(tMax).toFixed(1)} ${Y(0).toFixed(1)} L${X(tMin).toFixed(1)} ${Y(0).toFixed(1)} Z`;
   const grid = [0, 0.5, 1].map((v) => `<line x1="${pad}" y1="${Y(v).toFixed(1)}" x2="${W - pad}" y2="${Y(v).toFixed(1)}" class="solring-mc-grid"/>`).join('');
-  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" role="img" aria-label="On-curve castability by turn: this deck vs a typical baseline">`
+  // preserveAspectRatio=none so the SVG fills its (flex-stretched) box; strokes hold
+  // their width via non-scaling-stroke and the data still maps to the gridlines.
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="On-curve castability by turn: this deck vs a typical baseline">`
     + grid
     + `<path d="${area}" class="solring-mc-fill"/>`
     + `<path d="${path('baseline')}" class="solring-mc-base"/>`
