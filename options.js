@@ -22,6 +22,7 @@ async function render() {
   $('autoFetch').checked = o.autoFetch;
   $('cardPanelModal').checked = o.cardPanelModal;
   $('cardPanelSidebar').checked = o.cardPanelSidebar;
+  $('accordion').checked = o.accordion;
   $('powerThreshold').value = o.powerThreshold;
   $('saltThreshold').value = o.saltThreshold;
   $('cacheLifetimeDays').value = String(o.cacheLifetimeDays);
@@ -46,6 +47,7 @@ function bind() {
   onCheck('autoFetch', 'autoFetch');
   onCheck('cardPanelModal', 'cardPanelModal');
   onCheck('cardPanelSidebar', 'cardPanelSidebar');
+  onCheck('accordion', 'accordion');
 
   const onNum = (id, key) => {
     $(id).addEventListener('change', () => {

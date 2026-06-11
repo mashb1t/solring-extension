@@ -133,6 +133,11 @@ function startAnnotations(fields) {
   reannotate();
 }
 
+// Expandable tiles in the current deck panel. In accordion mode (currentOptions
+// .accordion, default on — read live at toggle time) opening one closes the rest.
+// Reset by renderBody on each (re)render so stale entries don't accumulate.
+let expandGroup = [];
+
 // Make a tile expand/collapse a detail section (appended to `body`, hidden by
 // default). The chevron swaps glyph on toggle (⌄ closed / ⌃ open) — no rotation.
 function makeExpandable(tile, section, body) {
@@ -144,11 +149,20 @@ function makeExpandable(tile, section, body) {
   // Symmetric SVG chevron; CSS rotates it 180° when closed (stays centered).
   const chev = el('span', { class: 'solring-tile-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   tile.append(chev);
+  const setOpen = (open) => {
+    if (open) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
+    tile.classList.toggle('solring-open', open);
+    tile.setAttribute('aria-expanded', String(open));
+  };
+  const entry = { close: () => setOpen(false) };
+  expandGroup.push(entry);
   const toggle = () => {
     const willOpen = section.hasAttribute('hidden');
-    if (willOpen) section.removeAttribute('hidden'); else section.setAttribute('hidden', '');
-    tile.classList.toggle('solring-open', willOpen);
-    tile.setAttribute('aria-expanded', String(willOpen));
+    // Accordion: opening a tile collapses every other open one in the panel.
+    if (willOpen && currentOptions.accordion !== false) {
+      for (const e of expandGroup) if (e !== entry) e.close();
+    }
+    setOpen(willOpen);
   };
   tile.addEventListener('click', toggle);
   tile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
@@ -156,6 +170,7 @@ function makeExpandable(tile, section, body) {
 
 function renderBody(body, f) {
   body.replaceChildren();
+  expandGroup = []; // fresh accordion group for this render
   const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
   // grade-style tile: big colored letter grade + raw score sub (like Saltiness)
   const gradeTile = (label, key, field) =>

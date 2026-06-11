@@ -43,6 +43,7 @@ export const OPTIONS_DEFAULT = {
   cardPanelModal: true,
   cardPanelSidebar: true,
   deckPanelDefault: 'auto', // 'auto' | 'open' | 'collapsed'
+  accordion: true, // deck report-card: only one metric tile open at a time
   cacheLifetimeDays: 30,
 };
 
