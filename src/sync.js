@@ -158,9 +158,13 @@ let analyzeCloseInstalled = false;
 function installAnalyzeOutsideClose() {
   if (analyzeCloseInstalled) return;
   analyzeCloseInstalled = true;
+  // Capture phase: runs before any target's stopPropagation, so the Stats menu closes
+  // whenever the click lands elsewhere — including on the Columns menu or Moxfield's
+  // Sort (whose own handlers stopPropagation). This is what makes the three dropdowns
+  // mutually exclusive from our side; opening Sort/Columns thereby closes Stats.
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.solring-analyze').forEach((dd) => { if (!dd.contains(e.target)) closeAnalyzeMenu(dd); });
-  });
+  }, true);
 }
 
 function buildControls(btnClass) {
@@ -176,7 +180,10 @@ function buildControls(btnClass) {
     class: `${btnClass} solring-sync-btn solring-analyze-btn`,
     attrs: { type: 'button', title: 'Fetch CommanderSalt stats for the listed decks', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
   }, [el('span', {}, [statIcon(), 'Stats'])]);
-  analyzeBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleAnalyzeMenu(dropdown); });
+  // No stopPropagation: let the click reach Moxfield's React outside-click handler so
+  // opening Stats closes the Sort menu. (Our own menu stays open — the capture-phase
+  // closer skips clicks inside .solring-analyze.)
+  analyzeBtn.addEventListener('click', (e) => { e.preventDefault(); toggleAnalyzeMenu(dropdown); });
   const dropdown = el('div', { class: 'solring-analyze' }, [analyzeBtn, menu]);
 
   const cancelBtn = el('button', {

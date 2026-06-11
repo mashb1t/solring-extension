@@ -688,11 +688,14 @@ let outsideCloseInstalled = false;
 function installOutsideClose() {
   if (outsideCloseInstalled) return;
   outsideCloseInstalled = true;
+  // Capture phase: runs before any target's stopPropagation, so the Columns menu closes
+  // whenever the click lands elsewhere — including on the Stats menu or Moxfield's Sort
+  // (whose handlers stopPropagation). Keeps the three toolbar dropdowns mutually exclusive.
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.solring-colmenu').forEach((wrap) => {
       if (!wrap.contains(e.target)) closeMenu(wrap);
     });
-  });
+  }, true);
 }
 function closeMenu(wrap) {
   const panel = wrap.querySelector('.dropdown-menu');
@@ -825,9 +828,11 @@ function buildColumnMenu(sortClassName) {
     for (const n of native) nativeWrap.append(buildNativeItem(n));
   };
   const panel = el('div', { class: 'dropdown-menu dropdown-menu-end' }, [inner]);
+  // No stopPropagation: let the click reach Moxfield's React outside-click handler so
+  // opening Columns closes the Sort menu (the capture-phase closer skips clicks inside
+  // .solring-colmenu, so this menu stays open).
   btn.addEventListener('click', (e) => {
     e.preventDefault();
-    e.stopPropagation();
     const show = !panel.classList.contains('show');
     if (show) populateNative();
     panel.classList.toggle('show', show);
