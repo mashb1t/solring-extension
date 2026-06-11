@@ -5,7 +5,7 @@
 // here. Controlled by global prefs; re-applied on Moxfield re-render via the observer.
 
 import { el, isDark } from './dom.js';
-import { powerMark, saltMark, deckAvgPower } from './ratings.js';
+import { powerMark, saltMark, deckAvgPower, synergyCutoff, synergyMark } from './ratings.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
 
@@ -32,8 +32,10 @@ export function annotate(fields, prefs, options = {}) {
   const dark = isDark();
 
   // Marks (ratings.js): salt at/above the salt threshold, power above N× the deck
-  // average. The average is computed once for all rows.
+  // average, synergy at/above the deck's percentile cutoff. Both deck-wide figures are
+  // computed once for all rows.
   const avgPower = deckAvgPower(fields.cards, fields.powerScoreTotal);
+  const synCut = synergyCutoff(fields.cards, options.synergyPercentile);
 
   document.querySelectorAll(ROW_SEL).forEach((link) => {
     const li = link.closest('li');
@@ -83,10 +85,10 @@ export function annotate(fields, prefs, options = {}) {
     // rank a deck's synergy anchors). 3rd numeric column beside Power/Salt contribution;
     // 0 when the card has no synergy.
     if (prefs.synergies) {
-      const synScore = card.combos && typeof card.combos.score === 'number' ? Math.round(card.combos.score) : 0;
+      const rawSyn = card.combos && typeof card.combos.score === 'number' ? card.combos.score : 0;
       place(el('span', {
-        class: 'solring-syn-cell text-end solring-card-anno',
-        text: String(synScore),
+        class: `solring-syn-cell text-end solring-card-anno${mark(synergyMark(rawSyn, synCut), 'solring-mark-synergy')}`,
+        text: String(Math.round(rawSyn)),
         title: 'synergy score',
       }));
     }

@@ -11,6 +11,7 @@ const $ = (id) => document.getElementById(id);
 const COLORS = [
   { id: 'powerColor', def: '#8b5cf6', get: (o) => o.powerColor, set: (v) => setOptions({ powerColor: v }) },
   { id: 'saltColor', def: '#8b5cf6', get: (o) => o.saltColor, set: (v) => setOptions({ saltColor: v }) },
+  { id: 'synergyColor', def: '#8b5cf6', get: (o) => o.synergyColor, set: (v) => setOptions({ synergyColor: v }) },
   { id: 'ratingA', def: '#b00020', get: (o) => o.ratingColors.a, set: (v) => setOptions({ ratingColors: { a: v } }) },
   { id: 'ratingB', def: '#d2691e', get: (o) => o.ratingColors.b, set: (v) => setOptions({ ratingColors: { b: v } }) },
   { id: 'ratingC', def: '#b8860b', get: (o) => o.ratingColors.c, set: (v) => setOptions({ ratingColors: { c: v } }) },
@@ -25,6 +26,7 @@ async function render() {
   $('accordion').checked = o.accordion;
   $('powerThreshold').value = o.powerThreshold;
   $('saltThreshold').value = o.saltThreshold;
+  $('synergyPercentile').value = o.synergyPercentile;
   $('cacheLifetimeDays').value = String(o.cacheLifetimeDays);
   $('deckPanelDefault').value = o.deckPanelDefault;
   for (const c of COLORS) {
@@ -57,6 +59,7 @@ function bind() {
   };
   onNum('powerThreshold', 'powerThreshold');
   onNum('saltThreshold', 'saltThreshold');
+  onNum('synergyPercentile', 'synergyPercentile');
 
   $('cacheLifetimeDays').addEventListener('change', () => setOptions({ cacheLifetimeDays: Number($('cacheLifetimeDays').value) }));
   $('deckPanelDefault').addEventListener('change', () => setOptions({ deckPanelDefault: $('deckPanelDefault').value }));

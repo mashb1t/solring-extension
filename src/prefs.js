@@ -34,14 +34,16 @@ export const LIST_COLUMNS_DEFAULT = {
 };
 
 // Options-panel settings. null colors = "not customized" (keep the auto-themed CSS
-// defaults). Thresholds: power = ×deck-average, salt = absolute. cacheLifetimeDays
-// 0 = never expire.
+// defaults). Thresholds: power = ×deck-average, salt = absolute, synergy = percentile
+// of the deck. cacheLifetimeDays 0 = never expire.
 export const OPTIONS_DEFAULT = {
   autoFetch: true,
   powerThreshold: 2,
   powerColor: null,
   saltThreshold: 5,
   saltColor: null,
+  synergyPercentile: 90, // mark synergy at/above this percentile of the deck (top decile)
+  synergyColor: null,
   ratingColors: { a: null, b: null, c: null, d: null },
   cardPanelModal: true,
   cardPanelSidebar: true,

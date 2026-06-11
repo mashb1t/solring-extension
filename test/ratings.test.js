@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   csRatingGrade, csGradeFromPct, csRatingPct,
-  deckAvgPower, powerMark, saltMark,
+  deckAvgPower, powerMark, saltMark, synergyCutoff, synergyMark,
 } from '../src/ratings.js';
 
 test('grades from the reference deck (verified against CommanderSalt)', () => {
@@ -46,4 +46,22 @@ test('saltMark — default >=5, and a custom threshold', () => {
   assert.equal(saltMark(4, 3.5), true);  // custom cutoff
   assert.equal(saltMark(3, 3.5), false);
   assert.equal(saltMark(undefined), false);
+});
+
+test('synergyCutoff — nearest-rank percentile of per-card scores (0s included)', () => {
+  // scores: 0,0,0,0,0,0,0, 10, 50, 100 (10 cards; 7 with no synergy)
+  const cards = {};
+  [0, 0, 0, 0, 0, 0, 0, 10, 50, 100].forEach((s, i) => { cards[i] = { combos: s ? { score: s } : null }; });
+  assert.equal(synergyCutoff(cards, 90), 50);   // 90th pct → idx ceil(.9*10)-1 = 8 → 50
+  assert.equal(synergyCutoff(cards, 100), 100);  // top only
+  assert.equal(synergyCutoff(cards, 0), 0);      // everyone (cutoff = min)
+  assert.equal(synergyCutoff({}, 90), Infinity); // no cards → nothing marked
+});
+
+test('synergyMark — nonzero score at/above the cutoff', () => {
+  assert.equal(synergyMark(50, 50), true);
+  assert.equal(synergyMark(49.9, 50), false);
+  assert.equal(synergyMark(0, 0), false);          // never mark a 0-synergy card
+  assert.equal(synergyMark(10, Infinity), false);  // empty deck cutoff
+  assert.equal(synergyMark(undefined, 50), false);
 });

@@ -75,3 +75,26 @@ export function powerMark(powerTotal, avgPower, multiple = POWER_MARK_MULTIPLE) 
 export function saltMark(salt, threshold = SALT_MARK_THRESHOLD) {
   return typeof salt === 'number' && salt >= threshold;
 }
+
+// Synergy is marked by PERCENTILE within the deck: per-card synergy scores span a huge
+// range (and a lands deck repeats the same value), so neither a multiple-of-average nor
+// a static cutoff travels — the top of the deck's own distribution does. Default = top
+// decile.
+export const SYNERGY_MARK_PERCENTILE = 90;
+
+// The synergy-score value at `percentile` of the deck's per-card scores (nearest-rank,
+// 0-scores included so the cutoff reflects the whole deck). Cards at/above it are marked.
+export function synergyCutoff(cards, percentile = SYNERGY_MARK_PERCENTILE) {
+  const scores = Object.values(cards || {})
+    .map((c) => (c && c.combos && typeof c.combos.score === 'number' ? c.combos.score : 0))
+    .sort((a, b) => a - b);
+  if (!scores.length) return Infinity;
+  const p = Math.min(100, Math.max(0, percentile)) / 100;
+  const idx = Math.max(0, Math.min(scores.length - 1, Math.ceil(p * scores.length) - 1));
+  return scores[idx];
+}
+
+// A standout synergy card: nonzero score at/above the deck's percentile cutoff.
+export function synergyMark(score, cutoff) {
+  return typeof score === 'number' && score > 0 && Number.isFinite(cutoff) && score >= cutoff;
+}

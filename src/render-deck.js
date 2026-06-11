@@ -34,6 +34,7 @@ function applyOptionColors(o) {
   const set = (name, val) => (val ? root.setProperty(name, val) : root.removeProperty(name));
   set('--solring-mark-power', o.powerColor);
   set('--solring-mark-salt', o.saltColor);
+  set('--solring-mark-synergy', o.synergyColor);
   const rc = o.ratingColors || {};
   set('--solring-rating-a', rc.a);
   set('--solring-rating-b', rc.b);

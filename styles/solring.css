@@ -9,10 +9,11 @@
   --solring-rating-c: #b8860b;
   --solring-rating-d: #1a7f37;
   --solring-accent: var(--bs-primary);
-  /* Mark colors for standout power / salt (decoupled from the A–D ramp). Default to
-     the accent; the options page overrides these on :root with a custom hex. */
+  /* Mark colors for standout power / salt / synergy (decoupled from the A–D ramp).
+     Default to the accent; the options page overrides these on :root with a custom hex. */
   --solring-mark-power: var(--solring-accent);
   --solring-mark-salt: var(--solring-accent);
+  --solring-mark-synergy: var(--solring-accent);
   /* Surfaces / borders / text inherit Moxfield's Bootstrap theme variables so
      the injected UI matches in both light and dark; the hex values are only
      fallbacks if those vars are ever absent. */
@@ -348,8 +349,10 @@
    decklist columns and the modal/sidebar tile values. */
 .solring-mark-power { color: var(--solring-mark-power); font-weight: 600; }
 .solring-mark-salt { color: var(--solring-mark-salt); font-weight: 600; }
+.solring-mark-synergy { color: var(--solring-mark-synergy); font-weight: 600; }
 .solring-power-cell.solring-mark-power,
-.solring-salt-cell.solring-mark-salt { font-weight: 600; }
+.solring-salt-cell.solring-mark-salt,
+.solring-syn-cell.solring-mark-synergy { font-weight: 600; }
 /* Annotated rows wrap so our sub-lines can sit below the columns. The name cell
    is Bootstrap .w-100 (width:100%!important) — with wrap that would claim the
    whole first line and push the other columns down. Override it to flex-fill so
