@@ -10,7 +10,9 @@ const LIST_ORDER_KEY = 'prefs:listColumnOrder';
 const HIDDEN_NATIVE_KEY = 'prefs:hiddenNativeCols';
 const WIDE_KEY = 'prefs:wide';
 
-const CARD_DEFAULT = { power: true, saltValue: true, tags: true, stats: true, combos: true };
+// Per-card toggles (Customize View → Include Extra Data). `synergies` is the newer
+// numeric column → off by default (opt-in), matching how new deck-list columns default off.
+const CARD_DEFAULT = { power: true, saltValue: true, synergies: false, tags: true, stats: true };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
 
 // Deck-list metric columns (user profile + personal manager). All are togglable via

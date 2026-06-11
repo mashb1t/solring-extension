@@ -223,8 +223,12 @@ function buildBody(card, stats) {
     tile('Saltiness', withTotal(num(card.salt), sm, num(stats.saltTotal)), pct(card.salt, stats.saltTotal)),
   ]));
 
-  if (card.tags && card.tags.length) body.append(sectionBlock('Tags', [chips(card.tags, 'solring-tag')]));
-  if (card.flags && card.flags.length) body.append(sectionBlock('Bracket flags', [chips(card.flags, 'solring-flag')]));
+  // Tags + bracket flags share one "Tags" section — flag chips first, then tag chips.
+  const tagItems = [
+    ...(card.flags || []).map((f) => el('span', { class: 'solring-flag', text: f })),
+    ...(card.tags || []).map((t) => el('span', { class: 'solring-tag', text: t })),
+  ];
+  if (tagItems.length) body.append(sectionBlock('Tags', [el('div', { class: 'solring-cm-chips' }, tagItems)]));
   if (card.power && card.power.length) body.append(bars('Power contribution', card.power));
   if (card.saltBreakdown && card.saltBreakdown.length) body.append(bars('Salt breakdown', card.saltBreakdown));
 

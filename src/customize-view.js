@@ -1,4 +1,4 @@
-// Inject Salt Value / Tags / Stats checkboxes into Moxfield's
+// Inject Saltiness / Tags / Stats checkboxes into Moxfield's
 // Customize View → "Include Extra Data" group. The modal mounts on demand, so we
 // watch for it; injection is idempotent. Toggles apply immediately (our global
 // prefs are independent of Moxfield's own Save/Cancel).
@@ -8,10 +8,10 @@ import { getCardPrefs, setCardPrefs } from './prefs.js';
 
 const TOGGLES = [
   ['power', 'Power'],
-  ['saltValue', 'Salt Value'],
+  ['saltValue', 'Saltiness'],
+  ['synergies', 'Synergies'],
   ['tags', 'Tags'],
   ['stats', 'Stats'],
-  ['combos', 'Combos'],
 ];
 
 // Replicates Moxfield's Include-Extra-Data checkbox markup.

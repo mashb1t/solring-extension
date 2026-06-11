@@ -29,30 +29,16 @@ function detailLine(label, body) {
 }
 const scoreText = (arr) => arr.map((x) => `${prettifyStat(x.cat)} ${x.score.toFixed(1)}`).join('  ·  ');
 
-// The detail shows what the Tags toggle does NOT: (Stats) bracket flags, power
-// contribution, salt breakdown; and (Combos) the synergy "Outgoing Impact".
-function statsDetail(card, prefs) {
+// The Stats detail shows the power-contribution and salt breakdowns. Bracket flags now
+// ride along in the Tags line, and synergies are their own numeric column.
+function statsDetail(card) {
   const rows = [];
-  if (prefs.stats) {
-    if (card.flags && card.flags.length) {
-      rows.push(detailLine('Bracket:', el('span', { class: 'solring-flags' },
-        card.flags.map((f) => el('span', { class: 'solring-flag', text: f })))));
-    }
-    if (card.power && card.power.length) {
-      const total = typeof card.powerTotal === 'number' ? card.powerTotal.toFixed(1) : '';
-      rows.push(detailLine('Power:', document.createTextNode(`${total}  (${scoreText(card.power)})`)));
-    }
-    if (card.saltBreakdown && card.saltBreakdown.length) {
-      rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
-    }
+  if (card.power && card.power.length) {
+    const total = typeof card.powerTotal === 'number' ? card.powerTotal.toFixed(1) : '';
+    rows.push(detailLine('Power:', document.createTextNode(`${total}  (${scoreText(card.power)})`)));
   }
-  if (prefs.combos) {
-    const parts = [];
-    if (card.deckCombos) parts.push(`${card.deckCombos} in deck`);
-    if (card.combos && card.combos.anchors && card.combos.anchors.length) {
-      parts.push(`feeds ${card.combos.anchors.slice(0, 6).map((a) => a.name).join(', ')}`);
-    }
-    if (parts.length) rows.push(detailLine('Combos:', document.createTextNode(parts.join('  ·  '))));
+  if (card.saltBreakdown && card.saltBreakdown.length) {
+    rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
   }
   if (!rows.length) {
     rows.push(detailLine('Stats:', document.createTextNode('no extra data for this card')));
@@ -83,7 +69,8 @@ export function annotate(fields, prefs, options = {}) {
     // cells are just two extra columns. (The wrap override changes the name to
     // flex-basis:0, which creates free space a margin-auto column would otherwise
     // turn into a gap before the price.)
-    const wantSub = (prefs.tags && card.tags && card.tags.length) || prefs.stats || prefs.combos;
+    const hasTagLine = (card.flags && card.flags.length) || (card.tags && card.tags.length);
+    const wantSub = (prefs.tags && hasTagLine) || prefs.stats;
     if (wantSub) li.classList.add('solring-row');
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
@@ -114,22 +101,34 @@ export function annotate(fields, prefs, options = {}) {
         title: 'saltiness',
       }));
     }
-
-    // 2) Tags — full-width sub-line below, spanning name-column → row end.
-    if (prefs.tags && card.tags && card.tags.length) {
-      li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` },
-        card.tags.map((t) => el('span', { class: 'solring-tag', text: t })))));
+    // Synergies = how many cards this one synergizes with (CommanderSalt "outgoing
+    // impact"). 3rd numeric column after power + salt; omitted when the card feeds none.
+    if (prefs.synergies && card.combos && card.combos.count) {
+      place(el('span', {
+        class: 'solring-syn-cell text-end solring-card-anno',
+        text: String(card.combos.count),
+        title: 'synergies (cards this one feeds)',
+      }));
     }
 
-    // 3) Detail (stats + combos) — full-width sub-line, shown directly (no toggle).
-    if (prefs.stats || prefs.combos) {
-      li.append(span(statsDetail(card, prefs)));
+    // 2) Tags + bracket flags — one full-width sub-line (flags first, then tags),
+    // spanning name-column → row end.
+    if (prefs.tags && hasTagLine) {
+      const chipNodes = [];
+      for (const f of card.flags || []) chipNodes.push(el('span', { class: 'solring-flag', text: f }));
+      for (const t of card.tags || []) chipNodes.push(el('span', { class: 'solring-tag', text: t }));
+      li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` }, chipNodes)));
+    }
+
+    // 3) Stats detail (power + salt breakdowns) — full-width sub-line.
+    if (prefs.stats) {
+      li.append(span(statsDetail(card)));
     }
   });
 }
 
 export function clearAnnotations(root = document) {
-  root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell')
+  root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell')
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
 }

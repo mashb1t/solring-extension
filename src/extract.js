@@ -56,7 +56,9 @@ function cardCombos(synergy, id, idToCard) {
     const c = idToCard && idToCard[aid];
     return { name: (c && c.name) || titleCase(aid), image: (c && c.image) || null };
   });
-  return { total, anchors };
+  // `count` = how many distinct cards this one synergizes with (the full set, not the
+  // 8-chip display cap) — surfaced as the per-card "Synergies" column.
+  return { total, count: ids.size, anchors };
 }
 
 // Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.
