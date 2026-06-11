@@ -154,24 +154,29 @@ function diagramCell(title, svgHtml, caption) {
   ]);
 }
 
-// The three quality axes (Fixing / Quality / Curve) on ONE shared scale — the highest of
-// the three fills its bar — with a 100-benchmark marker at the same x on every row, so you
-// can read which axes clear par and by how much. Scale floored at 100 so the marker stays
-// on the track even if all three are below benchmark.
-function qualityRows(m) {
+// Mana quality block: the three axes (Fixing / Quality / Curve) on ONE shared scale — the
+// highest of the three fills its bar — with a single 100-benchmark line running top-to-
+// bottom across all three, so you read which axes clear par and by how much. Scale floored
+// at 100 so the line stays on the track even if all three are below benchmark.
+function qualityBlock(m) {
   const axes = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
     .filter(([, v]) => typeof v === 'number');
-  if (!axes.length) return [];
+  if (!axes.length) return null;
   const max = Math.max(...axes.map(([, v]) => v), 100);
-  const markerPct = Math.min(100, (100 / max) * 100);
-  return axes.map(([label, v]) => el('div', { class: 'solring-pl-row' }, [
-    el('span', { class: 'solring-pl-label', text: label }),
-    el('span', { class: 'solring-pl-bar' }, [
-      el('span', { style: `width:${Math.max(0, Math.min(100, (v / max) * 100)).toFixed(1)}%` }),
-      el('span', { class: 'solring-pl-mark', attrs: { title: '100 benchmark' }, style: `left:${markerPct.toFixed(1)}%` }),
-    ]),
-    el('span', { class: 'solring-pl-val', text: String(Math.round(v)) }),
-  ]));
+  const frac = Math.min(1, 100 / max); // marker x as a fraction of the bar column
+  const rows = axes.map(([label, v]) => barRow(label, String(Math.round(v)), (v / max) * 100));
+  // One continuous line over the bar column: its left = the column's start (label 3.6rem +
+  // gap 0.5rem) plus frac of the column width (track − labels 3.6rem − value 2.4rem − two
+  // 0.5rem gaps = track − 7rem). Matches the .solring-mb-col-bars .solring-pl-row grid.
+  const line = el('div', {
+    class: 'solring-pl-markline',
+    attrs: { title: '100 benchmark', 'aria-hidden': 'true' },
+    style: `left: calc(4.1rem + ${frac.toFixed(3)} * (100% - 7rem))`,
+  });
+  return el('div', { class: 'solring-mb-block' }, [
+    el('div', { class: 'solring-pl-h', text: 'Mana quality' }),
+    el('div', { class: 'solring-mb-quality' }, [...rows, line]),
+  ]);
 }
 
 // A titled block of bar rows for the bars column (Mana quality / Colour coverage).
@@ -259,10 +264,10 @@ export function buildManabasePanel(m) {
 
   // Column 1: the three bar widgets stacked — Mana quality, Colour coverage, and the
   // mana-source breakdown (all share the label·bar·value language). Mana quality bars
-  // share one scale (highest fills) with a 100-benchmark marker — see qualityRows.
+  // share one scale (highest fills) with a 100-benchmark line — see qualityBlock.
   const barsCol = [];
-  const rows = qualityRows(m);
-  if (rows.length) barsCol.push(barBlock('Mana quality', rows, null));
+  const quality = qualityBlock(m);
+  if (quality) barsCol.push(quality);
   const cpr = colorReqProdChart(m.perColor);
   if (cpr) barsCol.push(barBlock('Colour produced vs required', cpr, 'Grey = required · red = under-produced'));
   const breakdownRows = sourceBreakdownRows(m.composition || {});
