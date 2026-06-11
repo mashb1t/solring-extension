@@ -67,11 +67,11 @@ function buildPanel() {
       el('div', { class: 'solring-tiles solring-averages-tiles' }, [
         tile('ø Power', numAvg(a.power)),
         tile('ø Bracket', numAvg(a.bracket)),
-        gradeTileAvg('ø Saltiness', a.salt, 'saltRating'),
-        gradeTileAvg('ø Synergy', a.synergy, 'synergyRating'),
         gradeTileAvg('ø Threat', a.threat, 'threatRating'),
+        gradeTileAvg('ø Saltiness', a.salt, 'saltRating'),
         gradeTileAvg('ø Interaction', a.interaction, 'interactionRating'),
         gradeTileAvg('ø Wincons', a.wincons, 'comboRating'),
+        gradeTileAvg('ø Synergy', a.synergy, 'synergyRating'),
         tile('ø Commander tier', el('span', { class: 'solring-num', text: a.tier.v != null ? `T${num(a.tier.v)}` : '—' })),
       ]),
     ]),

@@ -246,17 +246,17 @@ const gradeNode = (value, field) => (typeof value === 'number' && Number.isFinit
 // deck is scanned). `cell(view)` returns the inner node, or null → a blank "—" cell.
 // Order here = left-to-right order of the injected columns.
 const COLUMNS = [
+  { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
   { key: 'power', label: 'Pow', title: 'Power level (0–10)', hit: true, cell: (v) => numNode(v.power) },
   { key: 'bracket', label: 'Brkt', title: 'Realistic bracket', hit: true, cell: (v) => (v.bracketRealistic != null ? bracketValue(v) : null) },
-  { key: 'salt', label: 'Salt', title: 'Saltiness grade', hit: true, cell: (v) => gradeNode(v.salt, 'saltRating') },
-  { key: 'synergy', label: 'Syn', title: 'Synergy grade', hit: true, cell: (v) => gradeNode(v.synergy, 'synergyRating') },
+  { key: 'manabase', label: 'Mana', title: 'Manabase (% vs benchmark)', hit: false, cell: (v) => (v.manabaseOverall != null ? textNode(`${Math.round(v.manabaseOverall)}%`) : null) },
   { key: 'threat', label: 'Thr', title: 'Threat grade', hit: false, cell: (v) => gradeNode(v.threat, 'threatRating') },
+  { key: 'salt', label: 'Salt', title: 'Saltiness grade', hit: true, cell: (v) => gradeNode(v.salt, 'saltRating') },
   { key: 'interaction', label: 'Int', title: 'Interaction grade', hit: false, cell: (v) => gradeNode(v.interaction, 'interactionRating') },
   { key: 'wincons', label: 'Win', title: 'Wincons grade', hit: false, cell: (v) => gradeNode(v.wincons, 'comboRating') },
-  { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
-  { key: 'manabase', label: 'Mana', title: 'Manabase (% vs benchmark)', hit: false, cell: (v) => (v.manabaseOverall != null ? textNode(`${Math.round(v.manabaseOverall)}%`) : null) },
   { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
-  { key: 'archetype', label: 'Arch', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
+  { key: 'synergy', label: 'Syn', title: 'Synergy grade', hit: true, cell: (v) => gradeNode(v.synergy, 'synergyRating') },
+  { key: 'archetype', label: 'Archetype', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
   // Per-row actions (CS link + Analysis) — built from the entry, not the view; see
   // buildActionsCell. `action:true` flags the special render path.
   { key: 'actions', label: '', title: 'Solring actions', hit: true, action: true, cell: () => null },
@@ -694,7 +694,7 @@ function reconcileColumns() {
 // ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
 
 const COLUMN_NAMES = {
-  tier: 'Commander tier', manabase: 'Manabase', power: 'Power', bracket: 'Bracket', threat: 'Threat', salt: 'Saltiness',
+  tier: 'Commander tier', power: 'Power', bracket: 'Bracket', manabase: 'Manabase', threat: 'Threat', salt: 'Saltiness',
   interaction: 'Interaction', wincons: 'Wincons', synergy: 'Synergy', combos: 'Combos', archetype: 'Archetype',
   actions: 'CS link + analysis',
 };
@@ -825,7 +825,7 @@ function buildColumnMenu(sortClassName) {
     attrs: { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
   }, [el('span', {}, [columnsIcon(), 'Columns'])]);
   const inner = el('div', { class: 'dropdown-menu-parent', attrs: { tabindex: '-1' } }, [
-    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'Statistics columns' })]),
+    el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'Solring columns' })]),
   ]);
   const list = el('div', { class: 'solring-colmenu-list' });
   for (const c of orderedColumns()) list.append(buildSolringItem(c, list));

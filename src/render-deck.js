@@ -217,9 +217,9 @@ function renderBody(body, f) {
   const powerSub = typeof f.power === 'number'
     ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
+  const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
   const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
-  const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
   // Manabase: percentages.overall is a PERCENT of the benchmark (the curve axis vs its
   // 100 par — CommanderSalt's Nutrition Facts total "% daily value"), so 111% = 11% over
   // par. NOT shown as "/300" — that widget framing divides a percent by the sum of the
