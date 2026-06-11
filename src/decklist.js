@@ -367,7 +367,7 @@ function updateSortIndicators(htr) {
 
 // Lowercase field names for Moxfield's results caption ("…sorted by <field> in … order").
 const SORT_TITLE_LABEL = {
-  power: 'power', bracket: 'bracket', tier: 'commander tier', manabase: 'manabase',
+  tier: 'commander tier', power: 'power', bracket: 'bracket', manabase: 'manabase',
   threat: 'threat', salt: 'saltiness', interaction: 'interaction', wincons: 'win conditions', combos: 'combos',
   synergy: 'synergy'
 };
@@ -572,15 +572,15 @@ export function setRowSpinning(md5, on) {
 }
 
 // Native tooltip for a cell whose displayed value hides the raw number — the grade
-// columns show a letter, so hovering surfaces the underlying cumulative score (e.g.
-// Synergy B+ → "1787.3 total"). Keyed by column; rounded to 1 decimal.
-const totalTitle = (n) => (typeof n === 'number' && Number.isFinite(n) ? `${Math.round(n * 10) / 10} total` : null);
+// columns show a letter, so hovering surfaces the underlying score + its metric name
+// (e.g. Saltiness C+ → "130.6 saltiness"). Keyed by column; rounded to 1 decimal.
+const scoreTitle = (n, label) => (typeof n === 'number' && Number.isFinite(n) ? `${Math.round(n * 10) / 10} ${label}` : null);
 const CELL_TITLE = {
-  salt: (v) => totalTitle(v.salt),
-  synergy: (v) => totalTitle(v.synergy),
-  threat: (v) => totalTitle(v.threat),
-  interaction: (v) => totalTitle(v.interaction),
-  wincons: (v) => totalTitle(v.wincons),
+  salt: (v) => scoreTitle(v.salt, 'saltiness'),
+  synergy: (v) => scoreTitle(v.synergy, 'synergy'),
+  threat: (v) => scoreTitle(v.threat, 'threat'),
+  interaction: (v) => scoreTitle(v.interaction, 'interaction'),
+  wincons: (v) => scoreTitle(v.wincons, 'win conditions'),
 };
 
 // Build/rebuild one row's metric cells from its current view, inserted before the
