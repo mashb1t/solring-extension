@@ -176,8 +176,10 @@
 /* Colour produced vs required: grey "required" bar over a "produced" bar, both on one
    shared count scale (×ratio label). The mana colour rides on the letter; the produced
    fill stays the neutral accent, turning red only on a real deficit. */
-.solring-mb-cp-row { display: grid; grid-template-columns: 1.4rem 1fr 2.6rem; align-items: center; gap: 0.4rem; margin: 0.34rem 0; }
-.solring-mb-cp-c { font-size: 0.72rem; font-weight: 700; text-align: center; }
+/* Same grid as the other bar widgets (3.6rem 1fr 2.4rem, gap 0.5rem) so the colour
+   letters, bars and values line up with Mana quality and the source breakdown. */
+.solring-mb-cp-row { display: grid; grid-template-columns: 3.6rem 1fr 2.4rem; align-items: center; gap: 0.5rem; margin: 0.34rem 0; }
+.solring-mb-cp-c { font-size: 0.72rem; font-weight: 700; }
 .solring-mb-cp-w { color: #c9a94e; } .solring-mb-cp-u { color: #3b82f6; } .solring-mb-cp-b { color: #8b5cf6; }
 .solring-mb-cp-r { color: #ef4444; } .solring-mb-cp-g { color: #22c55e; }
 .solring-mb-cp-bars { display: flex; flex-direction: column; gap: 2px; }
