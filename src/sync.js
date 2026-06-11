@@ -1,6 +1,6 @@
-// Bulk analysis for the deck-list pages. Injects an "Analyze" dropdown (Analyze all /
-// Analyze uncached / Re-analyze all) + a status/last-analyzed label into the deck-list
-// toolbar (next to Moxfield's Sort). Operates on the decks currently rendered in the
+// Bulk analysis for the deck-list pages. Injects a "Stats" dropdown (Fetch all / Fetch
+// uncached / Re-analyze all) + a status/last-analyzed label into the deck-list toolbar
+// (next to Moxfield's Sort). Operates on the decks currently rendered in the
 // list (decklist.getEntries), minus private ones (CommanderSalt can't read those).
 // Sequential + throttled; one request per deck, never retried; cancelable; updates each
 // row + the averages as it goes. Verb mirrors the single-deck panel ("Analyze" /
@@ -72,7 +72,7 @@ async function run({ force = false, uncachedOnly = false }) {
   let failed = 0;
   for (const e of entries) {
     if (cancelFlag) break;
-    if (controls) controls.status.textContent = `${force ? 'Re-analyzing' : 'Analyzing'} ${done + 1}/${entries.length}…`;
+    if (controls) controls.status.textContent = `${force ? 'Re-analyzing' : 'Fetching'} ${done + 1}/${entries.length}…`;
     setRowSpinning(e.md5, true); // spin this deck's per-row ↻ while it's processing
     try {
       let res;
@@ -121,14 +121,15 @@ function caretIcon() {
   return svg;
 }
 
-// The three bulk scopes the "Analyze" dropdown offers. Each runs the same engine with
-// different flags; Re-analyze is confirm-gated (it POSTs one fresh analysis per deck).
+// The three bulk scopes the "Stats" dropdown offers. Fetch = retrieve CommanderSalt's
+// existing analysis (cheap GET); Re-analyze = force a fresh upstream recompute (POST,
+// confirm-gated). Each runs the same engine with different flags.
 const ANALYZE_ACTIONS = [
-  { label: 'Analyze all', title: 'Load stats for every listed (non-private) deck', go: () => run({ force: false }) },
-  { label: 'Analyze uncached', title: 'Load stats only for listed decks not already analyzed', go: () => run({ force: false, uncachedOnly: true }) },
+  { label: 'Fetch all', title: 'Fetch stats for every listed (non-private) deck', go: () => run({ force: false }) },
+  { label: 'Fetch uncached', title: 'Fetch stats only for listed decks not already loaded', go: () => run({ force: false, uncachedOnly: true }) },
   {
     label: 'Re-analyze all',
-    title: 'Force a fresh re-analysis of every listed (non-private) deck',
+    title: 'Force a fresh re-analysis (recompute) of every listed (non-private) deck',
     go: () => {
       const n = syncableEntries().length;
       // eslint-disable-next-line no-alert
@@ -171,8 +172,8 @@ function buildControls(btnClass) {
   }
   const analyzeBtn = el('button', {
     class: `${btnClass} solring-sync-btn solring-analyze-btn`,
-    attrs: { type: 'button', title: 'Bulk-analyze listed decks', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
-  }, [el('span', {}, ['Analyze']), caretIcon()]);
+    attrs: { type: 'button', title: 'Fetch CommanderSalt stats for the listed decks', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
+  }, [el('span', {}, ['Stats']), caretIcon()]);
   analyzeBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleAnalyzeMenu(dropdown); });
   const dropdown = el('div', { class: 'solring-analyze' }, [analyzeBtn, menu]);
 

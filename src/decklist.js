@@ -805,7 +805,7 @@ function buildColumnMenu(sortClassName) {
   const btn = el('button', {
     class: `${sortClassName || 'btn btn-outline btn-outline-primary text-nowrap'} solring-colmenu-btn`,
     attrs: { type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
-  }, [el('span', {}, [columnsIcon(), 'Stats'])]);
+  }, [el('span', {}, [columnsIcon(), 'Columns'])]);
   const inner = el('div', { class: 'dropdown-menu-parent', attrs: { tabindex: '-1' } }, [
     el('div', { class: 'dropdown-header small text-caps text-primary pb-1' }, [el('strong', { text: 'Statistics columns' })]),
   ]);
