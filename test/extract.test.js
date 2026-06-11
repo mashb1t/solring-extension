@@ -72,10 +72,13 @@ test('extractDeck shapes the deck combo list for display', () => {
   assert.ok(/commanderspellbook\.com/.test(c.spellbookUri));
 });
 
-test('extractDeck attaches synergy combos (anchors) to cards that have them', () => {
+test('extractDeck attaches synergy combos (anchors + score) to cards that have them', () => {
   const d = extractDeck(deck);
-  const withCombos = Object.values(d.cards).filter((c) => c.combos && c.combos.total > 0);
+  const withCombos = Object.values(d.cards).filter((c) => c.combos && c.combos.anchors && c.combos.anchors.length > 0);
   assert.ok(withCombos.length > 0, 'expected at least one card with synergy combos');
+  // synergy score = Σ conditionScoring.total (CommanderSalt's per-card anchor score)
+  assert.ok(withCombos.every((c) => typeof c.combos.score === 'number'), 'every combo carries a numeric score');
+  assert.ok(withCombos.some((c) => c.combos.score > 0), 'at least one card has a positive synergy score');
   const anchors = withCombos[0].combos.anchors;
   assert.ok(Array.isArray(anchors) && anchors.length > 0);
   // each anchor is { name, image } — image is the deck print, upgraded to the full card

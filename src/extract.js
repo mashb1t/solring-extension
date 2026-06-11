@@ -36,29 +36,39 @@ function titleCase(id) {
 // surface the union of those cards (the per-clause rules texts are redundant with
 // the card's own text). Each anchor is { name, image } so the chip can preview the
 // card's exact deck print on hover; idToCard maps anchor id → that card.
+const SYN_ANCHOR_CAP = 20; // ranked partners kept per card (panel shows 8, rest expand)
+
 function cardCombos(synergy, id, idToCard) {
   const node = g(synergy, 'list', id);
   if (!node || typeof node !== 'object') return null;
-  const ids = new Set();
-  let total = 0;
+  const weight = new Map(); // partner card id → its highest scoreBias across this card's effects
+  let total = 0; // number of synergy effect-clauses
+  let score = 0; // synergy SCORE: Σ conditionScoring.total — the same per-card number
+  //              CommanderSalt sums to rank a deck's synergy "anchors" (so it matches
+  //              the site). Far more discriminating than a raw partner count.
   for (const group of Object.values(node)) {
     if (!group || typeof group !== 'object') continue;
     for (const eff of Object.values(group)) {
       if (!eff || typeof eff !== 'object') continue;
       total += 1;
+      const cs = eff.conditionScoring;
+      if (cs && typeof cs.total === 'number') score += cs.total;
       for (const s of eff.cardsOfSupportingType || []) {
-        if (s && s.id) ids.add(s.id);
+        if (!s || !s.id) continue;
+        const bias = s.supportCondition && typeof s.supportCondition.scoreBias === 'number' ? s.supportCondition.scoreBias : 0;
+        weight.set(s.id, Math.max(weight.get(s.id) || 0, bias));
       }
     }
   }
-  if (!total || ids.size === 0) return null;
-  const anchors = [...ids].slice(0, 8).map((aid) => {
+  if (!total) return null;
+  // Anchors = supporting cards ranked by scoreBias (most-relevant first), capped; the
+  // panel shows the top 8 and expands to the rest. A card can score via commanderBonus
+  // with no supporting cards (anchors empty) — still surface its score.
+  const anchors = [...weight.entries()].sort((a, b) => b[1] - a[1]).slice(0, SYN_ANCHOR_CAP).map(([aid]) => {
     const c = idToCard && idToCard[aid];
     return { name: (c && c.name) || titleCase(aid), image: (c && c.image) || null };
   });
-  // `count` = how many distinct cards this one synergizes with (the full set, not the
-  // 8-chip display cap) — surfaced as the per-card "Synergies" column.
-  return { total, count: ids.size, anchors };
+  return { total, count: weight.size, score: Math.round(score * 10) / 10, anchors };
 }
 
 // Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.

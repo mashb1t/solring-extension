@@ -79,13 +79,15 @@ export function annotate(fields, prefs, options = {}) {
         title: 'saltiness',
       }));
     }
-    // Synergies = how many cards this one synergizes with (CommanderSalt "outgoing
-    // impact"). 3rd numeric column after power + salt; shows 0 when the card feeds none.
+    // Synergy score (CommanderSalt outgoing-impact score — the same number it sums to
+    // rank a deck's synergy anchors). 3rd numeric column beside Power/Salt contribution;
+    // 0 when the card has no synergy.
     if (prefs.synergies) {
+      const synScore = card.combos && typeof card.combos.score === 'number' ? Math.round(card.combos.score) : 0;
       place(el('span', {
         class: 'solring-syn-cell text-end solring-card-anno',
-        text: String((card.combos && card.combos.count) || 0),
-        title: 'synergies (cards this one feeds)',
+        text: String(synScore),
+        title: 'synergy score',
       }));
     }
 

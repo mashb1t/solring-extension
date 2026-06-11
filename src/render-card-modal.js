@@ -179,13 +179,16 @@ function deckPrintMap() {
   return map;
 }
 
-// Synergy anchor chips — each previews the card's deck print on hover (the deck's
-// selected art when the card is on the page, else CommanderSalt's default print)
-// and, for cards in the deck, opens Moxfield's card view on click.
+// Synergy anchor chips — ranked by scoreBias (most-relevant partner first). Each previews
+// the card's deck print on hover (the deck's selected art when the card is on the page,
+// else CommanderSalt's default print) and, for cards in the deck, opens Moxfield's card
+// view on click. Only the top SYN_VISIBLE show initially; a "+N more" toggle reveals the
+// rest (anchors are already capped upstream at SYN_ANCHOR_CAP).
+const SYN_VISIBLE = 8;
 function synChips(anchors) {
   installCardHover();
   const prints = deckPrintMap();
-  return el('div', { class: 'solring-cm-chips' }, anchors.map((a) => {
+  const mkChip = (a) => {
     const hit = prints[normName(a.name)];
     const deckImg = hit && hit.img;
     const primary = deckImg || a.image; // deck's selected art, else CommanderSalt print
@@ -196,7 +199,25 @@ function synChips(anchors) {
     if (deckImg && a.image && a.image !== deckImg) attrs['data-img-cs'] = a.image;
     if (hit && hit.href) { attrs['data-href'] = hit.href; attrs.role = 'link'; attrs.tabindex = '0'; }
     return el('span', { class: 'solring-tag solring-syn-chip', text: a.name, attrs });
-  }));
+  };
+  const cont = el('div', { class: 'solring-cm-chips' });
+  anchors.forEach((a, i) => {
+    const chip = mkChip(a);
+    if (i >= SYN_VISIBLE) chip.classList.add('solring-syn-hidden');
+    cont.append(chip);
+  });
+  const hidden = anchors.length - SYN_VISIBLE;
+  if (hidden > 0) {
+    const more = el('button', { class: 'solring-syn-more', attrs: { type: 'button' }, text: `+${hidden} more` });
+    more.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      cont.querySelectorAll('.solring-syn-hidden').forEach((n) => n.classList.remove('solring-syn-hidden'));
+      more.remove();
+    });
+    cont.append(more);
+  }
+  return cont;
 }
 
 function bars(title, arr) {
