@@ -1,5 +1,5 @@
 // Bulk analysis for the deck-list pages. Injects a "Stats" dropdown (Fetch all / Fetch
-// uncached / Re-analyze all) + a status/last-analyzed label into the deck-list toolbar
+// uncached / Recalculate all) + a status/last-analyzed label into the deck-list toolbar
 // (next to Moxfield's Sort). Operates on the decks currently rendered in the
 // list (decklist.getEntries), minus private ones (CommanderSalt can't read those).
 // Sequential + throttled; one request per deck, never retried; cancelable; updates each
@@ -72,7 +72,7 @@ async function run({ force = false, uncachedOnly = false }) {
   let failed = 0;
   for (const e of entries) {
     if (cancelFlag) break;
-    if (controls) controls.status.textContent = `${force ? 'Re-analyzing' : 'Fetching'} ${done + 1}/${entries.length}…`;
+    if (controls) controls.status.textContent = `${force ? 'Recalculating' : 'Fetching'} ${done + 1}/${entries.length}…`;
     setRowSpinning(e.md5, true); // spin this deck's per-row ↻ while it's processing
     try {
       let res;
@@ -122,18 +122,18 @@ function caretIcon() {
 }
 
 // The three bulk scopes the "Stats" dropdown offers. Fetch = retrieve CommanderSalt's
-// existing analysis (cheap GET); Re-analyze = force a fresh upstream recompute (POST,
+// existing analysis (cheap GET); Recalculate = force a fresh upstream recompute (POST,
 // confirm-gated). Each runs the same engine with different flags.
 const ANALYZE_ACTIONS = [
   { label: 'Fetch all', title: 'Fetch stats for every listed (non-private) deck', go: () => run({ force: false }) },
   { label: 'Fetch uncached', title: 'Fetch stats only for listed decks not already loaded', go: () => run({ force: false, uncachedOnly: true }) },
   {
-    label: 'Re-analyze all',
-    title: 'Force a fresh re-analysis (recompute) of every listed (non-private) deck',
+    label: 'Recalculate all',
+    title: 'Force CommanderSalt to recompute every listed (non-private) deck from scratch',
     go: () => {
       const n = syncableEntries().length;
       // eslint-disable-next-line no-alert
-      if (window.confirm(`Re-analyze all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
+      if (window.confirm(`Recalculate all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
     },
   },
 ];
