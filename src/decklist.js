@@ -166,6 +166,11 @@ export function getEntries() {
   }
   return out;
 }
+/** True if this deck's full analysis is loaded (i.e. the row shows stats, not a blank).
+    Used by bulk sync's "uncached only" scope to skip decks we already have. */
+export function isCached(md5) {
+  return fullByMd5.has(md5);
+}
 
 // ---- hit loading -------------------------------------------------------------
 

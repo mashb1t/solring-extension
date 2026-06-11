@@ -485,6 +485,18 @@
    sync controls is identical to the gaps between More Filters / Stats / Sort. */
 .solring-sync { display: inline-flex; align-items: center; gap: 1rem; }
 .solring-sync-status { font-size: 0.78rem; color: var(--solring-text-2); white-space: nowrap; }
+/* "Analyze" split-dropdown: parent button + scope menu. Mirrors the Stats menu's
+   positioning (Moxfield's .dropdown-menu base is Popper-oriented; we pin it below the
+   button). Right-aligned (opens leftward into the toolbar) since the button sits in the
+   right-hand control cluster — left-aligning would run the menu off the viewport edge. */
+.solring-analyze { position: relative; display: inline-flex; align-items: center; }
+.solring-analyze .dropdown-menu {
+  position: absolute !important;
+  top: 100% !important; right: 0 !important; left: auto !important; bottom: auto !important;
+  transform: none !important;
+  margin-top: 0.3rem;
+}
+.solring-analyze .dropdown-item { margin: 0; cursor: pointer; white-space: nowrap; }
 
 /* Drag-to-reorder the metric rows (DnD lives in our own menu DOM, not the table). */
 .solring-grip { cursor: grab; opacity: 0.5; font-size: 0.9em; line-height: 1; }
