@@ -163,19 +163,22 @@ function qualityBlock(m) {
     .filter(([, v]) => typeof v === 'number');
   if (!axes.length) return null;
   const max = Math.max(...axes.map(([, v]) => v), 100);
-  const frac = Math.min(1, 100 / max); // marker x as a fraction of the bar column
   const rows = axes.map(([label, v]) => barRow(label, String(Math.round(v)), (v / max) * 100));
-  // One continuous line over the bar column: its left = the column's start (label 3.6rem +
-  // gap 0.5rem) plus frac of the column width (track − labels 3.6rem − value 2.4rem − two
-  // 0.5rem gaps = track − 7rem). Matches the .solring-mb-col-bars .solring-pl-row grid.
-  const line = el('div', {
-    class: 'solring-pl-markline',
-    attrs: { title: '100 benchmark', 'aria-hidden': 'true' },
-    style: `left: calc(4.1rem + ${frac.toFixed(3)} * (100% - 7rem))`,
-  });
+  // Show the 100 line only when something clears it (max > 100); at ≤ 100 it would just sit
+  // at the end of the longest bar and say nothing. One continuous line over the bar column:
+  // left = column start (label 3.6rem + gap 0.5rem) + frac of the column width (track −
+  // labels 3.6rem − value 2.4rem − two 0.5rem gaps = track − 7rem). Matches the row grid.
+  const children = [...rows];
+  if (max > 100) {
+    children.push(el('div', {
+      class: 'solring-pl-markline',
+      attrs: { title: '100 benchmark', 'aria-hidden': 'true' },
+      style: `left: calc(4.1rem + ${(100 / max).toFixed(3)} * (100% - 7rem))`,
+    }));
+  }
   return el('div', { class: 'solring-mb-block' }, [
     el('div', { class: 'solring-pl-h', text: 'Mana quality' }),
-    el('div', { class: 'solring-mb-quality' }, [...rows, line]),
+    el('div', { class: 'solring-mb-quality' }, children),
   ]);
 }
 
