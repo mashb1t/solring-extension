@@ -116,6 +116,7 @@ function observeDecklist() {
 function installOnce() {
   if (installedOnce) return;
   installedOnce = true;
+  wireChartSync();                        // re-equalise manabase chart/tables height on resize
   installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
   installCardModal(() => currentFields, () => currentOptions);  // per-card Info panel (card-detail modal)
   installCardSidebar(() => currentFields, () => currentOptions); // …mirrored on the deck-page sidebar
@@ -137,6 +138,38 @@ function startAnnotations(fields) {
 // .accordion, default on — read live at toggle time) opening one closes the rest.
 // Reset by renderBody on each (re)render so stale entries don't accumulate.
 let expandGroup = [];
+
+// Pin the manabase chart cell's height to the bars column when they sit side by side
+// (one flex line) so the diagram and the tables end level — CSS stretch alone can't both
+// equalise the cells AND make the SVG fill. The `solring-fill` class switches the SVG
+// from natural aspect height to height:100%. Cleared when wrapped (each full-width), so
+// the chart keeps its natural height there. Runs after layout (rAF), on open + resize.
+function syncChartHeights(scope) {
+  for (const grid of (scope || document).querySelectorAll('.solring-mb-grid')) {
+    const bars = grid.querySelector('.solring-mb-col-bars');
+    const chart = grid.querySelector('.solring-mb-cell-chart');
+    if (!bars || !chart) continue;
+    chart.classList.remove('solring-fill'); // reset to natural before measuring
+    chart.style.height = '';
+    const rb = bars.getBoundingClientRect();
+    const rc = chart.getBoundingClientRect();
+    const sideBySide = Math.abs(rb.top - rc.top) < 2 && Math.round(rb.left) !== Math.round(rc.left);
+    if (sideBySide) {
+      chart.style.height = `${Math.round(bars.offsetHeight)}px`;
+      chart.classList.add('solring-fill');
+    }
+  }
+}
+let chartSyncWired = false;
+function wireChartSync() {
+  if (chartSyncWired) return;
+  chartSyncWired = true;
+  let raf = null;
+  window.addEventListener('resize', () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = null; syncChartHeights(document); });
+  });
+}
 
 // Make a tile expand/collapse a detail section (appended to `body`, hidden by
 // default). The chevron swaps glyph on toggle (⌄ closed / ⌃ open) — no rotation.
@@ -163,6 +196,8 @@ function makeExpandable(tile, section, body) {
       for (const e of expandGroup) if (e !== entry) e.close();
     }
     setOpen(willOpen);
+    // Equalise the manabase chart/tables heights once the section is laid out.
+    if (willOpen && section.querySelector('.solring-mb-grid')) requestAnimationFrame(() => syncChartHeights(section));
   };
   tile.addEventListener('click', toggle);
   tile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });

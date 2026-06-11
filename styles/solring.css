@@ -137,7 +137,7 @@
 .solring-panel-section[hidden] { display: none; }
 .solring-pl-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-bottom: 0.4rem; }
 /* One-line description under a group header (e.g. Synergy → Anchors / Hubs). */
-.solring-pl-desc { font-size: 0.7rem; color: var(--solring-text-2); margin: -0.25rem 0 0.45rem; line-height: 1.3; }
+.solring-pl-desc { font-size: 0.7rem; color: var(--solring-text-2); margin: 0.4rem 0; line-height: 1.3; }
 /* Synergy lays its groups (Anchors / Hubs) side by side when there's room, collapsing
    to one column when narrow. auto-fit + minmax keys off the panel's real width (so it
    stacks on small viewports without a fixed media query); grid gap spaces both axes, so
@@ -163,10 +163,8 @@
 
 /* Manabase content row: two balanced columns — the stacked bar widgets (Mana quality,
    Colour coverage, source breakdown) beside the castability chart. Each grows equally and
-   wraps to a full-width block when the panel is too narrow to hold both. When they DO sit
-   on one line, align-items:stretch makes both columns equal height (the tables drive it)
-   and the chart's SVG fills to match — so the diagram and the tables end level. */
-.solring-mb-grid { display: flex; flex-wrap: wrap; gap: 0.9rem 1.6rem; align-items: stretch; }
+   wraps to a full-width block when the panel is too narrow to hold both. */
+.solring-mb-grid { display: flex; flex-wrap: wrap; gap: 0.9rem 1.6rem; align-items: flex-start; }
 /* Spacing between the stacked widgets is handled by the divider rule below (gap 0). */
 .solring-mb-col-bars { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 0; }
 .solring-mb-cell-chart { flex: 1 1 240px; display: flex; flex-direction: column; }
@@ -178,12 +176,13 @@
 .solring-mb-block + .solring-mb-block { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--solring-border); }
 .solring-mb-fig { margin: 0.3rem 0 0.15rem; }
 .solring-mb-fig svg { width: 100%; height: auto; display: block; }
-/* Chart cell: title + figure stack; the figure (chart wrap + legend) grows to fill the
-   stretched cell so the SVG matches the tables' height. */
-.solring-mb-cell-chart > .solring-mb-fig { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.solring-mb-cell-chart .solring-mc-wrap { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
-.solring-mb-cell-chart .solring-mc-plot { min-height: 0; }
-.solring-mb-cell-chart svg.solring-mc { height: 100%; }
+/* Side-by-side only (JS adds .solring-fill + pins the cell height to the bars column):
+   the figure fills the cell and the SVG stretches to height:100% so the diagram ends
+   level with the tables. Without the class the chart keeps its natural aspect height. */
+.solring-mb-cell-chart.solring-fill > .solring-mb-fig { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.solring-mb-cell-chart.solring-fill .solring-mc-wrap { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
+.solring-mb-cell-chart.solring-fill .solring-mc-plot { min-height: 0; }
+.solring-mb-cell-chart.solring-fill svg.solring-mc { height: 100%; }
 
 /* Colour produced vs required: grey "required" bar over a "produced" bar, both on one
    shared count scale (×ratio label). The mana colour rides on the letter; the produced
