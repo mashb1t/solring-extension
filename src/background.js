@@ -5,7 +5,7 @@
 
 import { getDeckById, searchByAuthor, importByUrl } from './api.js';
 import { extractDeck, extractHit, isStub } from './extract.js';
-import { getEntry, setEntry, isFresh, dedupe } from './cache.js';
+import { getEntry, setEntry, isFresh, dedupe, SCHEMA_VERSION } from './cache.js';
 
 async function fetchAndCacheDeck(md5) {
   const key = `deck:${md5}`;
@@ -20,11 +20,13 @@ async function fetchAndCacheDeck(md5) {
 
 // allowFetch=false → cache-only (returns {miss:true} on a cold miss). maxAgeMs>0 →
 // entries older than that count as stale: re-GET when allowFetch, else returned with
-// {stale:true}. Defaults preserve the old behavior (cache-or-GET).
+// {stale:true}. Schema-stale entries (older SCHEMA_VERSION) are likewise not fresh, so a
+// field added to extractDeck backfills on the next allow-fetch read. Defaults preserve
+// the old behavior (cache-or-GET).
 async function getDeck({ md5, allowFetch = true, maxAgeMs = 0 }) {
   const key = `deck:${md5}`;
   const entry = await getEntry(key);
-  const fresh = entry && (!maxAgeMs || Date.now() - entry.fetchedAt < maxAgeMs);
+  const fresh = entry && entry.v === SCHEMA_VERSION && (!maxAgeMs || Date.now() - entry.fetchedAt < maxAgeMs);
   if (entry && fresh) return { fields: entry.data, cached: true, fetchedAt: entry.fetchedAt };
   if (allowFetch) return fetchAndCacheDeck(md5); // cold miss or stale → GET + cache
   if (entry) return { fields: entry.data, cached: true, stale: true, fetchedAt: entry.fetchedAt };

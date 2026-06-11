@@ -4,6 +4,13 @@
 
 export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// Bump whenever extractDeck / extractHit change the SHAPE of the fields we cache (a new
+// field, a renamed/removed one, a changed unit). Entries written by an older extractor
+// carry an older `v` (or none) and are treated as stale: served for display continuity
+// but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
+// without a manual Clear cache or Re-analyze. History: 1 = pre-manabase; 2 = + manabase.
+export const SCHEMA_VERSION = 2;
+
 const inFlight = new Map();
 
 export async function getEntry(key) {
@@ -26,7 +33,7 @@ export async function evictOldestCache(fraction = 0.25) {
 }
 
 export async function setEntry(key, data) {
-  const entry = { fetchedAt: Date.now(), data };
+  const entry = { v: SCHEMA_VERSION, fetchedAt: Date.now(), data };
   try {
     await chrome.storage.local.set({ [key]: entry });
   } catch (e) {
@@ -45,7 +52,7 @@ export async function setEntry(key, data) {
 }
 
 export function isFresh(entry, ttl = TTL_MS) {
-  return !!entry && Date.now() - entry.fetchedAt < ttl;
+  return !!entry && entry.v === SCHEMA_VERSION && Date.now() - entry.fetchedAt < ttl;
 }
 
 // Cached analyses only — deck:* and search:* entries (not prefs:* / sync:*).

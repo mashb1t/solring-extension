@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setEntry, evictOldestCache } from '../src/cache.js';
+import { setEntry, evictOldestCache, isFresh, SCHEMA_VERSION } from '../src/cache.js';
 
 // Minimal in-memory chrome.storage.local with a byte quota (JSON length as a proxy).
 // set() rejects with a quota error once the store would exceed the cap, like Chrome.
@@ -37,6 +37,21 @@ test('setEntry persists normally when there is room', async () => {
   const e = await setEntry('deck:abc', { power: 8 });
   assert.equal(store['deck:abc'].data.power, 8);
   assert.equal(typeof e.fetchedAt, 'number');
+});
+
+test('setEntry stamps the current SCHEMA_VERSION', async () => {
+  const { store, chrome } = makeChrome(1e6);
+  global.chrome = chrome;
+  await setEntry('deck:ver', { power: 8 });
+  assert.equal(store['deck:ver'].v, SCHEMA_VERSION);
+});
+
+test('isFresh: schema-stale (old/missing v) entries are not fresh, even when recent', () => {
+  const now = Date.now();
+  assert.ok(isFresh({ v: SCHEMA_VERSION, fetchedAt: now, data: {} }), 'current version + recent → fresh');
+  assert.ok(!isFresh({ v: SCHEMA_VERSION - 1, fetchedAt: now, data: {} }), 'older version → stale (backfills new fields)');
+  assert.ok(!isFresh({ fetchedAt: now, data: {} }), 'unversioned (pre-guard) entry → stale');
+  assert.ok(!isFresh({ v: SCHEMA_VERSION, fetchedAt: 0, data: {} }), 'current version but past TTL → stale');
 });
 
 test('setEntry evicts the oldest cached analyses + retries when storage is full', async () => {
