@@ -127,7 +127,13 @@ function ensureControls() {
   const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()) && !b.closest('.solring-colmenu'));
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-sync')) return;
-  toolbar.insertBefore(buildControls(sortBtn.className), sortBtn);
+  // Land before the Stats-columns menu when it's already in place, so the toolbar order
+  // is deterministically [Analyze all · Re-analyze all] [Stats] [Sort] on every page —
+  // not dependent on which of us won the insert race (else Stats can slip ahead on
+  // /users/{name}). If the menu hasn't injected yet, before Sort works: the menu then
+  // inserts before Sort too, landing after us.
+  const anchor = toolbar.querySelector(':scope > .solring-colmenu') || sortBtn;
+  toolbar.insertBefore(buildControls(sortBtn.className), anchor);
 }
 function schedule() {
   if (raf) return;
