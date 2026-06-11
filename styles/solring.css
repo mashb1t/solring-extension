@@ -481,7 +481,9 @@
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
 /* Bulk-analysis controls (Analyze all / Re-analyze all) in the deck-list toolbar.
    Buttons copy Moxfield's Sort styling; only the wrapper + status need styling. */
-.solring-sync { display: inline-flex; align-items: center; gap: 0.4rem; }
+/* gap matches Moxfield's toolbar (.d-flex.gap-3 = 1rem) so the spacing between the
+   sync controls is identical to the gaps between More Filters / Stats / Sort. */
+.solring-sync { display: inline-flex; align-items: center; gap: 1rem; }
 .solring-sync-status { font-size: 0.78rem; color: var(--solring-text-2); white-space: nowrap; }
 
 /* Drag-to-reorder the metric rows (DnD lives in our own menu DOM, not the table). */
