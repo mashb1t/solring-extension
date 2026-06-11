@@ -496,14 +496,15 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
   position: absolute !important;
   top: 100% !important; right: 0 !important; left: auto !important; bottom: auto !important;
   transform: none !important;
-  margin-top: 0.3rem; max-height: 75vh; overflow-y: auto;
+  max-height: 75vh;
+  overflow-y: auto;
 }
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
 /* Bulk-analysis controls (Analyze all / Re-analyze all) in the deck-list toolbar.
    Buttons copy Moxfield's Sort styling; only the wrapper + status need styling. */
 /* gap matches Moxfield's toolbar (.d-flex.gap-3 = 1rem) so the spacing between the
    sync controls is identical to the gaps between More Filters / Stats / Sort. */
-.solring-sync { display: inline-flex; align-items: center; gap: 1rem; }
+.solring-sync { display: inline-flex; align-items: center; }
 .solring-sync-status { font-size: 0.78rem; color: var(--solring-text-2); white-space: nowrap; }
 /* "Analyze" split-dropdown: parent button + scope menu. Mirrors the Stats menu's
    positioning (Moxfield's .dropdown-menu base is Popper-oriented; we pin it below the
@@ -514,7 +515,6 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
   position: absolute !important;
   top: 100% !important; right: 0 !important; left: auto !important; bottom: auto !important;
   transform: none !important;
-  margin-top: 0.3rem;
 }
 .solring-analyze .dropdown-item { margin: 0; cursor: pointer; white-space: nowrap; }
 
