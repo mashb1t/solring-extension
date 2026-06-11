@@ -154,6 +154,26 @@ function diagramCell(title, svgHtml, caption) {
   ]);
 }
 
+// The three quality axes (Fixing / Quality / Curve) on ONE shared scale — the highest of
+// the three fills its bar — with a 100-benchmark marker at the same x on every row, so you
+// can read which axes clear par and by how much. Scale floored at 100 so the marker stays
+// on the track even if all three are below benchmark.
+function qualityRows(m) {
+  const axes = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
+    .filter(([, v]) => typeof v === 'number');
+  if (!axes.length) return [];
+  const max = Math.max(...axes.map(([, v]) => v), 100);
+  const markerPct = Math.min(100, (100 / max) * 100);
+  return axes.map(([label, v]) => el('div', { class: 'solring-pl-row' }, [
+    el('span', { class: 'solring-pl-label', text: label }),
+    el('span', { class: 'solring-pl-bar' }, [
+      el('span', { style: `width:${Math.max(0, Math.min(100, (v / max) * 100)).toFixed(1)}%` }),
+      el('span', { class: 'solring-pl-mark', attrs: { title: '100 benchmark' }, style: `left:${markerPct.toFixed(1)}%` }),
+    ]),
+    el('span', { class: 'solring-pl-val', text: String(Math.round(v)) }),
+  ]));
+}
+
 // A titled block of bar rows for the bars column (Mana quality / Colour coverage).
 // `content` is either an array of row elements or an HTML string.
 function barBlock(title, content, caption) {
@@ -238,12 +258,10 @@ export function buildManabasePanel(m) {
   ]));
 
   // Column 1: the three bar widgets stacked — Mana quality, Colour coverage, and the
-  // mana-source breakdown (all share the label·bar·value language). Axis bars are /100,
-  // each vs its own 100 benchmark (100 = met; bonuses cap full).
+  // mana-source breakdown (all share the label·bar·value language). Mana quality bars
+  // share one scale (highest fills) with a 100-benchmark marker — see qualityRows.
   const barsCol = [];
-  const rows = [['Fixing', m.fixing], ['Quality', m.quality], ['Curve', m.curveScore]]
-    .filter(([, v]) => typeof v === 'number')
-    .map(([label, v]) => barRow(label, String(Math.round(v)), v));
+  const rows = qualityRows(m);
   if (rows.length) barsCol.push(barBlock('Mana quality', rows, null));
   const cpr = colorReqProdChart(m.perColor);
   if (cpr) barsCol.push(barBlock('Colour produced vs required', cpr, 'Grey = required · red = under-produced'));

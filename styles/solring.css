@@ -147,8 +147,10 @@
 .solring-pl-label { color: var(--solring-text-2); }
 /* display:block so the track keeps its height when used as a plain child (the
    modal's stacked rows) and not only as a grid item (the deck panel rows). */
-.solring-pl-bar { display: block; height: 6px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
+.solring-pl-bar { position: relative; display: block; height: 6px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
+/* 100-benchmark marker on the Mana-quality bars (more specific than the fill rule above). */
+.solring-pl-bar > .solring-pl-mark { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--solring-text-2); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
 
 /* Manabase header band: title + headline score, then the stat tiles, behind a divider. */
