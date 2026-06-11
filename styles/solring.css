@@ -150,10 +150,19 @@
 .solring-pl-bar { display: block; height: 6px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
 .solring-pl-bar > span { display: block; height: 100%; background: var(--solring-accent); }
 .solring-pl-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--solring-text-2); }
-/* Mana-quality 100-benchmark line: one vertical rule over the bar column spanning all
-   three rows top-to-bottom (positioned via the inline left calc in qualityBlock). */
-.solring-mb-quality { position: relative; }
+/* Benchmark line: one vertical rule over the bar column spanning the rows top-to-bottom
+   (positioned via the inline left calc in qualityBlock / buildPowerPanel). */
+.solring-mb-quality, .solring-pw-rows { position: relative; }
 .solring-pl-markline { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--solring-text-2); pointer-events: none; }
+
+/* Power pillars vs baseline: header with a Casual/cEDH toggle over the bar rows. */
+.solring-pw-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.solring-pw-head .solring-pl-h { margin-bottom: 0; }
+.solring-pw-toggle { display: inline-flex; border: 1px solid var(--solring-border); border-radius: 5px; overflow: hidden; }
+.solring-pw-btn { font: inherit; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.12rem 0.55rem; background: transparent; border: 0; color: var(--solring-text-2); cursor: pointer; }
+.solring-pw-btn + .solring-pw-btn { border-left: 1px solid var(--solring-border); }
+.solring-pw-btn.solring-pw-on { background: var(--solring-accent); color: #fff; }
+.solring-pw-btn:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
 
 /* Manabase header band: title + headline score, then the stat tiles, behind a divider. */
 .solring-mb-head { padding-bottom: 0.6rem; margin-bottom: 0.7rem; border-bottom: 1px solid var(--solring-border); }
@@ -195,8 +204,11 @@
    letters, bars and values line up with Mana quality and the source breakdown. */
 .solring-mb-cp-row { display: grid; grid-template-columns: 3.6rem 1fr 2.4rem; align-items: center; gap: 0.5rem; margin: 0.34rem 0; }
 .solring-mb-cp-c { font-size: 0.72rem; font-weight: 700; }
-.solring-mb-cp-w { color: #c9a94e; } .solring-mb-cp-u { color: #3b82f6; } .solring-mb-cp-b { color: #8b5cf6; }
-.solring-mb-cp-r { color: #ef4444; } .solring-mb-cp-g { color: #22c55e; }
+.solring-mb-cp-w { color: #c9a94e; }
+.solring-mb-cp-u { color: #3b82f6; }
+.solring-mb-cp-b { color: var(--solring-text); }
+.solring-mb-cp-r { color: #ef4444; }
+.solring-mb-cp-g { color: #22c55e; }
 .solring-mb-cp-bars { display: flex; flex-direction: column; gap: 2px; }
 .solring-mb-cp-track { height: 5px; background: var(--solring-surface-2); border-radius: 3px; overflow: hidden; }
 .solring-mb-cp-track > span { display: block; height: 100%; }

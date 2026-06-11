@@ -28,11 +28,48 @@ export function buildSaltPanel(sources) {
   return section('Salt sources', sources.map((s) => barRow(prettifyStat(s.cat), s.score.toFixed(1), (s.score / max) * 100)));
 }
 
-export function buildPowerPanel(pillars) {
-  const order = [['consistency', 'Consistency'], ['efficiency', 'Efficiency'], ['interaction', 'Interaction'], ['winConditions', 'Win conditions'], ['manabase', 'Manabase']];
-  return section('Power pillars', order
-    .filter(([k]) => typeof pillars[k] === 'number')
-    .map(([k, label]) => barRow(label, `${Math.round(pillars[k] * 100)}%`, pillars[k] * 100)));
+const POWER_ORDER = [
+  ['consistency', 'Consistency'], ['efficiency', 'Efficiency'], ['interaction', 'Interaction'],
+  ['winConditions', 'Win conditions'], ['manabase', 'Manabase'],
+];
+// Power pillars vs a baseline, like CommanderSalt's "compare pillar scores against baseline":
+// each pillar's raw score ÷ the baseline, as a %. Bars share one scale (highest fills) with
+// a 100% baseline line. A Casual/cEDH toggle re-renders in place (casual omits Manabase; cEDH
+// includes it). Pass { scores, casual, cedh } from extract.powerPillars.
+export function buildPowerPanel(p) {
+  const scores = (p && p.scores) || {};
+  const baselines = { casual: (p && p.casual) || {}, cedh: (p && p.cedh) || {} };
+  const head = el('div', { class: 'solring-pw-head' }, [
+    el('span', { class: 'solring-pl-h', text: 'Power pillars vs baseline' }),
+    el('div', { class: 'solring-pw-toggle' }, [
+      el('button', { class: 'solring-pw-btn', attrs: { type: 'button', 'data-mode': 'casual' }, text: 'Casual' }),
+      el('button', { class: 'solring-pw-btn', attrs: { type: 'button', 'data-mode': 'cedh' }, text: 'cEDH' }),
+    ]),
+  ]);
+  const rows = el('div', { class: 'solring-pw-rows' });
+  const render = (mode) => {
+    rows.replaceChildren();
+    head.querySelectorAll('.solring-pw-btn').forEach((b) => b.classList.toggle('solring-pw-on', b.getAttribute('data-mode') === mode));
+    const base = baselines[mode] || {};
+    const items = POWER_ORDER
+      .filter(([k]) => typeof scores[k] === 'number' && typeof base[k] === 'number')
+      .map(([k, label]) => ({ label, pct: (scores[k] / base[k]) * 100 }));
+    if (!items.length) return;
+    const max = Math.max(...items.map((i) => i.pct), 100);
+    for (const it of items) rows.append(barRow(it.label, `${Math.round(it.pct)}%`, (it.pct / max) * 100));
+    // 100% baseline line over the bar column (base grid 9rem 1fr 3rem, gap 0.5rem →
+    // column starts at 9.5rem, width = track − 13rem).
+    rows.append(el('div', {
+      class: 'solring-pl-markline',
+      attrs: { title: 'baseline (100%)', 'aria-hidden': 'true' },
+      style: `left: calc(9.5rem + ${(100 / max).toFixed(3)} * (100% - 13rem))`,
+    }));
+  };
+  head.querySelectorAll('.solring-pw-btn').forEach((b) => b.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation(); render(b.getAttribute('data-mode'));
+  }));
+  render('casual');
+  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, rows]);
 }
 
 export function buildArchetypePanel(majors, label) {

@@ -253,7 +253,7 @@ function renderBody(body, f) {
   // Each tile expands its own detail panel (hidden until clicked).
   if (hasCombos) makeExpandable(winconsTile, buildCombosSection(f.combos), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && Object.keys(f.powerPillars).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars), body);
   if (f.bracketCategories && f.bracketCategories.length) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
   if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);

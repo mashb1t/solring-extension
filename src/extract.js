@@ -189,13 +189,19 @@ function saltSources(dt) {
     .map(([cat, v]) => ({ cat, score: v.score }))
     .sort((a, b) => b.score - a.score);
 }
+// Power pillars as raw scores vs their casual / cEDH baselines — what CommanderSalt plots
+// in "compare pillar scores against baseline" (score ÷ baseline). NOT ratings.spike.* (a
+// normalized 0–1 internal rating that maps to nothing the site shows). Casual baseline
+// omits manabase; the cEDH (spike) baseline includes it.
 function powerPillars(dt) {
-  const s = g(dt, 'powerLevel', 'ratings', 'spike') || {};
-  const out = {};
-  for (const k of ['consistency', 'efficiency', 'interaction', 'winConditions', 'manabase']) {
-    if (typeof s[k] === 'number') out[k] = s[k];
-  }
-  return out;
+  const sc = g(dt, 'powerLevel', 'scoring') || {};
+  const bv = g(dt, 'powerLevel', 'baseValues') || {};
+  const PILLARS = ['consistency', 'efficiency', 'interaction', 'winConditions', 'manabase'];
+  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  const scores = {};
+  for (const k of PILLARS) { const v = num(g(sc, k, 'score')); if (v != null) scores[k] = v; }
+  const pick = (obj) => { const o = {}; for (const k of PILLARS) if (typeof (obj || {})[k] === 'number') o[k] = obj[k]; return o; };
+  return { scores, casual: pick(bv.casual), cedh: pick(bv.spike) };
 }
 function bracketCategories(dt) {
   const cats = g(dt, 'brackets', 'categories') || {};
