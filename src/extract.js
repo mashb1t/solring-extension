@@ -191,12 +191,13 @@ function saltSources(dt) {
 }
 // Power pillars as raw scores vs their casual / cEDH baselines — what CommanderSalt plots
 // in "compare pillar scores against baseline" (score ÷ baseline). NOT ratings.spike.* (a
-// normalized 0–1 internal rating that maps to nothing the site shows). Casual baseline
-// omits manabase; the cEDH (spike) baseline includes it.
+// normalized 0–1 internal rating that maps to nothing the site shows). Manabase is omitted:
+// its pillar score is capped at the baseline, so it's always 100% (the real manabase signal
+// lives in the manabase section).
 function powerPillars(dt) {
   const sc = g(dt, 'powerLevel', 'scoring') || {};
   const bv = g(dt, 'powerLevel', 'baseValues') || {};
-  const PILLARS = ['consistency', 'efficiency', 'interaction', 'winConditions', 'manabase'];
+  const PILLARS = ['consistency', 'efficiency', 'interaction', 'winConditions'];
   const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
   const scores = {};
   for (const k of PILLARS) { const v = num(g(sc, k, 'score')); if (v != null) scores[k] = v; }

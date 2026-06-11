@@ -30,12 +30,12 @@ export function buildSaltPanel(sources) {
 
 const POWER_ORDER = [
   ['consistency', 'Consistency'], ['efficiency', 'Efficiency'], ['interaction', 'Interaction'],
-  ['winConditions', 'Win conditions'], ['manabase', 'Manabase'],
-];
+  ['winConditions', 'Win conditions'],
+]; // Manabase is excluded — its pillar score is capped at the baseline, so it's always 100%.
 // Power pillars vs a baseline, like CommanderSalt's "compare pillar scores against baseline":
-// each pillar's raw score ÷ the baseline, as a %. Bars share one scale (highest fills) with
-// a 100% baseline line. A Casual/cEDH toggle re-renders in place (casual omits Manabase; cEDH
-// includes it). Pass { scores, casual, cedh } from extract.powerPillars.
+// each pillar's raw score ÷ the baseline, as a %. Bars share one scale (highest fills) with a
+// 100% baseline line. A Casual/cEDH toggle re-renders in place. Pass { scores, casual, cedh }
+// from extract.powerPillars.
 export function buildPowerPanel(p) {
   const scores = (p && p.scores) || {};
   const baselines = { casual: (p && p.casual) || {}, cedh: (p && p.cedh) || {} };
