@@ -101,23 +101,25 @@ async function run({ force = false, uncachedOnly = false }) {
   }
 }
 
-// A trailing down-caret, sized to sit after the button label (marks it a dropdown).
-function caretIcon() {
+// A bar-chart "stats" glyph, sized/spaced like the Stats button's leading icon (mirrors
+// the Columns button's columnsIcon — outline style, currentColor, 1em, trailing margin).
+function statIcon() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('fill', 'none');
   svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('class', 'svg-inline--fa ms-1');
-  svg.setAttribute('width', '0.8em');
-  svg.setAttribute('height', '0.8em');
-  const p = document.createElementNS(NS, 'path');
-  p.setAttribute('d', 'M6 9l6 6 6-6');
-  p.setAttribute('stroke', 'currentColor');
-  p.setAttribute('stroke-width', '2');
-  p.setAttribute('stroke-linecap', 'round');
-  p.setAttribute('stroke-linejoin', 'round');
-  svg.appendChild(p);
+  svg.setAttribute('class', 'svg-inline--fa me-1');
+  svg.setAttribute('width', '1em');
+  svg.setAttribute('height', '1em');
+  // three rising bars
+  for (const [x, y, h] of [['4', '13', '7'], ['10', '9', '11'], ['16', '5', '15']]) {
+    const r = document.createElementNS(NS, 'rect');
+    for (const [k, v] of [['x', x], ['y', y], ['width', '3'], ['height', h], ['rx', '0.5']]) r.setAttribute(k, v);
+    r.setAttribute('stroke', 'currentColor');
+    r.setAttribute('stroke-width', '2');
+    svg.appendChild(r);
+  }
   return svg;
 }
 
@@ -173,7 +175,7 @@ function buildControls(btnClass) {
   const analyzeBtn = el('button', {
     class: `${btnClass} solring-sync-btn solring-analyze-btn`,
     attrs: { type: 'button', title: 'Fetch CommanderSalt stats for the listed decks', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
-  }, [el('span', {}, ['Stats']), caretIcon()]);
+  }, [el('span', {}, [statIcon(), 'Stats'])]);
   analyzeBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleAnalyzeMenu(dropdown); });
   const dropdown = el('div', { class: 'solring-analyze' }, [analyzeBtn, menu]);
 
