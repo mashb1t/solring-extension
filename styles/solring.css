@@ -165,17 +165,15 @@
    Colour coverage, source breakdown) beside the castability chart. Each grows equally and
    wraps to a full-width block when the panel is too narrow to hold both. */
 .solring-mb-grid { display: flex; flex-wrap: wrap; gap: 0.9rem 1.6rem; align-items: flex-start; }
-.solring-mb-col-bars { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 0.9rem; }
+/* Spacing between the stacked widgets is handled by the divider rule below (gap 0). */
+.solring-mb-col-bars { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 0; }
 .solring-mb-cell-chart { flex: 1 1 240px; }
 .solring-mb-cell, .solring-mb-block { min-width: 0; }
 /* Compact bar rows inside the bars column (the page-wide 9rem label grid would overflow). */
 .solring-mb-col-bars .solring-pl-row { grid-template-columns: 3.6rem 1fr 2.4rem; font-size: 0.74rem; }
-/* Row dividers within each bar widget, like the profile-table items: a top border on
-   every row, dropped on the first so it sits flush under the header. */
-.solring-mb-block .solring-pl-row,
-.solring-mb-block .solring-mb-cp-row { margin: 0; padding: 0.3rem 0; border-top: 1px solid var(--solring-border); }
-.solring-mb-block .solring-pl-row:first-child,
-.solring-mb-block .solring-mb-cp-row:first-child { border-top: 0; }
+/* Divider after every category (each bar widget), like the profile table — a centred
+   top border between consecutive widgets. */
+.solring-mb-block + .solring-mb-block { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--solring-border); }
 .solring-mb-fig { margin: 0.3rem 0 0.15rem; }
 .solring-mb-fig svg { width: 100%; height: auto; display: block; }
 
