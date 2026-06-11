@@ -1,10 +1,10 @@
-// Per-card annotations on the deck page (Text view): salt value + tags, with an
-// optional per-card Stats expander. Matched to CommanderSalt cards by normalized
-// name. Gated to text-row layouts (Text / Condensed) — Visual views have no rows.
-// Controlled by global prefs; re-applied on Moxfield re-render via the caller's observer.
+// Per-card annotations on the deck page (Text view): power / saltiness / synergies
+// columns + a tags line (with bracket flags). Matched to CommanderSalt cards by
+// normalized name. Gated to text-row layouts (Text / Condensed) — Visual views have no
+// rows. The power/salt breakdown detail lives only in the card sidebar/modal panel, not
+// here. Controlled by global prefs; re-applied on Moxfield re-render via the observer.
 
 import { el, isDark } from './dom.js';
-import { prettifyStat } from './labels.js';
 import { powerMark, saltMark, deckAvgPower } from './ratings.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
@@ -22,28 +22,6 @@ function rowName(link) {
 /** True if the decklist is currently a text-row layout (Text / Condensed). */
 export function isTextView() {
   return !!document.querySelector(ROW_SEL);
-}
-
-function detailLine(label, body) {
-  return el('div', { class: 'solring-detail-line' }, [el('b', { text: `${label} ` }), body]);
-}
-const scoreText = (arr) => arr.map((x) => `${prettifyStat(x.cat)} ${x.score.toFixed(1)}`).join('  ·  ');
-
-// The Stats detail shows the power-contribution and salt breakdowns. Bracket flags now
-// ride along in the Tags line, and synergies are their own numeric column.
-function statsDetail(card) {
-  const rows = [];
-  if (card.power && card.power.length) {
-    const total = typeof card.powerTotal === 'number' ? card.powerTotal.toFixed(1) : '';
-    rows.push(detailLine('Power:', document.createTextNode(`${total}  (${scoreText(card.power)})`)));
-  }
-  if (card.saltBreakdown && card.saltBreakdown.length) {
-    rows.push(detailLine('Salt:', document.createTextNode(`${card.salt.toFixed(1)}  (${scoreText(card.saltBreakdown)})`)));
-  }
-  if (!rows.length) {
-    rows.push(detailLine('Stats:', document.createTextNode('no extra data for this card')));
-  }
-  return el('div', { class: 'solring-card-detail' }, rows);
 }
 
 /** Annotate every matched text row. Removes prior annotations first (idempotent).
@@ -70,7 +48,7 @@ export function annotate(fields, prefs, options = {}) {
     // flex-basis:0, which creates free space a margin-auto column would otherwise
     // turn into a gap before the price.)
     const hasTagLine = (card.flags && card.flags.length) || (card.tags && card.tags.length);
-    const wantSub = (prefs.tags && hasTagLine) || prefs.stats;
+    const wantSub = prefs.tags && hasTagLine;
     if (wantSub) li.classList.add('solring-row');
     const indent = li.firstElementChild ? Math.round(li.firstElementChild.getBoundingClientRect().width) : 0;
     const span = (node) => { node.style.paddingLeft = `${indent}px`; return node; };
@@ -118,11 +96,6 @@ export function annotate(fields, prefs, options = {}) {
       for (const f of card.flags || []) chipNodes.push(el('span', { class: 'solring-flag', text: f }));
       for (const t of card.tags || []) chipNodes.push(el('span', { class: 'solring-tag', text: t }));
       li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` }, chipNodes)));
-    }
-
-    // 3) Stats detail (power + salt breakdowns) — full-width sub-line.
-    if (prefs.stats) {
-      li.append(span(statsDetail(card)));
     }
   });
 }

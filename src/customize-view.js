@@ -11,7 +11,6 @@ const TOGGLES = [
   ['saltValue', 'Saltiness'],
   ['synergies', 'Synergies'],
   ['tags', 'Tags'],
-  ['stats', 'Stats'],
 ];
 
 // Replicates Moxfield's Include-Extra-Data checkbox markup.
