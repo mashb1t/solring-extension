@@ -463,6 +463,13 @@
    whether a suffix is present ("A" lines up with the "B" in "B–"). Cells are text-end. */
 .solring-col .solring-grade-mod { display: inline-block; width: 0.72em; text-align: left; }
 .solring-col .solring-bracket-arrow { display: inline-block; width: 0.7em; text-align: left; }
+/* Each ranking value stays on one line (the grade/number/% would otherwise wrap on a
+   narrow column); only the wordy Archetype column is allowed to break. The element-
+   qualified td selector outranks Bootstrap's cell utilities. */
+td.solring-col { white-space: nowrap; }
+td.solring-col[data-col="archetype"] { white-space: normal; }
+/* Grade cells carry a "<raw> total" tooltip → the help cursor advertises it on hover. */
+.solring-col-help { cursor: help; }
 /* Blank full-only cell on an un-scanned deck: dim, click to scan that deck. */
 .solring-col-scan { cursor: pointer; }
 .solring-col-scan .solring-num { opacity: 0.45; }

@@ -603,7 +603,8 @@ function renderRowCells(entry, idx) {
       const inner = c.cell(view);
       td.append(inner || el('span', { class: 'solring-num', text: '—' }));
       const titleFn = CELL_TITLE[c.key];
-      if (inner && titleFn) { const t = titleFn(view); if (t) td.title = t; } // hover → raw total
+      // hover → raw total; help cursor signals the cell carries it
+      if (inner && titleFn) { const t = titleFn(view); if (t) { td.title = t; td.classList.add('solring-col-help'); } }
       else if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
         td.title = 'Analyze this deck';
