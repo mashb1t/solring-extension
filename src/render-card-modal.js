@@ -84,11 +84,18 @@ function stackRow(label, valText, pct) {
   ]);
 }
 
-function sectionBlock(title, children) {
-  return el('div', { class: 'solring-cm-section' }, [
-    el('div', { class: 'solring-pl-h', text: title }),
-    ...children,
-  ]);
+function sectionBlock(title, children, headSuffix) {
+  const head = el('div', { class: 'solring-pl-h' }, headSuffix ? [title, headSuffix] : [title]);
+  return el('div', { class: 'solring-cm-section' }, [head, ...children]);
+}
+
+// A small "↓" on a section header marking its list as sorted high→low (by weight).
+function sortDownCaret() {
+  return el('span', {
+    class: 'solring-sort-caret',
+    attrs: { title: 'sorted by weight (high → low)', 'aria-hidden': 'true' },
+    text: '↓',
+  });
 }
 
 function chips(items, cls) {
@@ -262,7 +269,8 @@ function buildBody(card, stats) {
     if (card.deckCombos) {
       kids.push(el('div', { class: 'solring-cm-note', text: `${card.deckCombos} combo${card.deckCombos === 1 ? '' : 's'} in this deck` }));
     }
-    body.append(sectionBlock('Synergy', kids));
+    // ↓ marks the chips as ranked by weight (only meaningful with 2+ partners).
+    body.append(sectionBlock('Synergy', kids, anchors.length > 1 ? sortDownCaret() : null));
   }
   return body;
 }

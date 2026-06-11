@@ -417,6 +417,8 @@
 .solring-tile-total { color: var(--solring-text-2); font-weight: 400; font-size: 0.8em; }
 .solring-cm-section { margin-top: 0.75rem; }
 .solring-cm-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+/* "sorted by weight" caret on a section header (Synergy chips run high→low). */
+.solring-sort-caret { margin-left: 0.3em; font-weight: 400; opacity: 0.7; cursor: help; }
 /* Synergy "+N more" expander: a dashed chip that reveals the hidden anchor chips. */
 .solring-syn-hidden { display: none; }
 .solring-syn-more {
