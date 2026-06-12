@@ -107,7 +107,41 @@ function comboCard(combo) {
   return card;
 }
 
-/** Build the hidden combos section for a deck's combos array. */
-export function buildCombosSection(combos) {
-  return el('div', { class: 'solring-combos', attrs: { hidden: '' } }, combos.map(comboCard));
+// Win-condition profile summary (powerLevel.profile.wincons + .combos): the deck's win
+// paths and combo-consistency read, shown above the combo list.
+function winconSummary(p) {
+  if (!p) return null;
+  const rows = [];
+  if (Array.isArray(p.paths) && p.paths.length) {
+    const n = p.count || p.paths.length;
+    const parts = [`${n} path${n === 1 ? '' : 's'}`, p.paths.join(' + ')];
+    if (p.goal) parts.push(p.goal);
+    if (p.mixedTypes) parts.push('mixed types');
+    rows.push(['Win plan', parts.join(' · ')]);
+  }
+  const c = p.combos || {};
+  if (c.count) {
+    const parts = [`${c.count} combo${c.count === 1 ? '' : 's'}`];
+    if (c.effectiveLines != null) parts.push(`${c.effectiveLines} effective line${c.effectiveLines === 1 ? '' : 's'}`);
+    if (typeof c.redundancy === 'number') parts.push(`${Math.round(c.redundancy * 100)}% redundancy`);
+    rows.push(['Combos', parts.join(' · ')]);
+  }
+  if (!rows.length) return null;
+  return el('div', { class: 'solring-wincon-profile' }, [
+    el('div', { class: 'solring-pl-h', text: 'Win-condition profile' }),
+    ...rows.map(([k, v]) => el('div', { class: 'solring-wp-row' }, [
+      el('span', { class: 'solring-wp-k', text: k }),
+      el('span', { class: 'solring-wp-v', text: v }),
+    ])),
+  ]);
+}
+
+/** Build the hidden Wincons section: the win-condition profile (optional) over the
+    deck's combo cards. */
+export function buildCombosSection(combos, profile) {
+  const children = [];
+  const summary = winconSummary(profile);
+  if (summary) children.push(summary);
+  for (const c of combos || []) children.push(comboCard(c));
+  return el('div', { class: 'solring-combos', attrs: { hidden: '' } }, children);
 }

@@ -111,15 +111,17 @@ export function buildPowerPanel(p, profile) {
   }));
   render('casual');
   const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, rows]);
-  // Score drivers — what nudged the final number off the pillar baselines: boosts up,
-  // penalties down, the named anti-patterns, and improvement suggestions.
+  // Score drivers — what nudged the final number off the pillar baselines. Laid out as
+  // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
+  // anti-patterns, and improvement suggestions.
   if (profile) {
-    for (const grp of [
+    const cols = [
       severityGroup('Boosts the score ↑', profile.boosts),
       severityGroup('Pulls it down ↓', profile.penalties),
       flagGroup('Anti-pattern flags', profile.antiPatterns),
       signalGroup('Suggestions', profile.improve),
-    ]) if (grp) sec.append(grp);
+    ].filter(Boolean);
+    if (cols.length) sec.append(el('div', { class: 'solring-sig-cols' }, cols));
   }
   return sec;
 }

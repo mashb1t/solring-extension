@@ -250,6 +250,28 @@ function bracketProfile(dt) {
   };
 }
 
+// Win-condition shape: the deck's win paths (combo / combat / …) + combo consistency
+// metrics — the "what kind of win, how reliably" layer behind the Wincons grade.
+function winconProfile(dt) {
+  const prof = g(dt, 'powerLevel', 'profile') || {};
+  const w = prof.wincons || {};
+  const c = prof.combos || {};
+  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  return {
+    paths: Array.isArray(w.paths) ? w.paths.slice() : [],
+    primary: w.primary || null,
+    count: num(w.count),
+    goal: w.goal || null,
+    mixedTypes: !!w.mixedTypes,
+    combos: {
+      count: num(c.count),
+      effectiveLines: num(c.effectiveLines),
+      redundancy: num(c.redundancy),
+      winconCount: num(c.winconCount),
+    },
+  };
+}
+
 // Power scoring drivers: which signals pushed the score up (boosts) / down (penalties),
 // the named anti-patterns (server-side label + why), and improvement suggestions. boosts/
 // penalties are id→severity maps; we drop the "none" entries.
@@ -394,6 +416,7 @@ export function extractDeck(p) {
     saltSources: saltSources(dt),
     powerPillars: powerPillars(dt),
     powerProfile: powerProfile(dt),
+    winconProfile: winconProfile(dt),
     bracketCategories: bracketCategories(dt, idToName),
     bracketProfile: bracketProfile(dt),
     archetypeMajors: archetypeMajors(dt),

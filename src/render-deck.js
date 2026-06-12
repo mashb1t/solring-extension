@@ -252,7 +252,9 @@ function renderBody(body, f) {
   body.append(mainTiles, gradeTiles);
 
   // Each tile expands its own detail panel (hidden until clicked).
-  if (hasCombos) makeExpandable(winconsTile, buildCombosSection(f.combos), body);
+  const wp = f.winconProfile;
+  const hasWincon = hasCombos || !!(wp && ((wp.paths && wp.paths.length) || (wp.combos && wp.combos.count)));
+  if (hasWincon) makeExpandable(winconsTile, buildCombosSection(f.combos, wp), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
   if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile), body);
   const bp = f.bracketProfile || {};

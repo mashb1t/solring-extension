@@ -109,6 +109,15 @@ test('extractDeck surfaces power score drivers (boosts/penalties/anti-patterns)'
   assert.ok(pp.antiPatterns.every((a) => typeof a.label === 'string' && a.label.length), 'anti-patterns carry a server label');
 });
 
+test('extractDeck surfaces a wincon profile (paths + combo consistency)', () => {
+  const d = extractDeck(deck);
+  const wp = d.winconProfile;
+  assert.ok(Array.isArray(wp.paths), 'paths is a list');
+  assert.ok(wp.combos && typeof wp.combos === 'object', 'combo metrics present');
+  // redundancy is a 0–1 fraction when present
+  if (wp.combos.redundancy != null) assert.ok(wp.combos.redundancy >= 0 && wp.combos.redundancy <= 1);
+});
+
 test('power breakdown de-duplicates wincon_X into X (no doubles)', () => {
   const d = extractDeck(deck);
   const c = d.cards['agate instigator']; // appears in both `burn` and `wincon_burn`

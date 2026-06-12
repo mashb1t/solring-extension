@@ -10,8 +10,8 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
 // without a manual Clear cache or Re-analyze. History: 1 = pre-manabase; 2 = + manabase;
 // 3 = + per-card synergy count; 4 = synergy score + scoreBias-ranked partners;
-// 5 = + bracket/power profile (coaching, score drivers, anti-patterns).
-export const SCHEMA_VERSION = 5;
+// 5 = + bracket/power profile (coaching, score drivers, anti-patterns); 6 = + wincon profile.
+export const SCHEMA_VERSION = 6;
 
 const inFlight = new Map();
 
