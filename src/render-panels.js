@@ -44,10 +44,16 @@ function signalGroup(title, entries) {
   return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
 }
 
-// A labeled list of id→severity entries ("Narrow synergy focus · major").
+// CommanderSalt's boost/penalty (and anti-pattern) severity scale, most → least severe.
+// Verified across 23 decks: the non-"none" values are major / notable / minor.
+const SEVERITY_RANK = { major: 3, notable: 2, minor: 1 };
+
+// A labeled list of id→severity entries ("Narrow synergy focus · major"), ordered by
+// severity (major first, then notable, then minor; stable within a level).
 function severityGroup(title, entries) {
   if (!(entries || []).length) return null;
-  const items = entries.map(({ id, severity }) => el('div', { class: 'solring-sig-item' }, [
+  const sorted = [...entries].sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
+  const items = sorted.map(({ id, severity }) => el('div', { class: 'solring-sig-item' }, [
     el('span', { class: 'solring-sig-id', text: humanizeId(id) }),
     el('span', { class: 'solring-sig-sev', text: String(severity) }),
   ]));
