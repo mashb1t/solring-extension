@@ -172,6 +172,14 @@ export function isCached(md5) {
   return fullByMd5.has(md5);
 }
 
+/** True when a deck-list TABLE (deck-row links in the main column) is on the page — the
+    surface our toolbar controls (Stats / Columns) attach to. False on image/grid browse
+    pages (/decks/public, /liked, /private, …), which carry a Sort button but no table. */
+export function hasDeckListTable() {
+  return [...document.querySelectorAll('table.table')]
+    .some((t) => t.closest('.flex-grow-1') && t.querySelector('tbody a[href*="/decks/"]'));
+}
+
 // ---- hit loading -------------------------------------------------------------
 
 async function loadAllHits(username) {
@@ -861,6 +869,9 @@ function buildColumnMenu(sortClassName) {
 // per toolbar; re-injected by annotate when React rebuilds the toolbar. The button
 // copies Sort's exact class list so it stays visually identical.
 function ensureToolbarMenu() {
+  // Only where a deck-list table is actually shown — not on image/grid browse pages
+  // (/decks/public, /liked, …) which have a Sort button but no table to add columns to.
+  if (!hasDeckListTable()) { document.querySelectorAll('.solring-colmenu').forEach((n) => n.remove()); return; }
   const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()));
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-colmenu')) return;

@@ -9,7 +9,7 @@
 import { el, guard } from './dom.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
-import { getEntries, isCached, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
+import { getEntries, isCached, hasDeckListTable, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
 import { getSync, setSync } from './cache.js';
 
 const THROTTLE_MS = 400; // breathing room between requests, so we don't hammer the API
@@ -202,6 +202,9 @@ function buildControls(btnClass) {
 function ensureControls() {
   raf = null;
   if (!active) return;
+  // Only where a deck-list table is actually shown — never on image/grid browse pages
+  // (/decks/public, /liked, /private, …), which carry a Sort button but no deck table.
+  if (!hasDeckListTable()) { document.querySelectorAll('.solring-sync').forEach((n) => n.remove()); controls = null; return; }
   const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()) && !b.closest('.solring-colmenu'));
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-sync')) return;
