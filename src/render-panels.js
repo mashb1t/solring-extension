@@ -30,7 +30,7 @@ function barRow(label, valueText, pct) {
 function fingerprintRow(fp) {
   if (!fp) return null;
   const tiles = [
-    ['Tutors', fp.tutors, [fp.tutorDensity, fp.tutorQuality != null ? `${fp.tutorQuality.toFixed(1)} avg q` : null].filter(Boolean).join(' · ') || null],
+    ['Tutors', fp.tutors, [fp.tutorDensity, fp.tutorQuality != null ? `${fp.tutorQuality.toFixed(1)} avg quality` : null].filter(Boolean).join(' · ') || null],
     ['Ramp', fp.ramp, fp.rampDensity || 'rocks + dorks + …'],
     ['Curve', fp.avgMv != null ? fp.avgMv.toFixed(2) : null, fp.curveShape || 'avg MV'],
     ['Instant-speed', fp.instantRatio != null ? `${Math.round(fp.instantRatio * 100)}%` : null, fp.reactiveDensity ? `${fp.reactiveDensity} reactive` : 'at instant speed'],
@@ -123,7 +123,7 @@ export function buildPowerPanel(p, profile, meta) {
   // CS's inferred lens (picks which baseline) + a fringe-cEDH flag — shown by the toggle,
   // which we default to that lens.
   const note = (inferred || (meta && meta.fringeCEDH)) ? el('div', { class: 'solring-pw-inferred' }, [
-    inferred ? el('span', { text: `CommanderSalt read this as ${inferred === 'spike' ? 'spike (cEDH)' : 'casual'}` }) : null,
+    inferred ? el('span', { text: `Classification: ${inferred === 'spike' ? 'spike (cEDH)' : 'casual'}` }) : null,
     meta && meta.fringeCEDH ? el('span', { class: 'solring-pw-fringe', text: 'fringe cEDH' }) : null,
   ]) : null;
   const rows = el('div', { class: 'solring-pw-rows' });
@@ -159,8 +159,8 @@ export function buildPowerPanel(p, profile, meta) {
   // anti-patterns, and improvement suggestions.
   if (profile) {
     const cols = [
-      severityGroup('Boosts the score ↑', profile.boosts),
-      severityGroup('Pulls it down ↓', profile.penalties),
+      severityGroup('Boosts the score', profile.boosts),
+      severityGroup('Pulls it down', profile.penalties),
       flagGroup('Anti-pattern flags', profile.antiPatterns),
       signalGroup('Suggestions', profile.improve),
     ].filter(Boolean);
@@ -466,7 +466,6 @@ export function buildBracketPanel(baseline, realistic, categories, profile) {
     signalGroup('Push a bracket', prof.harden),
   ].filter(Boolean);
   if (cols.length) children.push(el('div', { class: 'solring-sig-cols' }, cols));
-  const ratingTxt = prof.rating != null ? ` · ${prof.rating.toFixed(1)} rating` : '';
-  const title = `Bracket · baseline ${baseline != null ? baseline : '?'} → realistic ${realistic != null ? realistic : '?'}${ratingTxt}`;
+  const title = `Bracket · baseline ${baseline != null ? baseline : '?'} → realistic ${realistic != null ? realistic : '?'}`;
   return section(title, children);
 }
