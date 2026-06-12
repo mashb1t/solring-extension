@@ -23,7 +23,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/*.js", "fixtures/*.json"],
+      "resources": ["src/*.js"],
       "matches": ["*://*.moxfield.com/*"]
     }
   ]
