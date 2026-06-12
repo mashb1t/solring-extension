@@ -149,10 +149,11 @@ export function buildPowerPanel(p, profile, meta) {
     e.preventDefault(); e.stopPropagation(); render(b.getAttribute('data-mode'));
   }));
   render(inferred === 'spike' ? 'cedh' : 'casual'); // open on the lens CS inferred
-  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, note, rows]);
-  // Deck fingerprint — a stat-tile line (tutors / ramp / curve / …) like the manabase header.
+  // Deck fingerprint — a stat-tile line (tutors / ramp / curve / …) like the manabase
+  // header; shown top-most, above the pillar bars.
   const fpRow = fingerprintRow(meta && meta.fingerprint);
-  if (fpRow) sec.append(el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]));
+  const fp = fpRow ? el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]) : null;
+  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows]);
   // Score drivers — what nudged the final number off the pillar baselines. Laid out as
   // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
   // anti-patterns, and improvement suggestions.

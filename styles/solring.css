@@ -315,8 +315,9 @@
   font-size: 0.72rem; padding: 0.05rem 0.45rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
 }
-/* Power panel: deck-fingerprint stat line (reuses the manabase stat-tile styling). */
-.solring-pw-fp { margin-top: 0.8rem; }
+/* Power panel: deck-fingerprint stat line (reuses the manabase stat-tile styling).
+   Sits top-most, so it spaces from the pillars below it. */
+.solring-pw-fp { margin-bottom: 0.85rem; }
 .solring-pw-fp .solring-pl-h { margin-bottom: 0.4rem; }
 /* Power panel: CS's inferred lens note + fringe-cEDH badge under the toggle. */
 .solring-pw-inferred { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--solring-text-2); margin: 0.1rem 0 0.5rem; }
