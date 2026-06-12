@@ -60,11 +60,14 @@ function severityGroup(title, entries) {
   return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
 }
 
-// Anti-pattern flags: CommanderSalt's own label + "why" string, shown verbatim.
+// Anti-pattern flags: CommanderSalt's own label + "why" string, shown verbatim. Ordered
+// by severity (major → minor) — the same scale/SEVERITY_RANK as the boost/penalty lists.
 function flagGroup(title, patterns) {
   if (!(patterns || []).length) return null;
-  const items = patterns.map((p) => el('div', { class: 'solring-sig-item' }, [
+  const sorted = [...patterns].sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
+  const items = sorted.map((p) => el('div', { class: 'solring-sig-item' }, [
     el('span', { class: 'solring-sig-id', text: p.label }),
+    p.severity ? el('span', { class: 'solring-sig-sev', text: String(p.severity) }) : null,
     p.why ? el('span', { class: 'solring-sig-data', text: p.why }) : null,
   ]));
   return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
