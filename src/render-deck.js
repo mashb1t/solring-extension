@@ -217,7 +217,7 @@ function renderBody(body, f) {
   const powerSub = typeof f.power === 'number'
     ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
-  const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }), f.inferredType ? `${f.inferredType}` : null);
+  const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
   const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   // Manabase: percentages.overall is a PERCENT of the benchmark (the curve axis vs its
@@ -256,7 +256,7 @@ function renderBody(body, f) {
   const hasWincon = hasCombos || !!(wp && ((wp.paths && wp.paths.length) || (wp.combos && wp.combos.count)));
   if (hasWincon) makeExpandable(winconsTile, buildCombosSection(f.combos, wp), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH }), body);
   const bp = f.bracketProfile || {};
   const hasBracket = (f.bracketCategories && f.bracketCategories.length)
     || [bp.rationale, bp.soften, bp.harden, bp.ruleZero].some((l) => l && l.length);

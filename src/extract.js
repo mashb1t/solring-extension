@@ -434,7 +434,8 @@ export function extractDeck(p) {
     bracketRealistic: g(p, 'details', 'brackets', 'csBracket'),
     bracketBaseline: g(p, 'details', 'brackets', 'wotcBracket'), // for the delta arrow only (not displayed as a number)
     commanderTier: g(p, 'details', 'powerLevel', 'ratings', 'commanderTier'),
-    inferredType: g(p, 'details', 'powerLevel', 'ratings', 'inferredType'), // CS's read of intent (casual / spike) — tier-tile sub-line
+    inferredType: g(p, 'details', 'powerLevel', 'ratings', 'inferredType'), // CS's read of intent: casual / spike — picks the power baseline
+    fringeCEDH: !!g(p, 'details', 'powerLevel', 'ratings', 'fringeCEDH'),
     salt: p.saltRating,
     threat: p.threatRating,
     interaction: g(p, 'details', 'powerLevel', 'scoring', 'interaction', 'score'),

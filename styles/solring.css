@@ -303,9 +303,25 @@
 .solring-wp-row { display: flex; gap: 0.5rem; font-size: 0.78rem; margin: 0.12rem 0; }
 .solring-wp-k { flex: 0 0 4.5rem; color: var(--solring-text-2); }
 .solring-wp-v { min-width: 0; }
-/* Bracket panel: one row per category — the count chip + the actual card names. */
-.solring-bp-cat { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; margin: 0.2rem 0; }
-.solring-bp-cards { font-size: 0.74rem; color: var(--solring-text-2); }
+/* Bracket-defining cards: aligned grid — category chip (col sizes to the widest, so all
+   card lists share a left edge) + the card names wrapping in the second column. */
+.solring-bp-grid { display: grid; grid-template-columns: auto 1fr; column-gap: 0.7rem; row-gap: 0.35rem; align-items: baseline; margin-top: 0.35rem; }
+.solring-bp-cards { font-size: 0.74rem; color: var(--solring-text-2); line-height: 1.4; }
+/* Rule-zero notes: a row of pre-game disclosure chips. */
+.solring-rz { margin-top: 0.7rem; }
+.solring-rz .solring-pl-h { margin-bottom: 0.3rem; }
+.solring-rz-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.solring-rz-chip {
+  font-size: 0.72rem; padding: 0.05rem 0.45rem; border-radius: 4px;
+  background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
+}
+/* Power panel: CS's inferred lens note + fringe-cEDH badge under the toggle. */
+.solring-pw-inferred { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--solring-text-2); margin: 0.1rem 0 0.5rem; }
+.solring-pw-fringe {
+  font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.05rem 0.4rem; border-radius: 4px;
+  background: color-mix(in srgb, var(--solring-accent) 14%, transparent);
+  color: var(--solring-accent); border: 1px solid color-mix(in srgb, var(--solring-accent) 40%, transparent);
+}
 /* Scorer-signal groups (bracket coaching · power score drivers): header + stacked rows
    of id (+ optional ↑/↓) over a muted data/why/severity line. */
 /* Score-driver groups laid side by side (wrap to stacked when narrow). */

@@ -77,9 +77,10 @@ const POWER_ORDER = [
 // each pillar's raw score ÷ the baseline, as a %. Bars share one scale (highest fills) with a
 // 100% baseline line. A Casual/cEDH toggle re-renders in place. Pass { scores, casual, cedh }
 // from extract.powerPillars.
-export function buildPowerPanel(p, profile) {
+export function buildPowerPanel(p, profile, meta) {
   const scores = (p && p.scores) || {};
   const baselines = { casual: (p && p.casual) || {}, cedh: (p && p.cedh) || {} };
+  const inferred = meta && meta.inferredType; // 'casual' | 'spike'
   const head = el('div', { class: 'solring-pw-head' }, [
     el('span', { class: 'solring-pl-h', text: 'Power pillars vs baseline' }),
     el('div', { class: 'solring-pw-toggle' }, [
@@ -87,6 +88,12 @@ export function buildPowerPanel(p, profile) {
       el('button', { class: 'solring-pw-btn', attrs: { type: 'button', 'data-mode': 'cedh' }, text: 'cEDH' }),
     ]),
   ]);
+  // CS's inferred lens (picks which baseline) + a fringe-cEDH flag — shown by the toggle,
+  // which we default to that lens.
+  const note = (inferred || (meta && meta.fringeCEDH)) ? el('div', { class: 'solring-pw-inferred' }, [
+    inferred ? el('span', { text: `CommanderSalt read this as ${inferred === 'spike' ? 'spike (cEDH)' : 'casual'}` }) : null,
+    meta && meta.fringeCEDH ? el('span', { class: 'solring-pw-fringe', text: 'fringe cEDH' }) : null,
+  ]) : null;
   const rows = el('div', { class: 'solring-pw-rows' });
   const render = (mode) => {
     rows.replaceChildren();
@@ -109,8 +116,8 @@ export function buildPowerPanel(p, profile) {
   head.querySelectorAll('.solring-pw-btn').forEach((b) => b.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation(); render(b.getAttribute('data-mode'));
   }));
-  render('casual');
-  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, rows]);
+  render(inferred === 'spike' ? 'cedh' : 'casual'); // open on the lens CS inferred
+  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, note, rows]);
   // Score drivers — what nudged the final number off the pillar baselines. Laid out as
   // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
   // anti-patterns, and improvement suggestions.
@@ -381,29 +388,46 @@ export function buildInteractionPanel(parts) {
   return section('Interaction breakdown', parts.map((p) => barRow(PART_LABELS[p.cat] || prettifyStat(p.cat), p.score.toFixed(1), (p.score / max) * 100)));
 }
 
+// Pre-game disclosure chips (rule-zero): humanized id + its salient data value.
+function ruleZeroChips(entries) {
+  if (!(entries || []).length) return null;
+  const chips = entries.map(({ id, data }) => {
+    const vals = Object.values(data || {}).filter((v) => v != null && v !== '');
+    return el('span', { class: 'solring-rz-chip', text: vals.length ? `${humanizeId(id)} · ${vals.join(' ')}` : humanizeId(id) });
+  });
+  return el('div', { class: 'solring-rz' }, [
+    el('div', { class: 'solring-pl-h', text: 'Rule-zero notes' }),
+    el('div', { class: 'solring-rz-chips' }, chips),
+  ]);
+}
+
 export function buildBracketPanel(baseline, realistic, categories, profile) {
   const cats = categories || [];
   const prof = profile || {};
   const children = [];
-  // Bracket-defining cards: each category as "Label N" + the actual card names.
+  // 1) Bracket-defining cards — an aligned label / card-names grid (label column sizes to
+  // the widest chip so every card list starts at the same left edge).
   if (cats.length) {
     children.push(el('div', { class: 'solring-pl-h', text: 'Bracket-defining cards' }));
+    const rows = [];
     for (const c of cats) {
-      children.push(el('div', { class: 'solring-bp-cat' }, [
-        el('span', { class: 'solring-combo-tag', text: `${BRACKET_FLAG_LABELS[c.key] || c.key} ${c.count}` }),
-        c.cards && c.cards.length ? el('span', { class: 'solring-bp-cards', text: c.cards.join(', ') }) : null,
-      ]));
+      rows.push(el('span', { class: 'solring-combo-tag', text: `${BRACKET_FLAG_LABELS[c.key] || c.key} ${c.count}` }));
+      rows.push(el('span', { class: 'solring-bp-cards', text: (c.cards || []).join(', ') }));
     }
+    children.push(el('div', { class: 'solring-bp-grid' }, rows));
   } else {
     children.push(el('div', { class: 'solring-msg', text: 'No bracket-defining cards.' }));
   }
-  // Coaching: why this bracket, then the moves to shift it down / up, then rule-zero.
-  for (const grp of [
+  // 2) Rule-zero notes — pre-game disclosure chips, above the coaching columns.
+  const rz = ruleZeroChips(prof.ruleZero);
+  if (rz) children.push(rz);
+  // 3) Coaching, three columns side by side: why this bracket / how to drop / how to push.
+  const cols = [
     signalGroup('Why this bracket', prof.rationale),
     signalGroup('Drop a bracket', prof.soften),
     signalGroup('Push a bracket', prof.harden),
-    signalGroup('Rule-zero notes', prof.ruleZero),
-  ]) if (grp) children.push(grp);
+  ].filter(Boolean);
+  if (cols.length) children.push(el('div', { class: 'solring-sig-cols' }, cols));
   const ratingTxt = prof.rating != null ? ` · ${prof.rating.toFixed(1)} rating` : '';
   const title = `Bracket · baseline ${baseline != null ? baseline : '?'} → realistic ${realistic != null ? realistic : '?'}${ratingTxt}`;
   return section(title, children);
