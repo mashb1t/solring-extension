@@ -120,7 +120,8 @@ The extension's options page (`chrome://extensions` → Solring → *Extension o
 3. **Load unpacked** → select this folder
 4. Open any Moxfield deck: the Solring panel appears below the header
 
-No build step for now, the extension runs the source directly.
+For development the extension runs the source directly (no bundler); see **Building &
+releasing** below for producing a Chrome Web Store package.
 
 ## How it works
 
@@ -153,3 +154,32 @@ npm test        # node --test, pure-logic unit tests (extract, ratings, md5, …
 Pure ES modules, no bundler. The metric extraction, rating ladder, MD5, deck-list
 engine, and Moxfield URL parsing are unit-tested with `node:test` against JSON
 fixtures in `fixtures/`; the DOM-rendering modules are validated in a real browser.
+
+## Building & releasing
+
+```sh
+npm run build               # runs tests, then writes dist/solring-v<version>.zip
+```
+
+[`scripts/build.mjs`](scripts/build.mjs) packages a Chrome Web Store-ready zip into
+`dist/` containing only the runtime files (`manifest.json`, `src/`, `styles/`,
+`options.html`, `options.js`) — tests, fixtures, docs, and listing images are left out.
+Locally the version comes from `manifest.json`; pass `--version=X.Y.Z` to override.
+
+Releases are driven by **git tags**. Pushing a tag runs
+[`.github/workflows/release.yml`](.github/workflows/release.yml), which tests, packages
+the zip with the tag's version, and attaches it to a GitHub Release:
+
+```sh
+git tag v1.2.3 && git push origin v1.2.3   # → builds solring-v1.2.3.zip, creates the Release
+```
+
+The committed `manifest.json` / `package.json` versions are just dev placeholders; the
+tag is the source of truth for a published build. Download the zip from the Release and
+upload it in the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole)
+(publishing is manual — no store credentials live in CI).
+
+> [!NOTE]
+> Before the first store submission, add an extension icon (`icons` in the manifest,
+> e.g. 16/48/128 px) — the manifest currently declares none.
+
