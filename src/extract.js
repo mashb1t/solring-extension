@@ -216,12 +216,17 @@ function powerPillars(dt) {
   const pick = (obj) => { const o = {}; for (const k of PILLARS) if (typeof (obj || {})[k] === 'number') o[k] = obj[k]; return o; };
   return { scores, casual: pick(bv.casual), cedh: pick(bv.spike) };
 }
-function bracketCategories(dt, idToName) {
+function bracketCategories(dt, idToCard) {
   const cats = g(dt, 'brackets', 'categories') || {};
   return Object.keys(BRACKET_FLAG_LABELS)
     .map((key) => {
       const c = cats[key] || {};
-      const cards = Array.isArray(c.list) ? c.list.map((id) => (idToName && idToName[id]) || titleCase(id)) : [];
+      // { name, image } per card (image = the deck's print) so the panel can show a
+      // hover preview, like the synergy chips.
+      const cards = Array.isArray(c.list) ? c.list.map((id) => {
+        const cc = idToCard && idToCard[id];
+        return { name: (cc && cc.name) || titleCase(id), image: (cc && cc.image) || null };
+      }) : [];
       return { key, count: c.count || 0, cards };
     })
     .filter((c) => c.count > 0);
@@ -411,13 +416,14 @@ export function extractDeck(p) {
   const combos = extractCombos(p);
   const dt = p.details || {};
   const idToName = buildIdToName(p.cards);
+  const idToCard = buildIdToCard(p.cards); // id → { name, image } for hover previews
   return {
     combos,
     saltSources: saltSources(dt),
     powerPillars: powerPillars(dt),
     powerProfile: powerProfile(dt),
     winconProfile: winconProfile(dt),
-    bracketCategories: bracketCategories(dt, idToName),
+    bracketCategories: bracketCategories(dt, idToCard),
     bracketProfile: bracketProfile(dt),
     archetypeMajors: archetypeMajors(dt),
     synergyAnchors: synergyAnchors(dt, idToName),

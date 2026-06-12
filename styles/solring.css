@@ -474,6 +474,10 @@
 .solring-syn-chip[data-href] { cursor: pointer; }
 .solring-syn-chip[data-href]:hover { color: var(--solring-accent); }
 .solring-syn-chip[data-href]:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+/* Inline card-name reference (bracket cards, combo pieces) — not a pill; hover previews
+   the card and (when on-page) underlines to signal it opens on click. */
+.solring-cardname { white-space: nowrap; }
+.solring-cardname[data-href]:hover { text-decoration: underline; }
 .solring-cardpop { position: fixed; z-index: 2147483000; pointer-events: none; display: none; }
 .solring-cardpop.solring-cardpop-show { display: block; }
 .solring-cardpop img {

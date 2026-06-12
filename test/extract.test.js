@@ -97,7 +97,7 @@ test('extractDeck surfaces bracket coaching (rating + cards + profile lists)', (
   // category chips now carry the actual card names, not just a count
   const gc = d.bracketCategories.find((c) => c.key === 'gameChangers');
   assert.ok(gc && Array.isArray(gc.cards) && gc.cards.length === gc.count, 'gameChangers lists its cards');
-  assert.ok(gc.cards.every((n) => typeof n === 'string' && n.length), 'cards resolved to names');
+  assert.ok(gc.cards.every((c) => c && typeof c.name === 'string' && c.name.length), 'cards are { name, image } with resolved names');
 });
 
 test('extractDeck surfaces power score drivers (boosts/penalties/anti-patterns)', () => {

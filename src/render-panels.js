@@ -4,6 +4,7 @@
 
 import { el } from './dom.js';
 import { prettifyStat, BRACKET_FLAG_LABELS } from './labels.js';
+import { cardRefs } from './render-card-modal.js';
 
 function section(title, children) {
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [
@@ -421,7 +422,9 @@ export function buildBracketPanel(baseline, realistic, categories, profile) {
     const rows = [];
     for (const c of cats) {
       rows.push(el('span', { class: 'solring-combo-tag', text: `${BRACKET_FLAG_LABELS[c.key] || c.key} ${c.count}` }));
-      rows.push(el('span', { class: 'solring-bp-cards', text: (c.cards || []).join(', ') }));
+      const cell = el('span', { class: 'solring-bp-cards' });
+      cardRefs(c.cards, { chip: false }).forEach((ref, i) => { if (i) cell.append(', '); cell.append(ref); });
+      rows.push(cell);
     }
     children.push(el('div', { class: 'solring-bp-grid' }, rows));
   } else {

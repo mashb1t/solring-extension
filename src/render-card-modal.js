@@ -186,34 +186,43 @@ function deckPrintMap() {
   return map;
 }
 
-// Synergy anchor chips — ranked by scoreBias (most-relevant partner first). Each previews
-// the card's deck print on hover (the deck's selected art when the card is on the page,
-// else CommanderSalt's default print) and, for cards in the deck, opens Moxfield's card
-// view on click. Only the top SYN_VISIBLE show initially; a "+N more" toggle reveals the
-// rest (anchors are already capped upstream at SYN_ANCHOR_CAP).
-const SYN_VISIBLE = 8;
-function synChips(anchors) {
+// Build hoverable card-reference spans from [{name, image?}] (or plain name strings).
+// Each previews the card's deck print on hover (the deck's selected art when the card is
+// on the page, else the supplied image) and opens Moxfield's card view on click for
+// cards in the deck. Exported so other panels (bracket-defining cards, combo pieces)
+// reuse the same hover/click behavior. `opts.chip` → pill style (synergy anchors);
+// otherwise an inline card-name style for prose lists.
+export function cardRefs(items, opts = {}) {
   installCardHover();
   const prints = deckPrintMap();
-  const mkChip = (a) => {
-    const hit = prints[normName(a.name)];
-    const deckImg = hit && hit.img;
-    const primary = deckImg || a.image; // deck's selected art, else CommanderSalt print
+  const cls = opts.chip ? 'solring-tag solring-syn-chip' : 'solring-syn-chip solring-cardname';
+  return (items || []).map((it) => {
+    const name = typeof it === 'string' ? it : it.name;
+    const image = typeof it === 'string' ? null : it.image;
+    const hit = prints[normName(name)];
+    const deckImg = hit && hit.img; // deck's selected art, else the supplied print
+    const primary = deckImg || image;
     const attrs = {};
     if (primary) attrs['data-img'] = primary;
-    // Keep CommanderSalt's print as a fallback for when the synthesized deck-print
-    // URL 404s (double-faced cards use a different, face-keyed URL we can't derive).
-    if (deckImg && a.image && a.image !== deckImg) attrs['data-img-cs'] = a.image;
+    // Keep the supplied (CommanderSalt) print as a fallback for when the synthesized
+    // deck-print URL 404s (double-faced cards use a different, face-keyed URL).
+    if (deckImg && image && image !== deckImg) attrs['data-img-cs'] = image;
     if (hit && hit.href) { attrs['data-href'] = hit.href; attrs.role = 'link'; attrs.tabindex = '0'; }
-    return el('span', { class: 'solring-tag solring-syn-chip', text: a.name, attrs });
-  };
+    return el('span', { class: cls, text: name, attrs });
+  });
+}
+
+// Synergy anchor chips: scoreBias-ranked pills; top SYN_VISIBLE shown, "+N more" reveals
+// the rest (already capped upstream at SYN_ANCHOR_CAP).
+const SYN_VISIBLE = 8;
+function synChips(anchors) {
+  const chips = cardRefs(anchors, { chip: true });
   const cont = el('div', { class: 'solring-cm-chips' });
-  anchors.forEach((a, i) => {
-    const chip = mkChip(a);
+  chips.forEach((chip, i) => {
     if (i >= SYN_VISIBLE) chip.classList.add('solring-syn-hidden');
     cont.append(chip);
   });
-  const hidden = anchors.length - SYN_VISIBLE;
+  const hidden = chips.length - SYN_VISIBLE;
   if (hidden > 0) {
     const more = el('button', { class: 'solring-syn-more', attrs: { type: 'button' }, text: `+${hidden} more` });
     more.addEventListener('click', (e) => {

@@ -3,6 +3,7 @@
 // textContent (data is third-party). Mirrors CommanderSalt's combo card.
 
 import { el, chevronSvg } from './dom.js';
+import { cardRefs } from './render-card-modal.js';
 
 const SECTION_LABELS = {
   easyPrerequisites: 'Easy prereqs',
@@ -83,10 +84,9 @@ function comboCard(combo) {
     chev,
   ]);
 
-  const head = el('div', { class: 'solring-combo-head' }, [
-    el('div', { class: 'solring-combo-pieces', text: combo.pieces.join('  +  ') }),
-    meta,
-  ]);
+  const pieces = el('div', { class: 'solring-combo-pieces' });
+  cardRefs(combo.pieces, { chip: false }).forEach((ref, i) => { if (i) pieces.append('  +  '); pieces.append(ref); });
+  const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);
   const card = el('div', { class: 'solring-combo' }, [head, tagChips(combo), body]);
 
   if (body) {
@@ -109,7 +109,7 @@ function comboCard(combo) {
 
 // Win-condition profile summary (powerLevel.profile.wincons + .combos): the deck's win
 // paths and combo-consistency read, shown above the combo list.
-function winconSummary(p) {
+function winconSummary(p, combos) {
   if (!p) return null;
   const rows = [];
   if (Array.isArray(p.paths) && p.paths.length) {
@@ -124,6 +124,11 @@ function winconSummary(p) {
     const parts = [`${c.count} combo${c.count === 1 ? '' : 's'}`];
     if (c.effectiveLines != null) parts.push(`${c.effectiveLines} effective line${c.effectiveLines === 1 ? '' : 's'}`);
     if (typeof c.redundancy === 'number') parts.push(`${Math.round(c.redundancy * 100)}% redundancy`);
+    // Size breakdown from the combo list (cards per combo) — next to redundancy.
+    const bySize = {};
+    for (const cb of combos || []) { const n = (cb.pieces || []).length; if (n) bySize[n] = (bySize[n] || 0) + 1; }
+    const sizeStr = Object.keys(bySize).map(Number).sort((a, b) => a - b).map((n) => `${n}-card ×${bySize[n]}`).join(', ');
+    if (sizeStr) parts.push(sizeStr);
     rows.push(['Combos', parts.join(' · ')]);
   }
   if (!rows.length) return null;
@@ -140,7 +145,7 @@ function winconSummary(p) {
     deck's combo cards. */
 export function buildCombosSection(combos, profile) {
   const children = [];
-  const summary = winconSummary(profile);
+  const summary = winconSummary(profile, combos);
   if (summary) children.push(summary);
   for (const c of combos || []) children.push(comboCard(c));
   return el('div', { class: 'solring-combos', attrs: { hidden: '' } }, children);
