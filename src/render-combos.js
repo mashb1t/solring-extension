@@ -147,6 +147,12 @@ export function buildCombosSection(combos, profile) {
   const children = [];
   const summary = winconSummary(profile, combos);
   if (summary) children.push(summary);
-  for (const c of combos || []) children.push(comboCard(c));
+  // Most-relevant first: fewest pieces (a 2-card infinite is the most consistent,
+  // threatening win), then highest score as a tiebreak. CommanderSalt's combo `score`
+  // is a narrow popularity-ish band that doesn't track combo power on its own — so card
+  // count leads and score only breaks ties within a size tier. (Copy, don't mutate.)
+  const ordered = [...(combos || [])].sort((a, b) =>
+    (a.pieces || []).length - (b.pieces || []).length || (b.score || 0) - (a.score || 0));
+  for (const c of ordered) children.push(comboCard(c));
   return el('div', { class: 'solring-combos', attrs: { hidden: '' } }, children);
 }
