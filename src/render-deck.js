@@ -218,7 +218,12 @@ function renderBody(body, f) {
     ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
-  const powerTile = tile('Power', el('span', { class: 'solring-num', text: `${num(f.power)} / 10` }), powerSub);
+  // cEDH classification chip next to the power total: 'fringe cEDH' when borderline,
+  // else 'cEDH' for a solid spike deck (casual decks get none).
+  const cedhChip = f.fringeCEDH ? 'fringe cEDH' : (f.inferredType === 'spike' ? 'cEDH' : null);
+  const powerVal = [el('span', { class: 'solring-num', text: `${num(f.power)} / 10` })];
+  if (cedhChip) powerVal.push(el('span', { class: 'solring-pw-fringe solring-cedh-chip', text: cedhChip }));
+  const powerTile = tile('Power', powerVal, powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   // Manabase: percentages.overall is a PERCENT of the benchmark (the curve axis vs its
   // 100 par — CommanderSalt's Nutrition Facts total "% daily value"), so 111% = 11% over

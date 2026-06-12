@@ -326,6 +326,8 @@
   background: color-mix(in srgb, var(--solring-accent) 14%, transparent);
   color: var(--solring-accent); border: 1px solid color-mix(in srgb, var(--solring-accent) 40%, transparent);
 }
+/* cEDH / fringe-cEDH chip on the Power tile, next to the power total. */
+.solring-cedh-chip { margin-left: 0.45rem; vertical-align: middle; white-space: nowrap; }
 /* Scorer-signal groups (bracket coaching · power score drivers): header + stacked rows
    of id (+ optional ↑/↓) over a muted data/why/severity line. */
 /* Score-driver groups laid side by side (wrap to stacked when narrow). */
