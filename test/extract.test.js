@@ -109,6 +109,22 @@ test('extractDeck surfaces power score drivers (boosts/penalties/anti-patterns)'
   assert.ok(pp.antiPatterns.every((a) => typeof a.label === 'string' && a.label.length), 'anti-patterns carry a server label');
 });
 
+test('extractDeck builds a power fingerprint with a derived tutor count', () => {
+  const d = extractDeck(deck);
+  const fp = d.powerFingerprint;
+  assert.equal(typeof fp.tutors, 'number'); // count from scoring.tutors.list (no dedicated field)
+  for (const k of ['ramp', 'creatures']) assert.ok(fp[k] == null || typeof fp[k] === 'number');
+  if (fp.permanentRatio != null) assert.ok(fp.permanentRatio >= 0 && fp.permanentRatio <= 1);
+});
+
+test('synergy anchors carry an image (for the hover preview / link)', () => {
+  const d = extractDeck(deck);
+  if (d.synergyAnchors.length) {
+    assert.ok(d.synergyAnchors.every((a) => typeof a.name === 'string' && a.name.length), 'anchors have names');
+    assert.ok(d.synergyAnchors.some((a) => a.image), 'at least one anchor carries an image');
+  }
+});
+
 test('extractDeck surfaces a wincon profile (paths + combo consistency)', () => {
   const d = extractDeck(deck);
   const wp = d.winconProfile;

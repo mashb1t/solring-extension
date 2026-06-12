@@ -11,8 +11,9 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // without a manual Clear cache or Re-analyze. History: 1 = pre-manabase; 2 = + manabase;
 // 3 = + per-card synergy count; 4 = synergy score + scoreBias-ranked partners;
 // 5 = + bracket/power profile (coaching, score drivers, anti-patterns); 6 = + wincon
-// profile; 7 = + inferred deck type; 8 = + fringeCEDH; 9 = bracket cards carry images.
-export const SCHEMA_VERSION = 9;
+// profile; 7 = + inferred deck type; 8 = + fringeCEDH; 9 = bracket cards carry images;
+// 10 = + power fingerprint, synergy anchors/hubs carry images.
+export const SCHEMA_VERSION = 10;
 
 const inFlight = new Map();
 

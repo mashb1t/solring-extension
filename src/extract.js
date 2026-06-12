@@ -313,20 +313,49 @@ function interactionParts(dt) {
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
 }
-function synergyAnchors(dt, idToName) {
+function synergyAnchors(dt, idToCard) {
   return (g(dt, 'synergy', 'profile', 'anchors') || [])
     .filter((a) => a && a.cardId)
     .slice(0, 6)
-    .map((a) => ({ name: idToName[a.cardId] || titleCase(a.cardId), share: a.share, score: a.score }));
+    .map((a) => { const c = idToCard && idToCard[a.cardId]; return { name: (c && c.name) || titleCase(a.cardId), image: (c && c.image) || null, share: a.share, score: a.score }; });
 }
 // Synergy hubs: the cards referenced by the most other entries (graph connections) —
 // the deck's connective tissue. Distinct from anchors, which carry the most score.
-function synergyHubs(dt, idToName) {
+function synergyHubs(dt, idToCard) {
   return (g(dt, 'synergy', 'profile', 'hubs') || [])
     .filter((h) => h && h.cardId)
     .sort((a, b) => (b.connections || 0) - (a.connections || 0))
     .slice(0, 6)
-    .map((h) => ({ name: idToName[h.cardId] || titleCase(h.cardId), connections: h.connections }));
+    .map((h) => { const c = idToCard && idToCard[h.cardId]; return { name: (c && c.name) || titleCase(h.cardId), image: (c && c.image) || null, connections: h.connections }; });
+}
+
+// Deck fingerprint: the headline deck-shape metrics CommanderSalt shows in its Power-
+// Levels tab (tutors, ramp, curve, instant-speed, creatures) — the "what kind of deck"
+// line. Tutor count comes from scoring.tutors.list (the per-tutor map); the rest from
+// powerLevel.profile.
+function powerFingerprint(dt) {
+  const pl = g(dt, 'powerLevel') || {};
+  const pr = pl.profile || {};
+  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  const ramp = pr.ramp || {};
+  const tutors = pr.tutors || {};
+  const curve = pr.curve || {};
+  const timing = pr.timing || {};
+  const comp = pr.composition || {};
+  const rampCount = (ramp.rockCount || 0) + (ramp.dorkCount || 0) + (ramp.ritualCount || 0) + (ramp.treasureCount || 0) + (ramp.landRampCount || 0);
+  return {
+    tutors: Object.keys(g(pl, 'scoring', 'tutors', 'list') || {}).length,
+    tutorDensity: tutors.density || null,
+    tutorQuality: num(tutors.avgQuality),
+    ramp: rampCount,
+    rampDensity: ramp.total || null,
+    avgMv: num(curve.averageMv),
+    curveShape: curve.shape || null,
+    instantRatio: num(timing.instantSpeedRatio),
+    reactiveDensity: timing.reactiveDensity || null,
+    creatures: num(comp.creatureCount),
+    permanentRatio: num(comp.permanentRatio),
+  };
 }
 // Manabase quality. CommanderSalt's headline number is `percentages.overall` — the curve
 // axis as a PERCENT of its 100 benchmark (rounded). (`score`/totalCalories is the sum
@@ -422,12 +451,13 @@ export function extractDeck(p) {
     saltSources: saltSources(dt),
     powerPillars: powerPillars(dt),
     powerProfile: powerProfile(dt),
+    powerFingerprint: powerFingerprint(dt),
     winconProfile: winconProfile(dt),
     bracketCategories: bracketCategories(dt, idToCard),
     bracketProfile: bracketProfile(dt),
     archetypeMajors: archetypeMajors(dt),
-    synergyAnchors: synergyAnchors(dt, idToName),
-    synergyHubs: synergyHubs(dt, idToName),
+    synergyAnchors: synergyAnchors(dt, idToCard),
+    synergyHubs: synergyHubs(dt, idToCard),
     manabase: manabase(dt),
     interactionParts: interactionParts(dt),
     deckId: p.id,

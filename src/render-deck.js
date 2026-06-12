@@ -256,7 +256,7 @@ function renderBody(body, f) {
   const hasWincon = hasCombos || !!(wp && ((wp.paths && wp.paths.length) || (wp.combos && wp.combos.count)));
   if (hasWincon) makeExpandable(winconsTile, buildCombosSection(f.combos, wp), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH }), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint }), body);
   const bp = f.bracketProfile || {};
   const hasBracket = (f.bracketCategories && f.bracketCategories.length)
     || [bp.rationale, bp.soften, bp.harden, bp.ruleZero].some((l) => l && l.length);

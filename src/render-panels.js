@@ -15,11 +15,33 @@ function section(title, children) {
 
 function barRow(label, valueText, pct) {
   const fill = el('span', { style: `width:${Math.max(0, Math.min(100, pct))}%` });
+  const labelEl = el('span', { class: 'solring-pl-label' });
+  if (label && typeof label === 'object' && label.nodeType) labelEl.append(label); // a node (e.g. a linked card name)
+  else labelEl.textContent = label == null ? '' : String(label);
   return el('div', { class: 'solring-pl-row' }, [
-    el('span', { class: 'solring-pl-label', text: label }),
+    labelEl,
     el('span', { class: 'solring-pl-bar' }, [fill]),
     el('span', { class: 'solring-pl-val', text: valueText }),
   ]);
+}
+
+// Deck-fingerprint stat row (Power panel) — same tile style as the manabase header line.
+// Power-relevant shape metrics; null values are dropped.
+function fingerprintRow(fp) {
+  if (!fp) return null;
+  const tiles = [
+    ['Tutors', fp.tutors, [fp.tutorDensity, fp.tutorQuality != null ? `${fp.tutorQuality.toFixed(1)} avg q` : null].filter(Boolean).join(' · ') || null],
+    ['Ramp', fp.ramp, fp.rampDensity || 'rocks + dorks + …'],
+    ['Curve', fp.avgMv != null ? fp.avgMv.toFixed(2) : null, fp.curveShape || 'avg MV'],
+    ['Instant-speed', fp.instantRatio != null ? `${Math.round(fp.instantRatio * 100)}%` : null, fp.reactiveDensity ? `${fp.reactiveDensity} reactive` : 'at instant speed'],
+    ['Creatures', fp.creatures, fp.permanentRatio != null ? `${Math.round(fp.permanentRatio * 100)}% permanents` : null],
+  ].filter(([, v]) => v != null);
+  if (!tiles.length) return null;
+  return el('div', { class: 'solring-mb-stats' }, tiles.map(([k, v, s]) => el('div', { class: 'solring-mb-stat' }, [
+    el('div', { class: 'solring-mb-stat-k', text: k }),
+    el('div', { class: 'solring-mb-stat-v', text: String(v) }),
+    s ? el('div', { class: 'solring-mb-stat-s', text: s }) : null,
+  ])));
 }
 
 const titleWord = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s);
@@ -128,6 +150,9 @@ export function buildPowerPanel(p, profile, meta) {
   }));
   render(inferred === 'spike' ? 'cedh' : 'casual'); // open on the lens CS inferred
   const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, note, rows]);
+  // Deck fingerprint — a stat-tile line (tutors / ramp / curve / …) like the manabase header.
+  const fpRow = fingerprintRow(meta && meta.fingerprint);
+  if (fpRow) sec.append(el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]));
   // Score drivers — what nudged the final number off the pillar baselines. Laid out as
   // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
   // anti-patterns, and improvement suggestions.
@@ -162,12 +187,12 @@ export function buildSynergyPanel(anchors, hubs) {
   const groups = [];
   if (anchors && anchors.length) {
     groups.push(group('Anchors', 'Cards carrying the biggest share of synergy score',
-      anchors.map((a) => barRow(a.name, `${Math.round((a.share || 0) * 100)}%`, (a.share || 0) * 100))));
+      anchors.map((a) => barRow(cardRefs([a], { chip: false })[0], `${Math.round((a.share || 0) * 100)}%`, (a.share || 0) * 100))));
   }
   if (hubs && hubs.length) {
     const max = Math.max(...hubs.map((h) => h.connections || 0), 1);
     groups.push(group('Hubs', 'Cards referenced most by other entries',
-      hubs.map((h) => barRow(h.name, String(h.connections), ((h.connections || 0) / max) * 100))));
+      hubs.map((h) => barRow(cardRefs([h], { chip: false })[0], String(h.connections), ((h.connections || 0) / max) * 100))));
   }
   return el('div', { class: 'solring-panel-section solring-syn-grid', attrs: { hidden: '' } }, groups);
 }
