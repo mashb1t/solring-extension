@@ -9,8 +9,9 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // carry an older `v` (or none) and are treated as stale: served for display continuity
 // but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
 // without a manual Clear cache or Re-analyze. History: 1 = pre-manabase; 2 = + manabase;
-// 3 = + per-card synergy count; 4 = synergy score + scoreBias-ranked partners.
-export const SCHEMA_VERSION = 4;
+// 3 = + per-card synergy count; 4 = synergy score + scoreBias-ranked partners;
+// 5 = + bracket/power profile (coaching, score drivers, anti-patterns).
+export const SCHEMA_VERSION = 5;
 
 const inFlight = new Map();
 

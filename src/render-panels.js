@@ -23,6 +23,47 @@ function barRow(label, valueText, pct) {
 
 const titleWord = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s);
 
+// camelCase scorer id → readable words ("pipCoverageHigh" → "Pip coverage high").
+const humanizeId = (id) => {
+  const s = String(id).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+// A labeled list of raw { id, data, direction? } scorer signals: humanized id (+ ↑/↓)
+// over its data pairs (keys humanized, values verbatim). Null when empty.
+function signalGroup(title, entries) {
+  if (!(entries || []).length) return null;
+  const items = entries.map(({ id, data, direction }) => {
+    const pairs = Object.entries(data || {}).map(([k, v]) => `${humanizeId(k).toLowerCase()}: ${v}`).join(' · ');
+    const arrow = direction === 'up' ? ' ↑' : direction === 'down' ? ' ↓' : '';
+    return el('div', { class: 'solring-sig-item' }, [
+      el('span', { class: 'solring-sig-id', text: humanizeId(id) + arrow }),
+      pairs ? el('span', { class: 'solring-sig-data', text: pairs }) : null,
+    ]);
+  });
+  return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
+}
+
+// A labeled list of id→severity entries ("Narrow synergy focus · major").
+function severityGroup(title, entries) {
+  if (!(entries || []).length) return null;
+  const items = entries.map(({ id, severity }) => el('div', { class: 'solring-sig-item' }, [
+    el('span', { class: 'solring-sig-id', text: humanizeId(id) }),
+    el('span', { class: 'solring-sig-sev', text: String(severity) }),
+  ]));
+  return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
+}
+
+// Anti-pattern flags: CommanderSalt's own label + "why" string, shown verbatim.
+function flagGroup(title, patterns) {
+  if (!(patterns || []).length) return null;
+  const items = patterns.map((p) => el('div', { class: 'solring-sig-item' }, [
+    el('span', { class: 'solring-sig-id', text: p.label }),
+    p.why ? el('span', { class: 'solring-sig-data', text: p.why }) : null,
+  ]));
+  return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
+}
+
 export function buildSaltPanel(sources) {
   const max = Math.max(...sources.map((s) => s.score), 1);
   return section('Salt sources', sources.map((s) => barRow(prettifyStat(s.cat), s.score.toFixed(1), (s.score / max) * 100)));
@@ -36,7 +77,7 @@ const POWER_ORDER = [
 // each pillar's raw score ÷ the baseline, as a %. Bars share one scale (highest fills) with a
 // 100% baseline line. A Casual/cEDH toggle re-renders in place. Pass { scores, casual, cedh }
 // from extract.powerPillars.
-export function buildPowerPanel(p) {
+export function buildPowerPanel(p, profile) {
   const scores = (p && p.scores) || {};
   const baselines = { casual: (p && p.casual) || {}, cedh: (p && p.cedh) || {} };
   const head = el('div', { class: 'solring-pw-head' }, [
@@ -69,7 +110,18 @@ export function buildPowerPanel(p) {
     e.preventDefault(); e.stopPropagation(); render(b.getAttribute('data-mode'));
   }));
   render('casual');
-  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, rows]);
+  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, rows]);
+  // Score drivers — what nudged the final number off the pillar baselines: boosts up,
+  // penalties down, the named anti-patterns, and improvement suggestions.
+  if (profile) {
+    for (const grp of [
+      severityGroup('Boosts the score ↑', profile.boosts),
+      severityGroup('Pulls it down ↓', profile.penalties),
+      flagGroup('Anti-pattern flags', profile.antiPatterns),
+      signalGroup('Suggestions', profile.improve),
+    ]) if (grp) sec.append(grp);
+  }
+  return sec;
 }
 
 export function buildArchetypePanel(majors, label) {
@@ -249,12 +301,6 @@ function statTiles(s) {
   ])));
 }
 
-// camelCase scorer id → readable words ("pipCoverageHigh" → "Pip coverage high").
-const humanizeId = (id) => {
-  const s = String(id).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
-
 // One column of the profile table: header + count badge over the RAW { id, data }
 // entries — the id humanized as the title, the data key/value pairs beneath verbatim.
 function profileColumn(title, entries, emptyText) {
@@ -333,12 +379,30 @@ export function buildInteractionPanel(parts) {
   return section('Interaction breakdown', parts.map((p) => barRow(PART_LABELS[p.cat] || prettifyStat(p.cat), p.score.toFixed(1), (p.score / max) * 100)));
 }
 
-export function buildBracketPanel(baseline, realistic, categories) {
-  const chips = categories.map((c) => el('span', { class: 'solring-combo-tag', text: `${BRACKET_FLAG_LABELS[c.key] || c.key} ${c.count}` }));
-  const title = `Bracket · baseline ${baseline != null ? baseline : '?'} → realistic ${realistic != null ? realistic : '?'}`;
-  return section(title, [
-    chips.length
-      ? el('div', { class: 'solring-combo-tags' }, chips)
-      : el('div', { class: 'solring-msg', text: 'No bracket-defining cards.' }),
-  ]);
+export function buildBracketPanel(baseline, realistic, categories, profile) {
+  const cats = categories || [];
+  const prof = profile || {};
+  const children = [];
+  // Bracket-defining cards: each category as "Label N" + the actual card names.
+  if (cats.length) {
+    children.push(el('div', { class: 'solring-pl-h', text: 'Bracket-defining cards' }));
+    for (const c of cats) {
+      children.push(el('div', { class: 'solring-bp-cat' }, [
+        el('span', { class: 'solring-combo-tag', text: `${BRACKET_FLAG_LABELS[c.key] || c.key} ${c.count}` }),
+        c.cards && c.cards.length ? el('span', { class: 'solring-bp-cards', text: c.cards.join(', ') }) : null,
+      ]));
+    }
+  } else {
+    children.push(el('div', { class: 'solring-msg', text: 'No bracket-defining cards.' }));
+  }
+  // Coaching: why this bracket, then the moves to shift it down / up, then rule-zero.
+  for (const grp of [
+    signalGroup('Why this bracket', prof.rationale),
+    signalGroup('Drop a bracket', prof.soften),
+    signalGroup('Push a bracket', prof.harden),
+    signalGroup('Rule-zero notes', prof.ruleZero),
+  ]) if (grp) children.push(grp);
+  const ratingTxt = prof.rating != null ? ` · ${prof.rating.toFixed(1)} rating` : '';
+  const title = `Bracket · baseline ${baseline != null ? baseline : '?'} → realistic ${realistic != null ? realistic : '?'}${ratingTxt}`;
+  return section(title, children);
 }

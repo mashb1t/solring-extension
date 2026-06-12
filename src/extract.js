@@ -216,11 +216,58 @@ function powerPillars(dt) {
   const pick = (obj) => { const o = {}; for (const k of PILLARS) if (typeof (obj || {})[k] === 'number') o[k] = obj[k]; return o; };
   return { scores, casual: pick(bv.casual), cedh: pick(bv.spike) };
 }
-function bracketCategories(dt) {
+function bracketCategories(dt, idToName) {
   const cats = g(dt, 'brackets', 'categories') || {};
   return Object.keys(BRACKET_FLAG_LABELS)
-    .map((key) => ({ key, count: (cats[key] && cats[key].count) || 0 }))
+    .map((key) => {
+      const c = cats[key] || {};
+      const cards = Array.isArray(c.list) ? c.list.map((id) => (idToName && idToName[id]) || titleCase(id)) : [];
+      return { key, count: c.count || 0, cards };
+    })
     .filter((c) => c.count > 0);
+}
+
+// Raw { id, data } scorer signals (passing through an optional up/down direction) —
+// the panel humanizes the id and shows the data pairs verbatim (no sentence templating),
+// mirroring how the manabase strengths/risks are surfaced.
+const sigList = (list) => (Array.isArray(list) ? list : [])
+  .filter((it) => it && it.id)
+  .map((it) => (it.direction ? { id: it.id, data: it.data || {}, direction: it.direction } : { id: it.id, data: it.data || {} }));
+
+// Bracket coaching: why the deck lands at its bracket (rationale) and the concrete moves
+// to shift it down (soften) / up (harden), plus pre-game rule-zero disclosures. Each is a
+// raw { id, data } list. `rating` is the continuous bracket score behind the integer.
+function bracketProfile(dt) {
+  const b = g(dt, 'brackets') || {};
+  const prof = b.profile || {};
+  const rating = typeof b.bracketRating === 'number' && Number.isFinite(b.bracketRating) ? b.bracketRating : null;
+  return {
+    rating,
+    rationale: sigList(prof.rationale),
+    soften: sigList(prof.soften),
+    harden: sigList(prof.harden),
+    ruleZero: sigList(prof.ruleZero),
+  };
+}
+
+// Power scoring drivers: which signals pushed the score up (boosts) / down (penalties),
+// the named anti-patterns (server-side label + why), and improvement suggestions. boosts/
+// penalties are id→severity maps; we drop the "none" entries.
+function powerProfile(dt) {
+  const prof = g(dt, 'powerLevel', 'profile') || {};
+  const adj = prof.scoreAdjustments || {};
+  const sev = (obj) => Object.entries(obj || {}).filter(([, v]) => v && v !== 'none').map(([id, severity]) => ({ id, severity }));
+  const ap = adj.antiPattern || {};
+  const antiPatterns = (Array.isArray(ap.patterns) ? ap.patterns : [])
+    .filter((x) => x && x.label)
+    .map((x) => ({ label: x.label, why: x.why || '', severity: x.severity || '' }));
+  return {
+    boosts: sev(adj.boosts),
+    penalties: sev(adj.penalties),
+    net: { direction: adj.netDirection || null, magnitude: adj.netMagnitude || null },
+    antiPatterns,
+    improve: sigList(prof.improve),
+  };
 }
 function archetypeMajors(dt) {
   return (g(dt, 'archetypes', 'profile', 'majors') || [])
@@ -346,7 +393,9 @@ export function extractDeck(p) {
     combos,
     saltSources: saltSources(dt),
     powerPillars: powerPillars(dt),
-    bracketCategories: bracketCategories(dt),
+    powerProfile: powerProfile(dt),
+    bracketCategories: bracketCategories(dt, idToName),
+    bracketProfile: bracketProfile(dt),
     archetypeMajors: archetypeMajors(dt),
     synergyAnchors: synergyAnchors(dt, idToName),
     synergyHubs: synergyHubs(dt, idToName),

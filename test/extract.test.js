@@ -88,6 +88,27 @@ test('extractDeck attaches synergy combos (anchors + score) to cards that have t
   assert.ok(withImg.image.includes('/normal/') && !withImg.image.includes('/border_crop/'));
 });
 
+test('extractDeck surfaces bracket coaching (rating + cards + profile lists)', () => {
+  const d = extractDeck(deck);
+  const bp = d.bracketProfile;
+  assert.equal(typeof bp.rating, 'number'); // continuous bracket score behind the integer
+  for (const k of ['rationale', 'soften', 'harden', 'ruleZero']) assert.ok(Array.isArray(bp[k]), `${k} is a list`);
+  assert.ok(bp.rationale.length > 0 && bp.rationale[0].id, 'rationale entries carry an id');
+  // category chips now carry the actual card names, not just a count
+  const gc = d.bracketCategories.find((c) => c.key === 'gameChangers');
+  assert.ok(gc && Array.isArray(gc.cards) && gc.cards.length === gc.count, 'gameChangers lists its cards');
+  assert.ok(gc.cards.every((n) => typeof n === 'string' && n.length), 'cards resolved to names');
+});
+
+test('extractDeck surfaces power score drivers (boosts/penalties/anti-patterns)', () => {
+  const d = extractDeck(deck);
+  const pp = d.powerProfile;
+  for (const k of ['boosts', 'penalties', 'antiPatterns', 'improve']) assert.ok(Array.isArray(pp[k]), `${k} is a list`);
+  // boosts/penalties drop the "none" entries → only id+severity pairs remain
+  assert.ok(pp.boosts.every((b) => b.id && b.severity && b.severity !== 'none'), 'boosts are non-none id/severity');
+  assert.ok(pp.antiPatterns.every((a) => typeof a.label === 'string' && a.label.length), 'anti-patterns carry a server label');
+});
+
 test('power breakdown de-duplicates wincon_X into X (no doubles)', () => {
   const d = extractDeck(deck);
   const c = d.cards['agate instigator']; // appears in both `burn` and `wincon_burn`

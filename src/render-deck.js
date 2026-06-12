@@ -254,8 +254,11 @@ function renderBody(body, f) {
   // Each tile expands its own detail panel (hidden until clicked).
   if (hasCombos) makeExpandable(winconsTile, buildCombosSection(f.combos), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars), body);
-  if (f.bracketCategories && f.bracketCategories.length) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile), body);
+  const bp = f.bracketProfile || {};
+  const hasBracket = (f.bracketCategories && f.bracketCategories.length)
+    || [bp.rationale, bp.soften, bp.harden, bp.ruleZero].some((l) => l && l.length);
+  if (hasBracket) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories, f.bracketProfile), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
   if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);
   if ((f.synergyAnchors && f.synergyAnchors.length) || (f.synergyHubs && f.synergyHubs.length)) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors, f.synergyHubs), body);

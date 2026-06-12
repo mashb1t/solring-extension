@@ -298,6 +298,18 @@
   padding: 0.05rem 0.4rem; border-radius: 4px;
   background: var(--solring-surface-2); color: var(--solring-text-2); border: 1px solid var(--solring-border);
 }
+/* Bracket panel: one row per category — the count chip + the actual card names. */
+.solring-bp-cat { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; margin: 0.2rem 0; }
+.solring-bp-cards { font-size: 0.74rem; color: var(--solring-text-2); }
+/* Scorer-signal groups (bracket coaching · power score drivers): header + stacked rows
+   of id (+ optional ↑/↓) over a muted data/why/severity line. */
+.solring-sig-group { margin-top: 0.7rem; }
+.solring-sig-group .solring-pl-h { margin-bottom: 0.25rem; }
+.solring-sig-item { padding: 0.25rem 0; border-top: 1px solid var(--solring-border); }
+.solring-sig-item:first-of-type { border-top: 0; }
+.solring-sig-id { font-size: 0.8rem; }
+.solring-sig-data { display: block; font-size: 0.72rem; color: var(--solring-text-2); margin-top: 0.05rem; }
+.solring-sig-sev { font-size: 0.72rem; color: var(--solring-text-2); margin-left: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .solring-combo-block { margin-top: 0.5rem; }
 .solring-combo-h { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-bottom: 0.2rem; }
 .solring-combo-list { margin: 0; padding-left: 1.2rem; font-size: 0.82rem; }
