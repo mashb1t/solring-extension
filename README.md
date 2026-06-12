@@ -12,52 +12,106 @@ per-card stats right where you're building or browsing a deck, no tab-switching.
 
 ## Features
 
-**On a deck page** (`moxfield.com/decks/…`) a collapsible Solring report card is injected into the deck:
+### On a deck page (`moxfield.com/decks/…`)
 
-- **Power** (`x / 10` rating + the deck's raw total power score)
-- **Bracket** (baseline → realistic, with an up/down delta arrow)
-- **Commander tier**, **Archetype**, and **Saltiness** (A–D grade)
-- Report-card grades for **Threat**, **Interaction**, **Wincons**, **Synergy**
-- **Combos** count (Commander Spellbook), expandable to a per-combo list with
-  prerequisites, steps, results, and difficulty
-- Every metric tile expands an inline detail panel (power pillars, bracket-defining
-  cards, salt sources, archetype mix, synergy anchors, interaction breakdown)
+A collapsible Solring report card is injected into the deck. Each metric is a tile
+that expands an inline detail panel:
 
-**In the decklist (Text view)**: per-card annotations, each toggled from Moxfield's
-**Customize View** dialog (Power · Salt Value · Tags · Stats · Combos):
+- **Power** — `x / 10` rating + the deck's raw total power score, with a **cEDH /
+  fringe-cEDH** chip when applicable. Expands to: a deck **fingerprint** line
+  (tutors · ramp · curve · instant-speed · creatures), the power pillars
+  (per-category contributions), and the score drivers in side-by-side columns —
+  **Boosts the score**, **Pulls it down**, **Anti-pattern flags**, and
+  **Suggestions** (each sorted major → minor). A casual / cEDH lens toggle picks the
+  baseline (defaults to the deck's inferred type).
+- **Bracket** — baseline → realistic, with an up/down delta arrow. Expands to the
+  bracket-defining cards grouped by category (Game Changers, tutors, …), any
+  **rule-zero** notes, and three coaching columns: **Why this bracket**, **Drop a
+  bracket**, **Push a bracket**.
+- **Commander tier**, **Archetype**, and **Saltiness** (A–D grade).
+- Report-card grades for **Threat**, **Interaction**, **Wincons**, **Synergy**.
+  - **Wincons** expands to the win-condition profile (paths · goal) and combo
+    consistency (count · effective lines · redundancy · a 2-/3-/4-card size breakdown).
+  - **Synergy** expands to the deck's synergy anchors and hubs, ranked by weight.
+- **Combos** count (Commander Spellbook), expandable to the per-combo list —
+  fewest-pieces-first, then by score — each with prerequisites, steps, results, and
+  difficulty.
 
-- **Power** and **Salt** columns, placed right after the price; cards that stand out
-  (power > 2× the deck average, salt ≥ 5) are highlighted in the accent color
-- **Tags**, bracket flags, per-card power/salt breakdowns, and combo membership
+Card names throughout the panels (bracket cards, combo pieces, synergy anchors) are
+**hoverable**: hovering shows the deck's printing, clicking opens the card.
 
-**In the card-detail modal**: a per-card "Info" panel in the sidebar listing
-saltiness, power contribution (as a share of the deck total), tags, bracket flags,
-power/salt breakdowns, and synergy. Updates as you page through cards.
+### In the decklist (Text view)
 
-**Elsewhere:** a "CommanderSalt" link in the deck's links row, a manual re-analyze
-(↻) button, and a live "synced … ago" timestamp.
+Per-card annotations, each toggled from Moxfield's **Customize View** dialog:
+
+- **Power** and **Saltiness** columns, placed right after the price; cards that stand
+  out (power above a multiple of the deck average, salt at/above a threshold) are
+  highlighted in the accent color.
+- A **Synergies** column (the card's synergy score, colored when it lands in the
+  deck's top percentile), and a **Tags** line (CommanderSalt tags + bracket flags).
+
+Full per-card breakdowns (power/salt pillars, synergy anchors) live in the card-detail
+sidebar/modal rather than crowding the rows.
+
+### On deck-list pages (user profile + personal manager)
+
+On a user's profile (`moxfield.com/users/…`) and the personal deck manager, Solring
+adds sortable CommanderSalt **metric columns** to the deck table — Commander tier,
+Power, Bracket, Manabase, Threat, Saltiness, Interaction, Wincons, Combos, Synergy,
+Archetype — plus a per-row re-analyze (↻) action. Grade cells show the raw total on
+hover. A toolbar (next to Moxfield's Sort) carries:
+
+- **Stats** — bulk-fetch the listed decks: *Fetch all*, *Fetch uncached*, or
+  *Recalculate all* (forces a fresh upstream recompute, confirm-gated). Sequential and
+  throttled, with a live progress/last-analyzed label; cancelable.
+- **Columns** — pick which metric columns show (and reorder them).
+
+These controls appear only where a deck **table** is shown — never on the image/grid
+browse pages (`/decks/public`, `/liked`, `/private`, …).
+
+### In the card-detail modal
+
+A per-card "Info" panel listing saltiness, power contribution (as a share of the deck
+total), tags, bracket flags, power/salt breakdowns, and synergy — mirrored onto the
+deck page's left card-preview sidebar. Updates as you page through cards.
+
+### Elsewhere
+
+A "CommanderSalt" link in the deck's links row, a manual re-analyze (↻) button, a
+live "synced … ago" timestamp, and a wide / normal layout toggle in the header.
 
 ## Enabling / disabling per-card data
 
-The per-card columns and annotations are toggled from **Moxfield's own "Customize
-View" dialog** (on a deck page, open the decklist's view settings). Solring adds its
-checkboxes to the **Include Extra Data** group, next to Moxfield's Mana Cost / Price /
-Set Symbol:
+The per-card columns are toggled from **Moxfield's own "Customize View" dialog** (on a
+deck page, open the decklist's view settings). Solring adds its checkboxes to the
+**Include Extra Data** group, next to Moxfield's Mana Cost / Price / Set Symbol:
 
-| Toggle         | Shows on each card                        |
-|----------------|-------------------------------------------|
-| **Power**      | power-contribution column                 |
-| **Salt Value** | saltiness column                          |
-| **Tags**       | CommanderSalt tags (tutor, ramp, …)       |
-| **Stats**      | bracket flags + power and salt breakdowns |
-| **Combos**     | combo membership + synergy ("feeds …")    |
+| Toggle         | Default | Shows on each card                            |
+|----------------|---------|-----------------------------------------------|
+| **Power**      | on      | power-contribution column                     |
+| **Saltiness**  | on      | saltiness column                              |
+| **Synergies**  | off     | synergy score (colored when top-percentile)   |
+| **Tags**       | off     | CommanderSalt tags (tutor, ramp, …) + flags   |
 
 Tick or untick any of them, changes apply **immediately**, persist across sessions
-(`chrome.storage.local`), and sync to other open Moxfield tabs. All are on by default.
+(`chrome.storage.local`), and sync to other open Moxfield tabs.
 
 These annotations only show in a **text-row layout** (the *Text* / *Condensed* views).
 The *Visual* view has no rows to annotate. The deck report card and the card-modal
-panel are always shown as header.
+panel are always shown.
+
+## Options
+
+The extension's options page (`chrome://extensions` → Solring → *Extension options*):
+
+- **Analysis** — auto-fetch uncached / edited decks on page load, and how long a
+  cached analysis stays fresh before it's re-fetched (1 / 3 / 7 / 30 days / never).
+- **Marks – standout cards** — the thresholds and highlight colors for the per-card
+  marks: power (× deck average), saltiness (static value), synergy (deck percentile).
+- **Rating colors** — the A–D grade colors.
+- **Panels** — whether the card panel shows in the modal and/or the sidebar, the deck
+  report-card default (auto / always open / always collapsed), and accordion behavior
+  (only one metric tile open at a time).
 
 ## Install (load unpacked)
 
@@ -80,7 +134,8 @@ No build step for now, the extension runs the source directly.
 - Deck ↔ analysis are joined by **`md5(canonical Moxfield deck URL)`**, which is
   CommanderSalt's deck id. (Web Crypto has no MD5, so a small MD5 is vendored.)
 - The ↻ button forces a fresh re-analysis (`POST /decks?url=…&oldDeckId=…`), whereas
-  ordinary page loads uses the cached `GET /decks?id=…`.
+  ordinary page loads use the cached `GET /decks?id=…`. The deck-list **Stats**
+  control runs the same engine in bulk over the rendered rows.
 
 ## Privacy & data
 
@@ -95,35 +150,6 @@ No build step for now, the extension runs the source directly.
 npm test        # node --test, pure-logic unit tests (extract, ratings, md5, …)
 ```
 
-Pure ES modules, no bundler. The metric extraction, rating ladder, MD5, and Moxfield
-URL parsing are unit-tested with `node:test` against JSON fixtures in `fixtures/`;
-the DOM-rendering modules are validated in a real browser.
-
-### Layout
-
-```
-manifest.json          MV3 manifest
-styles/solring.css     all injected styles (themed via Moxfield's --bs-* vars)
-src/
-  content.js           bootstrap + SPA router
-  background.js        service worker: API calls + cache
-  api.js               CommanderSalt API wrappers
-  cache.js             chrome.storage SWR cache + in-flight dedup
-  messaging.js         content ⇄ worker helpers
-  md5.js               canonical deck URL + vendored MD5 (the join key)
-  moxfield.js          page-type / deck-id parsing
-  extract.js           raw CommanderSalt payload → display fields
-  ratings.js           A–D grade ladder + per-card power/salt ranking
-  labels.js            human-readable category/tag labels
-  prefs.js             persisted card-display + sort preferences
-  dom.js               idempotent DOM helpers (el, claim, teardown, isDark, …)
-  render-deck.js       the deck report-card panel
-  render-panels.js     per-metric detail panels
-  render-combos.js     the combo list
-  render-cards.js      per-card decklist annotations
-  render-card-modal.js per-card Info panel in the card-detail modal
-  customize-view.js    injects the toggles into Moxfield's Customize View
-  links-menu.js        the "CommanderSalt" deck link
-test/                  node:test unit tests
-fixtures/              sample CommanderSalt payloads used by the tests
-```
+Pure ES modules, no bundler. The metric extraction, rating ladder, MD5, deck-list
+engine, and Moxfield URL parsing are unit-tested with `node:test` against JSON
+fixtures in `fixtures/`; the DOM-rendering modules are validated in a real browser.
