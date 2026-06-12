@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Chrome extension showing metrics and useful information for evaluating decks on Moxfield.",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build": "node scripts/build.mjs"
   }
 }
