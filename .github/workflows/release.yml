@@ -1,0 +1,65 @@
+name: Release
+
+# Build a Chrome Web Store-ready zip and attach it to a GitHub Release whenever a
+# version tag (v*) is pushed. The tag drives the packaged version: pushing v1.2.3
+# builds solring-v1.2.3.zip. workflow_dispatch allows a manual build (optionally with
+# an explicit version) that runs tests + packages but does not create a Release.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.2.3). Leave blank to use the manifest version.'
+        required: false
+
+permissions:
+  contents: write # needed to create the Release and upload the asset
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test
+        run: npm test
+
+      - name: Resolve version
+        id: ver
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build package
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if [ -n "$VERSION" ]; then
+            node scripts/build.mjs --version="$VERSION" --skip-tests
+          else
+            node scripts/build.mjs --skip-tests
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: solring-extension
+          path: dist/*.zip
+
+      - name: Create Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
