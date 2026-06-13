@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Solring – Stats for Moxfield",
-  "version": "0.0.5",
+  "version": "1.0.0",
   "description": "Shows deck metrics and useful information for evaluating decks on Moxfield.",
   "icons": {
     "16": "icons/16.png",

@@ -179,7 +179,7 @@ tag is the source of truth for a published build. Download the zip from the Rele
 upload it in the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole)
 (publishing is manual — no store credentials live in CI).
 
-> [!NOTE]
-> Before the first store submission, add an extension icon (`icons` in the manifest,
-> e.g. 16/48/128 px) — the manifest currently declares none.
+## Credits
+
+The ring icon is derived from [Brush PNGs by Vecteezy](https://www.vecteezy.com/free-png/brush).
 

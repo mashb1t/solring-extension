@@ -22,9 +22,11 @@ const DIST = join(ROOT, 'dist');
 const STAGE = join(DIST, 'package'); // staging copy; we zip its contents (manifest at root)
 
 // Runtime allowlist — exactly what the loaded extension needs. content.js dynamically
-// imports the rest of src/ as web-accessible ES modules, so the whole dir ships.
-// icons/ ships the sized PNGs; the 650px source (icons/base.png) is excluded at zip time.
-const INCLUDE = ['manifest.json', 'options.html', 'options.js', 'src', 'styles', 'icons'];
+// imports the rest of src/ as web-accessible ES modules, so the whole dir ships. Only
+// the sized icon PNGs ship (named explicitly) — the icons/ source art (base*.png) and
+// any other working files there never leak into the package.
+const INCLUDE = ['manifest.json', 'options.html', 'options.js', 'src', 'styles',
+  'icons/16.png', 'icons/32.png', 'icons/48.png', 'icons/128.png'];
 
 function parseArgs(argv) {
   const args = { skipTests: false, version: null };
@@ -84,7 +86,7 @@ const zipName = `solring-v${version}.zip`;
 const zipPath = join(DIST, zipName);
 rmSync(zipPath, { force: true });
 try {
-  execFileSync('zip', ['-r', '-X', '-q', zipPath, '.', '-x', '*.DS_Store', '-x', 'icons/base.png'], { cwd: STAGE });
+  execFileSync('zip', ['-r', '-X', '-q', zipPath, '.', '-x', '*.DS_Store'], { cwd: STAGE });
 } catch (err) {
   console.error('✗ failed to create the zip — is the `zip` CLI installed?', err.message);
   process.exit(1);
