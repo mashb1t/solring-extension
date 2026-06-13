@@ -9,6 +9,7 @@
 // /cards/ page with no deck simply shows nothing.
 
 import { el, isDark } from './dom.js';
+import { num } from './format.js';
 import { prettifyStat } from './labels.js';
 import { normName } from './render-cards.js';
 import { powerMark, saltMark, deckAvgPower } from './ratings.js';
@@ -38,8 +39,6 @@ export function lookupCard(fields, name) {
   for (const k of Object.keys(cards)) if (normName(k) === n) return cards[k];
   return null;
 }
-
-const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
 
 // value is a string (wrapped in .solring-num + optional valueClass for color) or a
 // prebuilt node. valueClass uses solring-tier-* — 'a' is red for high salt /

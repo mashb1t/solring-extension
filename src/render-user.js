@@ -5,11 +5,10 @@
 // hint. Recomputes as decks load or get scanned (decklist's onDeckListChange).
 
 import { el, guard } from './dom.js';
+import { num } from './format.js';
 import { tile, gradeChip } from './components.js';
 import { csRatingGrade } from './ratings.js';
 import { getViews, onDeckListChange } from './decklist.js';
-
-const num = (n, d = 1) => (typeof n === 'number' && Number.isFinite(n) ? n.toFixed(d) : '—');
 
 // ---- pure logic (unit-tested) ------------------------------------------------
 // Average each metric over the views that have it, returning { v, n } where n is how

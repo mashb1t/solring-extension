@@ -25,6 +25,7 @@ import {
   getHiddenNativeCols, setHiddenNativeCols, getSortPref, setSortPref, onPrefChange,
 } from './prefs.js';
 import { el, guard } from './dom.js';
+import { num } from './format.js';
 import { gradeChip, bracketValue } from './components.js';
 
 const HIT_PAGE_CAP = 20; // safety bound on search pagination (≈ HIT_PAGE_CAP×page-size decks)
@@ -244,7 +245,6 @@ function deckRows() {
 
 // ---- DOM: the metric columns -------------------------------------------------
 
-const num = (n, d = 1) => (typeof n === 'number' && Number.isFinite(n) ? n.toFixed(d) : '—');
 const numNode = (n) => (typeof n === 'number' && Number.isFinite(n) ? el('span', { class: 'solring-num', text: num(n) }) : null);
 const textNode = (t) => el('span', { text: t });
 const gradeNode = (value, field) => (typeof value === 'number' && Number.isFinite(value) ? gradeChip(csRatingGrade(value, field)) : null);

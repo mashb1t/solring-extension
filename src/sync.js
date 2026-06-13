@@ -7,6 +7,7 @@
 // "Re-analyze" / "analyzed X ago").
 
 import { el, guard } from './dom.js';
+import { relTime } from './format.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
 import { getEntries, isCached, hasDeckListTable, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
@@ -23,15 +24,6 @@ let raf = null;
 let controls = null; // { wrap, analyzeBtn, cancelBtn, status }
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function relTime(ts) {
-  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (s < 60) return 'just now';
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.round(m / 60);
-  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
-}
 
 // Unique rendered decks, excluding private (their analyses aren't readable).
 function syncableEntries() {
