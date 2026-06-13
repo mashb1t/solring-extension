@@ -46,3 +46,15 @@ export function bracketValue(f) {
   node.append(arrow);
   return node;
 }
+
+/** Bracket-flag chips as a bare span array (`.solring-flag`). The caller supplies the
+    container — both call sites render flags first, then tags (see `tagChips`). */
+export function flagChips(flags) {
+  return (flags || []).map((f) => el('span', { class: 'solring-flag', text: f }));
+}
+
+/** CommanderSalt tag chips as a bare span array (`.solring-tag`). Caller-owned container.
+    (The combo panel has its own `.solring-combo-tag` variant — kept local there.) */
+export function tagChips(tags) {
+  return (tags || []).map((t) => el('span', { class: 'solring-tag', text: t }));
+}
