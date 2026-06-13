@@ -552,10 +552,13 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
 /* Bulk-analysis controls (Analyze all / Re-analyze all) in the deck-list toolbar.
    Buttons copy Moxfield's Sort styling; only the wrapper + status need styling. */
-/* gap matches Moxfield's toolbar (.d-flex.gap-3 = 1rem) so the spacing between the
-   sync controls is identical to the gaps between More Filters / Stats / Sort. */
-.solring-sync { display: inline-flex; align-items: center; }
+/* gap matches Moxfield's toolbar (.gap-3 = 1rem = 14px at their 14px root) so the
+   spacing between the status, Stats button, and Cancel is identical to the gaps between
+   More Filters / Stats / Sort. (The rule previously described this but never set gap.) */
+.solring-sync { display: inline-flex; align-items: center; gap: 1rem; }
 .solring-sync-status { font-size: 0.78rem; color: var(--solring-text-2); white-space: nowrap; }
+/* Idle = empty status: drop it from the flex row so it leaves no gap before Stats. */
+.solring-sync-status:empty { display: none; }
 /* "Analyze" split-dropdown: parent button + scope menu. Mirrors the Stats menu's
    positioning (Moxfield's .dropdown-menu base is Popper-oriented; we pin it below the
    button). Right-aligned (opens leftward into the toolbar) since the button sits in the
