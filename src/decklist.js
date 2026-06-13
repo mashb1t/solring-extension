@@ -24,7 +24,7 @@ import {
   getListColumns, setListColumns, getColumnOrder, setColumnOrder,
   getHiddenNativeCols, setHiddenNativeCols, getSortPref, setSortPref, onPrefChange,
 } from './prefs.js';
-import { el, guard } from './dom.js';
+import { el, guard, installOutsideClose } from './dom.js';
 import { num } from './format.js';
 import { gradeChip, bracketValue } from './components.js';
 
@@ -707,19 +707,6 @@ const COLUMN_NAMES = {
   actions: 'CS link + analysis',
 };
 
-let outsideCloseInstalled = false;
-function installOutsideClose() {
-  if (outsideCloseInstalled) return;
-  outsideCloseInstalled = true;
-  // Capture phase: runs before any target's stopPropagation, so the Columns menu closes
-  // whenever the click lands elsewhere — including on the Stats menu or Moxfield's Sort
-  // (whose handlers stopPropagation). Keeps the three toolbar dropdowns mutually exclusive.
-  document.addEventListener('click', (e) => {
-    document.querySelectorAll('.solring-colmenu').forEach((wrap) => {
-      if (!wrap.contains(e.target)) closeMenu(wrap);
-    });
-  }, true);
-}
 function closeMenu(wrap) {
   const panel = wrap.querySelector('.dropdown-menu');
   const btn = wrap.querySelector('.solring-colmenu-btn');
@@ -985,7 +972,7 @@ function scheduleSweep() {
 export async function installDeckList(username, { waitFor } = {}) {
   if (!username) return;
   [listColumns, columnOrder, hiddenNative, sortState] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols(), getSortPref()]);
-  installOutsideClose();
+  installOutsideClose('.solring-colmenu', closeMenu);
   installNativeSortYield();
   if (!prefSubscribed) {
     prefSubscribed = true;

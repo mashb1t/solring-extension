@@ -6,7 +6,7 @@
 // row + the averages as it goes. Verb mirrors the single-deck panel ("Analyze" /
 // "Re-analyze" / "analyzed X ago").
 
-import { el, guard } from './dom.js';
+import { el, guard, installOutsideClose } from './dom.js';
 import { relTime } from './format.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
@@ -146,18 +146,6 @@ function toggleAnalyzeMenu(dropdown) {
   menu.classList.toggle('show', show);
   if (btn) btn.setAttribute('aria-expanded', String(show));
 }
-let analyzeCloseInstalled = false;
-function installAnalyzeOutsideClose() {
-  if (analyzeCloseInstalled) return;
-  analyzeCloseInstalled = true;
-  // Capture phase: runs before any target's stopPropagation, so the Stats menu closes
-  // whenever the click lands elsewhere — including on the Columns menu or Moxfield's
-  // Sort (whose own handlers stopPropagation). This is what makes the three dropdowns
-  // mutually exclusive from our side; opening Sort/Columns thereby closes Stats.
-  document.addEventListener('click', (e) => {
-    document.querySelectorAll('.solring-analyze').forEach((dd) => { if (!dd.contains(e.target)) closeAnalyzeMenu(dd); });
-  }, true);
-}
 
 function buildControls(btnClass) {
   const status = el('span', { class: 'solring-sync-status' });
@@ -186,7 +174,7 @@ function buildControls(btnClass) {
 
   const wrap = el('div', { class: 'solring-sync', attrs: { 'data-solring-root': '' } }, [status, dropdown, cancelBtn]);
   controls = { wrap, analyzeBtn, cancelBtn, status };
-  installAnalyzeOutsideClose();
+  installOutsideClose('.solring-analyze', closeAnalyzeMenu);
   refreshStatus();
   return wrap;
 }

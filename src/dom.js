@@ -63,6 +63,22 @@ export function tierFromGrade(grade) {
   return ['a', 'b', 'c', 'd'].includes(letter) ? letter : 'c';
 }
 
+// Selectors that already have an outside-close listener installed (idempotence per
+// selector, so repeated SPA passes don't stack listeners).
+const outsideCloseInstalled = new Set();
+/** Close stray dropdowns on any click outside them. Registers a single document-level
+    CAPTURE-phase click listener per distinct `selector` — capture runs before a
+    target's own stopPropagation, so opening another menu (or one of Moxfield's
+    controls) still closes these, keeping sibling dropdowns mutually exclusive. For each
+    element matching `selector` that does not contain the click target, calls `close(el)`. */
+export function installOutsideClose(selector, close) {
+  if (outsideCloseInstalled.has(selector)) return;
+  outsideCloseInstalled.add(selector);
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll(selector).forEach((node) => { if (!node.contains(e.target)) close(node); });
+  }, true);
+}
+
 /** Run fn, swallowing+logging any error so Moxfield's page is never broken. */
 export function guard(label, fn) {
   try {
