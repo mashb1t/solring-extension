@@ -34,15 +34,6 @@ export function chevronSvg() {
   return svg;
 }
 
-/** Returns true once per (node, key); marks the node so repeated calls no-op. */
-export function claim(node, key) {
-  const set = (node.dataset.solring || '').split(' ').filter(Boolean);
-  if (set.includes(key)) return false;
-  set.push(key);
-  node.dataset.solring = set.join(' ');
-  return true;
-}
-
 /** Remove all injected roots carrying [data-solring-root]. */
 export function teardown(root = document) {
   root.querySelectorAll('[data-solring-root]').forEach((n) => n.remove());

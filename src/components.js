@@ -46,14 +46,3 @@ export function bracketValue(f) {
   node.append(arrow);
   return node;
 }
-
-/** A compact inline label · bar · value row for the deck-list strip and averages.
-    `pct` (0–100) sets the fill width; `tier` (a–d) optionally colors the fill. */
-export function miniBar(label, valueText, pct, tier) {
-  const fill = el('span', { class: 'solring-mini-fill', style: `width:${Math.max(0, Math.min(100, pct || 0))}%` });
-  return el('span', { class: `solring-mini${tier ? ` solring-tier-${tier}` : ''}` }, [
-    el('span', { class: 'solring-mini-label', text: label }),
-    el('span', { class: 'solring-mini-bar' }, [fill]),
-    el('span', { class: 'solring-mini-val', text: valueText }),
-  ]);
-}
