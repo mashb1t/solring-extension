@@ -285,7 +285,7 @@ function renderAnalyze(body, canonicalUrl, md5, onResult) {
     btn.textContent = 'Analyzing… (~5s)';
     const res = await guardAsync(() => importDeck(canonicalUrl, md5));
     if (res && res.fields) return onResult(res.fields);
-    if (res && res.unanalyzable) return renderMessage(body, 'Couldn’t analyze — deck appears private, non-Commander, or illegal.');
+    if (res && res.unanalyzable) return renderMessage(body, 'Couldn’t analyze - deck appears to be private, non-Commander, or illegal.');
     btn.disabled = false;
     btn.textContent = 'Analyze - retry';
   });
@@ -334,10 +334,10 @@ export async function mount({ waitFor }) {
   const refreshIcon = el('span', { class: 'solring-spin-icon', text: '↻' });
   const refreshBtn = el('button', {
     class: 'solring-refresh',
-    attrs: { type: 'button', 'aria-label': 'Re-analyze', title: 'Re-analyze (~5s)' },
+    attrs: { type: 'button', 'aria-label': 'Analyze', title: 'Analyze (~5s)' },
   }, [refreshIcon]);
   // Spin the refresh icon (and disable the button) whenever a fetch is in flight:
-  // the initial load, an edit re-analysis, or a manual refresh.
+  // the initial load, an edit analysis, or a manual refresh.
   const setRefreshSpinning = (on) => { refreshIcon.classList.toggle('solring-spin', on); refreshBtn.disabled = on; };
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
@@ -368,7 +368,7 @@ export async function mount({ waitFor }) {
   // ticker left by a prior mount so intervals never stack across SPA navigations.
   clearInterval(syncTimer);
   syncTimer = setInterval(() => { if (lastSync) synced.textContent = `analyzed ${relTime(lastSync)}`; }, 30000);
-  // The sync button always forces a fresh re-analysis (POST /decks?url=...&oldDeckId=md5),
+  // The sync button always forces a fresh analysis (POST /decks?url=...&oldDeckId=md5),
   // not just a re-fetch, so decklist edits are reflected. Spins the icon while the
   // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)
   async function doRefresh() {
@@ -415,7 +415,7 @@ export async function mount({ waitFor }) {
     startAnnotations(f);
   }
 
-  // When auto-fetch is on, re-analyze (POST) a deck that Moxfield says was edited
+  // When auto-fetch is on, analyze (POST) a deck that Moxfield says was edited
   // after CommanderSalt last analyzed it, else the cached numbers describe a stale
   // decklist. Skipped when Moxfield's "updated" time is unreadable or not newer than
   // analyzedAt. Mirrors the manual refresh (POST /decks?url=...&oldDeckId=md5).
@@ -433,7 +433,7 @@ export async function mount({ waitFor }) {
   // silent background refresh would shift the numbers under the user. We paint the
   // cached values and leave updating to the manual refresh button. The "synced ...ago"
   // label (ticked live above) keeps the staleness visible. The one exception is an
-  // edited decklist (above), which auto-fetch re-analyzes so the data stays truthful.
+  // edited decklist (above), which auto-fetch analyzes so the data stays truthful.
   if (res.fields) {
     showFields(res.fields);
     setSynced(res.fetchedAt);

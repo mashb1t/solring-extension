@@ -1,10 +1,10 @@
 // Bulk analysis for the deck-list pages. Injects a "Stats" dropdown (Fetch all, Fetch
-// uncached, Recalculate all) plus a status/last-analyzed label into the deck-list toolbar
+// uncached, Analyze all) plus a status/last-analyzed label into the deck-list toolbar
 // next to Moxfield's Sort. Operates on the decks currently rendered in the list
 // (decklist.getEntries), minus private ones, which CommanderSalt can't read.
 // Sequential and throttled, one request per deck, never retried, cancelable. Updates
 // each row and the averages as it goes. Verb mirrors the single-deck panel ("Analyze",
-// "Re-analyze", "analyzed X ago").
+// "Analyze", "analyzed X ago").
 
 import { el, guard, installOutsideClose } from './dom.js';
 import { relTime } from './format.js';
@@ -46,7 +46,7 @@ async function refreshStatus() {
 
 // Analyze all = warm the cache via GET (un-indexed decks get a first POST import).
 // Analyze uncached = same, but only decks with no analysis loaded yet (skip cached).
-// Re-analyze all = force a fresh POST re-analysis of every deck (confirm-gated).
+// Analyze all = force a fresh POST analysis of every deck (confirm-gated).
 async function run({ force = false, uncachedOnly = false }) {
   if (running) return;
   running = true;
@@ -69,7 +69,7 @@ async function run({ force = false, uncachedOnly = false }) {
     try {
       let res;
       if (force) {
-        res = await importDeck(canonicalDeckUrl(e.publicId), e.md5, e.md5); // POST re-analysis
+        res = await importDeck(canonicalDeckUrl(e.publicId), e.md5, e.md5); // POST analysis
       } else {
         res = await getDeck(e.md5, { allowFetch: true }); // GET, warm cache
         if (res && res.stub) res = await importDeck(canonicalDeckUrl(e.publicId), e.md5); // un-indexed, first import
@@ -116,18 +116,18 @@ function statIcon() {
 }
 
 // The three bulk scopes the "Stats" dropdown offers. Fetch retrieves CommanderSalt's
-// existing analysis (cheap GET). Recalculate forces a fresh upstream recompute (POST,
+// existing analysis (cheap GET). Analyze forces a fresh upstream recompute (POST,
 // confirm-gated). Each runs the same engine with different flags.
 const ANALYZE_ACTIONS = [
   { label: 'Fetch all', title: 'Fetch stats for every listed (non-private) deck', go: () => run({ force: false }) },
   { label: 'Fetch uncached', title: 'Fetch stats only for listed decks not already loaded', go: () => run({ force: false, uncachedOnly: true }) },
   {
-    label: 'Recalculate all',
+    label: 'Analyze all',
     title: 'Force CommanderSalt to recompute every listed (non-private) deck from scratch',
     go: () => {
       const n = syncableEntries().length;
       // eslint-disable-next-line no-alert
-      if (window.confirm(`Recalculate all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
+      if (window.confirm(`Analyze all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
     },
   },
 ];
@@ -189,7 +189,7 @@ function ensureControls() {
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-sync')) return;
   // Land before the Stats-columns menu when it's already in place, so the toolbar order
-  // is deterministically [Analyze all, Re-analyze all] [Stats] [Sort] on every page,
+  // is deterministically [Analyze all, Analyze all] [Stats] [Sort] on every page,
   // not dependent on which of us won the insert race (else Stats can slip ahead on
   // /users/{name}). If the menu hasn't injected yet, inserting before Sort works: the
   // menu then inserts before Sort too, landing after us.

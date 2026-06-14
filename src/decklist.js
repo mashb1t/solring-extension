@@ -524,7 +524,7 @@ function applyNativeHide(tbl, htr) {
   });
 }
 
-// Per-row actions cell: a CommanderSalt link + a Sync (re-analyze) button. Sync POSTs
+// Per-row actions cell: a CommanderSalt link + a Sync (analyze) button. Sync POSTs
 // the deck for a fresh analysis (like the deck page's refresh), spins while running, then
 // refreshes the row from the new payload. Never auto-syncs, explicit click only.
 function buildActionsCell(entry) {
@@ -535,7 +535,7 @@ function buildActionsCell(entry) {
   // Icon in its own span so spinning rotates only the icon, not the bordered button.
   const sync = el('button', {
     class: 'solring-row-act solring-row-sync',
-    attrs: { type: 'button', title: 'Re-analyze' },
+    attrs: { type: 'button', title: 'Analyze' },
   }, [el('span', { class: 'solring-spin-icon', text: '↻' })]);
   sync.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); syncDeck(entry, sync); });
   return el('span', { class: 'solring-row-acts' }, [cs, sync]);
@@ -547,7 +547,7 @@ async function syncDeck(entry, btn) {
   if (icon) icon.classList.add('solring-spin');
   let res = null;
   try {
-    res = await importDeck(canonicalDeckUrl(entry.publicId), entry.md5, entry.md5); // POST re-analysis
+    res = await importDeck(canonicalDeckUrl(entry.publicId), entry.md5, entry.md5); // POST analysis
   } catch (e) {
     console.warn('[solring] deck-list sync failed', e);
   }
@@ -565,7 +565,7 @@ async function syncDeck(entry, btn) {
     by bulk Analyze to mark the deck currently being processed. A successful scan
     rerenders the row (fresh, un-spun icon), so callers still flip it off for the
     failure/cancel paths. The button is disabled while spinning to avoid a conflicting
-    per-row re-analysis. No-op when the actions column is hidden. */
+    per-row analysis. No-op when the actions column is hidden. */
 export function setRowSpinning(md5, on) {
   for (const e of rowEntries) {
     if (e.md5 !== md5 || !inMainList(e.row)) continue;

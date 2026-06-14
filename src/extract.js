@@ -485,7 +485,7 @@ export function extractDeck(p) {
     isPrivate: p.isPrivate,
     isIllegal: p.isIllegal,
     // When CommanderSalt last analyzed the deck (epoch ms). Compared against
-    // Moxfield's "last updated" to decide whether an edit needs a re-analysis.
+    // Moxfield's "last updated" to decide whether an edit needs an analysis.
     analyzedAt: g(p, 'ingestDate', 'ingestDate'),
     cards: extractCards(p),
   };

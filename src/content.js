@@ -69,7 +69,7 @@
       }
       if (username) {
         await decklist.installDeckList(username, { waitFor });
-        sync.installSync(username); // Analyze all / Re-analyze all controls
+        sync.installSync(username); // Analyze all / Analyze all controls
       }
       if (type === 'user') renderUser.installUserAverages(); // profile-sidebar averages
     }

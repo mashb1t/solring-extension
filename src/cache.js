@@ -8,7 +8,7 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // field, a renamed/removed one, a changed unit). Entries written by an older extractor
 // carry an older `v` (or none) and are treated as stale: served for display continuity
 // but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
-// without a manual Clear cache or Re-analyze. History, by version:
+// without a manual Clear cache or Analyze. History, by version:
 // 1 pre-manabase. 2 adds manabase. 3 adds per-card synergy count. 4 adds synergy score
 // and scoreBias-ranked partners. 5 adds bracket/power profile (coaching, score drivers,
 // anti-patterns). 6 adds wincon profile. 7 adds inferred deck type. 8 adds fringeCEDH.

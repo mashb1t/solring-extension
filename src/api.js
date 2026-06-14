@@ -24,8 +24,8 @@ export async function searchByAuthor(username, cursor) {
   return r.json();
 }
 
-/** POST-import / re-analyze a deck by canonical URL. Pass oldDeckId (= md5 of the
-    URL) to re-analyze an already-indexed deck and supersede its stored analysis,
+/** POST-import / analyze a deck by canonical URL. Pass oldDeckId (= md5 of the
+    URL) to analyze an already-indexed deck and supersede its stored analysis,
     or omit it for a first-time import. Manual only, never auto-retried (idempotency
     hazard, triggers ~5s upstream compute). 20s timeout. */
 export async function importByUrl(canonicalUrl, oldDeckId) {

@@ -546,7 +546,7 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
   overflow-y: auto;
 }
 .solring-colmenu .dropdown-item { margin: 0; } /* labels, not links — kill default label margin */
-/* Bulk-analysis controls (Analyze all / Re-analyze all) in the deck-list toolbar.
+/* Bulk-analysis controls in the deck-list toolbar.
    Buttons copy Moxfield's Sort styling; only the wrapper + status need styling. */
 /* gap matches Moxfield's toolbar (.gap-3 = 1rem = 14px at their 14px root) so the
    spacing between the status, Stats button, and Cancel is identical to the gaps between
