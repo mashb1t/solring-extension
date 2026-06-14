@@ -1,10 +1,9 @@
 // A "wide / normal" layout toggle injected into Moxfield's header, next to the
 // search icon. Wide mode drops Moxfield's Bootstrap container max-widths (via the
-// html.solring-wide class — rule in solring.css) so pages use the full viewport;
+// html.solring-wide class, rule in solring.css) so pages use the full viewport,
 // handy for the deck-list metric columns. The choice is persisted (prefs:wide) and
-// synced across tabs. Verified live: the header search control is
-// <a id="mainmenu-search"> inside <li.nav-item>, and unsetting the container
-// max-width widens the page edge-to-edge.
+// synced across tabs. The header search control is <a id="mainmenu-search"> inside
+// <li.nav-item>, and unsetting the container max-width widens the page edge to edge.
 
 import { el } from './dom.js';
 import { getWide, setWide, onPrefChange } from './prefs.js';
@@ -20,8 +19,8 @@ function applyClass() {
   document.documentElement.classList.toggle('solring-wide', wide);
 }
 
-// Two arrows pointing outward — an "expand horizontally" glyph. Built as SVG (Moxfield
-// renders icons as inline SVG, not icon-font CSS classes).
+// Two arrows pointing outward, an "expand horizontally" glyph. Built as SVG because
+// Moxfield renders icons as inline SVG, not icon-font CSS classes.
 function wideIcon() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -60,14 +59,14 @@ function buildToggle() {
     class: 'nav-link px-3 cursor-pointer no-outline solring-wide-toggle',
     attrs: { role: 'button', tabindex: '0', 'aria-label': 'Toggle wide layout' },
   }, [wideIcon()]);
-  const toggle = () => setWide(!wide); // persist → onPrefChange re-applies + re-syncs
+  const toggle = () => setWide(!wide); // persist, then onPrefChange re-applies and re-syncs
   a.addEventListener('click', (e) => { e.preventDefault(); toggle(); });
   a.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   syncBtn(a);
   return a;
 }
 
-// Inject the toggle as a sibling <li> just before the search item; idempotent. If it
+// Inject the toggle as a sibling <li> just before the search item, idempotent. If it
 // already exists, just refresh its pressed/title state.
 function ensureToggle() {
   raf = null;
@@ -99,7 +98,7 @@ export async function installWideToggle() {
     applyClass();
     ensureToggle();
   });
-  // Re-inject if Moxfield re-renders the header (SPA nav); cheap, rAF-debounced.
+  // Re-inject if Moxfield re-renders the header (SPA nav). Cheap, rAF-debounced.
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true });
 }

@@ -1,11 +1,11 @@
-// Mirrors the per-card "Info" panel onto the deck page's left sidebar — the
+// Mirrors the per-card "Info" panel onto the deck page's left sidebar: the
 // card-preview aside (aside.deckview-image-container), below the preview image. It
-// renders the exact same layout/info as the card-detail modal (shared buildPanel),
+// renders the same layout/info as the card-detail modal (shared buildPanel),
 // for whichever card the preview is currently showing.
 //
 // The preview image tracks decklist hover (commander by default), so we treat its
-// `src` as the single source of truth and follow it, rather than binding hover —
-// that covers the default, hover, click, and Moxfield-internal swaps uniformly.
+// `src` as the single source of truth and follow it rather than binding hover.
+// That covers the default, hover, click, and Moxfield-internal swaps uniformly.
 
 import { buildPanel, deckStats, lookupCard } from './render-card-modal.js';
 import { onPrefChange } from './prefs.js';
@@ -42,7 +42,7 @@ function apply() {
   if (existing && existing.getAttribute('data-card') === key) return; // already current
 
   const fields = getFields();
-  // Resolve the previewed card via its on-page link's rendered name; fall back to
+  // Resolve the previewed card via its on-page link's rendered name. Fall back to
   // the commander (the default preview).
   let card = null;
   if (id) {
@@ -74,7 +74,7 @@ export function installCardSidebar(fieldsGetter, optsGetter) {
   getFields = fieldsGetter || (() => null);
   if (optsGetter) getOpts = optsGetter;
   if (observer) return;
-  // Watch the preview image's src (and node swaps) plus structural changes; the
+  // Watch the preview image's src (and node swaps) plus structural changes. The
   // attributeFilter keeps this cheap despite the body-wide subtree.
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });

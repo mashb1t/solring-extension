@@ -1,7 +1,7 @@
 // User-profile averages (/users/{name}). Appends an "Averages" card to the profile
-// sidebar summarising the user's decks: ø power / bracket / saltiness / synergy from
-// every joined deck (hit metrics), plus ø threat / interaction / wincons / commander
-// tier over the decks whose full payload is cached — each with a "from N" coverage
+// sidebar summarising the user's decks: avg power / bracket / saltiness / synergy from
+// every joined deck (hit metrics), plus avg threat / interaction / wincons / commander
+// tier over the decks whose full payload is cached, each with a "from N" coverage
 // hint. Recomputes as decks load or get scanned (decklist's onDeckListChange).
 
 import { el, guard } from './dom.js';
@@ -12,7 +12,7 @@ import { getViews, onDeckListChange } from './decklist.js';
 
 // ---- pure logic (unit-tested) ------------------------------------------------
 // Average each metric over the views that have it, returning { v, n } where n is how
-// many decks contributed (the coverage). Full-payload metrics (threat/…/tier) have
+// many decks contributed (the coverage). Full-payload metrics (threat, tier, ...) have
 // lower n than the always-present hit metrics until more decks are scanned.
 export function averageViews(views) {
   const all = views || [];
@@ -42,7 +42,7 @@ let observer = null;
 let raf = null;
 
 // The profile card column on /users/{name}: the .flex-shrink-0 that holds the
-// username card (its <h1>). Verified live. null on pages without it.
+// username card (its <h1>). null on pages without it.
 function profileColumn() {
   const h = document.querySelector('main .flex-shrink-0 h1');
   return h ? h.closest('.flex-shrink-0') : null;
@@ -50,15 +50,15 @@ function profileColumn() {
 
 const numAvg = (a) => el('span', { class: 'solring-num', text: a.v != null ? num(a.v) : '—' });
 const gradeAvg = (a, field) => (a.v != null ? gradeChip(csRatingGrade(a.v, field)) : el('span', { class: 'solring-num', text: '—' }));
-// A graded average tile mirrors the deck view: the letter grade as the headline, the
-// raw average score beneath it (where the deck panel shows "{score} total").
+// A graded average tile mirrors the deck view: letter grade as headline, raw average
+// score beneath it (where the deck panel shows "{score} total").
 const gradeTileAvg = (label, a, field) => tile(label, gradeAvg(a, field), a.v != null ? num(a.v) : null);
 
 function buildPanel() {
   const a = averageViews(getViews());
   // One coverage figure for the whole card: how many decks actually contributed
-  // (the best-covered metric — hit metrics cover every scored deck, full metrics
-  // only the scanned ones). Equals the deck count once every deck is scanned.
+  // (the best-covered metric, since hit metrics cover every scored deck while full
+  // metrics cover only the scanned ones). Equals the deck count once all are scanned.
   const cov = Math.max(0, a.power.n, a.bracket.n, a.salt.n, a.synergy.n, a.threat.n, a.interaction.n, a.wincons.n, a.tier.n);
   return el('div', { class: 'solring-averages card card-light-border', attrs: { 'data-solring-root': '' } }, [
     el('div', { class: 'card-body p-3' }, [
@@ -92,7 +92,7 @@ function schedule() {
 }
 
 /** Install the profile-averages card (call on /users/{name}). Recomputes on deck-list
-    changes; re-injects if Moxfield re-renders the profile column away. */
+    changes, re-injects if Moxfield re-renders the profile column away. */
 export function installUserAverages() {
   active = true;
   if (!wired) {

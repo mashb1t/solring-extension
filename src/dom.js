@@ -16,8 +16,8 @@ export function el(tag, props = {}, children = []) {
   return node;
 }
 
-/** A symmetric up-chevron SVG (centered in its viewBox) — rotate the wrapping
-    element 180° for the down/closed state and it stays perfectly centered. */
+/** A symmetric up-chevron SVG (centered in its viewBox). Rotate the wrapping
+    element 180deg for the down/closed state and it stays perfectly centered. */
 export function chevronSvg() {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -40,7 +40,7 @@ export function teardown(root = document) {
 }
 
 /** Detect Moxfield's active theme. This build exposes no data-bs-theme, so the
-    reliable signal is the body's background luminance; attr/media are hints. */
+    reliable signal is the body's background luminance. Attr/media are hints. */
 export function isDark() {
   const t = document.documentElement.getAttribute('data-bs-theme')
     || document.body.getAttribute('data-bs-theme');
@@ -56,8 +56,8 @@ export function isDark() {
   return false;
 }
 
-// CommanderSalt grades run A–D only (no E/F), HIGH is bad. The color tier is
-// just the grade letter (a–d); CSS colors a=red (worst) … d=green (best).
+// CommanderSalt grades run A to D only (no E/F), HIGH is bad. The color tier is
+// just the grade letter (a to d). CSS colors a=red (worst) through d=green (best).
 export function tierFromGrade(grade) {
   const letter = (grade.trim()[0] || '').toLowerCase();
   return ['a', 'b', 'c', 'd'].includes(letter) ? letter : 'c';
@@ -67,7 +67,7 @@ export function tierFromGrade(grade) {
 // selector, so repeated SPA passes don't stack listeners).
 const outsideCloseInstalled = new Set();
 /** Close stray dropdowns on any click outside them. Registers a single document-level
-    CAPTURE-phase click listener per distinct `selector` — capture runs before a
+    CAPTURE-phase click listener per distinct `selector`. Capture runs before a
     target's own stopPropagation, so opening another menu (or one of Moxfield's
     controls) still closes these, keeping sibling dropdowns mutually exclusive. For each
     element matching `selector` that does not contain the click target, calls `close(el)`. */

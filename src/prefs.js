@@ -10,14 +10,14 @@ const LIST_ORDER_KEY = 'prefs:listColumnOrder';
 const HIDDEN_NATIVE_KEY = 'prefs:hiddenNativeCols';
 const WIDE_KEY = 'prefs:wide';
 
-// Per-card toggles (Customize View → Include Extra Data). On by default: power +
-// saltiness (the at-a-glance numbers). Off by default (opt-in): synergies + tags, to
+// Per-card toggles (Customize View, Include Extra Data). On by default: power and
+// saltiness, the at-a-glance numbers. Off by default (opt-in): synergies and tags, to
 // keep the default rows compact.
 const CARD_DEFAULT = { power: true, saltValue: true, synergies: false, tags: false };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
 
-// Deck-list metric columns (user profile + personal manager). All are togglable via
-// the deck-list "Stats columns" menu; a small subset is on by default so the table
+// Deck-list metric columns (user profile and personal manager). All are togglable via
+// the deck-list "Stats columns" menu. A small subset is on by default so the table
 // width stays sane. Keys match decklist.js COLUMNS.
 export const LIST_COLUMNS_DEFAULT = {
   power: true,
@@ -34,9 +34,9 @@ export const LIST_COLUMNS_DEFAULT = {
   actions: true,
 };
 
-// Options-panel settings. null colors = "not customized" (keep the auto-themed CSS
-// defaults). Thresholds: power = ×deck-average, salt = absolute, synergy = percentile
-// of the deck. cacheLifetimeDays 0 = never expire.
+// Options-panel settings. null colors mean "not customized" (keep the auto-themed CSS
+// defaults). Thresholds: power is a multiple of the deck average, salt is absolute,
+// synergy is a percentile of the deck. cacheLifetimeDays 0 means never expire.
 export const OPTIONS_DEFAULT = {
   autoFetch: true,
   powerThreshold: 2,
@@ -100,8 +100,8 @@ export async function setListColumns(patch) {
   return next;
 }
 
-// Display order of the Solring metric columns (array of keys). [] = use the default
-// COLUMNS order. Unknown/new keys fall back to default order in decklist.js.
+// Display order of the Solring metric columns (array of keys). [] means use the
+// default COLUMNS order. Unknown or new keys fall back to default order in decklist.js.
 export async function getColumnOrder() {
   const obj = await chrome.storage.local.get(LIST_ORDER_KEY);
   return Array.isArray(obj[LIST_ORDER_KEY]) ? obj[LIST_ORDER_KEY] : [];
@@ -134,8 +134,8 @@ async function getPrefRaw(key, fallback) {
   return key in obj ? obj[key] : fallback;
 }
 
-/** Subscribe to pref changes. cb(which) where which is
-    'card' | 'sort' | 'options' | 'listColumns' | 'wide'. */
+/** Subscribe to pref changes. cb(which) where which is one of
+    'card', 'sort', 'options', 'listColumns', 'wide'. */
 export function onPrefChange(cb) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;

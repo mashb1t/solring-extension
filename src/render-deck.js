@@ -1,7 +1,7 @@
 // Deck page: a collapsible CommanderSalt report-card panel injected below
 // Moxfield's deck header (.deckheader). Default open when analyzed/cached,
 // closed when not yet analyzed. Manual Analyze flow for un-indexed decks.
-// Metrics: power, real bracket, commander tier, saltiness, archetype + the four
+// Metrics: power, real bracket, commander tier, saltiness, archetype plus the four
 // letter grades (threat/interaction/wincons/synergy). No deck value, no baseline.
 
 import { parseDeckId } from './moxfield.js';
@@ -22,14 +22,14 @@ import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
-let currentOptions = {}; // prefs:options, loaded on mount + kept fresh on change
+let currentOptions = {}; // prefs:options, loaded on mount, kept fresh on change
 let deckObserver = null;
 let dvRef = null;
 let installedOnce = false;
-let syncTimer = null; // ticks the "synced …ago" label live; manual refresh only, no auto-revalidate
+let syncTimer = null; // ticks the "synced ...ago" label live. Manual refresh only, no auto-revalidate
 
-// Override the injected-UI CSS vars from the options (single value, both themes);
-// null = not customized → removeProperty falls back to the auto-themed default.
+// Override the injected-UI CSS vars from the options (single value, both themes).
+// null = not customized, so removeProperty falls back to the auto-themed default.
 function applyOptionColors(o) {
   const root = document.documentElement.style;
   const set = (name, val) => (val ? root.setProperty(name, val) : root.removeProperty(name));
@@ -43,19 +43,18 @@ function applyOptionColors(o) {
   set('--solring-rating-d', rc.d);
 }
 
-// Moxfield's deck "last updated" as epoch ms. Moxfield renders the timestamp like
-// `Last updated <time datetime=… title=…>… ago</time>` — the word "updated" usually
-// lives on a PARENT node, not the <time>/[title] element itself, so we read each
-// candidate's absolute date but require an ancestor's text to mention "updated" (and
-// not "created", to skip the sibling create-date). Best-effort: returns null when not
-// found, in which case edit-detection is simply skipped.
+// Moxfield's deck "last updated" as epoch ms. The word "updated" usually lives on a
+// PARENT node, not the <time>/[title] element itself, so we read each candidate's
+// absolute date but require an ancestor's text to mention "updated" (and not
+// "created", to skip the sibling create-date). Returns null when not found, in which
+// case edit-detection is skipped.
 function moxfieldLastUpdatedMs() {
   for (const e of document.querySelectorAll('time[datetime], time[title], [title]')) {
     const raw = e.getAttribute('datetime') || e.getAttribute('title');
     const ms = raw ? Date.parse(raw) : NaN;
     if (!Number.isFinite(ms)) continue;
     // The "Last updated" label sits on the timestamp's parent (it and its sibling
-    // create-date each have their own row), so element + parent is enough scope —
+    // create-date each have their own row), so element plus parent is enough scope,
     // and shallow enough not to reach a shared ancestor holding both rows.
     const ctx = `${e.textContent || ''} ${e.getAttribute('aria-label') || ''} `
       + `${e.parentElement ? e.parentElement.textContent : ''}`;
@@ -121,7 +120,7 @@ function installOnce() {
   wireChartSync();                        // re-equalise manabase chart/tables height on resize
   installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
   installCardModal(() => currentFields, () => currentOptions);  // per-card Info panel (card-detail modal)
-  installCardSidebar(() => currentFields, () => currentOptions); // …mirrored on the deck-page sidebar
+  installCardSidebar(() => currentFields, () => currentOptions); // mirrored on the deck-page sidebar
   onPrefChange(async (which) => {
     if (which === 'card') { reannotate(); return; }
     if (which === 'options') { currentOptions = await getOptions(); applyOptionColors(currentOptions); reannotate(); }
@@ -137,15 +136,15 @@ function startAnnotations(fields) {
 }
 
 // Expandable tiles in the current deck panel. In accordion mode (currentOptions
-// .accordion, default on — read live at toggle time) opening one closes the rest.
+// .accordion, default on, read live at toggle time) opening one closes the rest.
 // Reset by renderBody on each (re)render so stale entries don't accumulate.
 let expandGroup = [];
 
 // Pin the manabase chart cell's height to the bars column when they sit side by side
-// (one flex line) so the diagram and the tables end level — CSS stretch alone can't both
+// (one flex line) so the diagram and the tables end level. CSS stretch alone can't both
 // equalise the cells AND make the SVG fill. The `solring-fill` class switches the SVG
 // from natural aspect height to height:100%. Cleared when wrapped (each full-width), so
-// the chart keeps its natural height there. Runs after layout (rAF), on open + resize.
+// the chart keeps its natural height there. Runs after layout (rAF), on open and resize.
 function syncChartHeights(scope) {
   for (const grid of (scope || document).querySelectorAll('.solring-mb-grid')) {
     const bars = grid.querySelector('.solring-mb-col-bars');
@@ -174,14 +173,14 @@ function wireChartSync() {
 }
 
 // Make a tile expand/collapse a detail section (appended to `body`, hidden by
-// default). The chevron swaps glyph on toggle (⌄ closed / ⌃ open) — no rotation.
+// default). The chevron swaps glyph on toggle (down closed / up open), no rotation.
 function makeExpandable(tile, section, body) {
   body.append(section);
   tile.classList.add('solring-clickable', 'solring-expandable');
   tile.setAttribute('role', 'button');
   tile.setAttribute('tabindex', '0');
   tile.setAttribute('aria-expanded', 'false');
-  // Symmetric SVG chevron; CSS rotates it 180° when closed (stays centered).
+  // Symmetric SVG chevron, CSS rotates it 180 degrees when closed (stays centered).
   const chev = el('span', { class: 'solring-tile-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   tile.append(chev);
   const setOpen = (open) => {
@@ -208,12 +207,12 @@ function makeExpandable(tile, section, body) {
 function renderBody(body, f) {
   body.replaceChildren();
   expandGroup = []; // fresh accordion group for this render
-  // grade-style tile: big colored letter grade + raw score sub (like Saltiness)
+  // grade-style tile: big colored letter grade plus raw score sub (like Saltiness)
   const gradeTile = (label, key, field) =>
     tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `${num(f[key])} total` : '—');
 
-  // Row 1: the headline tiles. Power subline shows the precise 0–10 rating and the
-  // deck's raw total power score (scoring.total) — what per-card contributions sum to.
+  // Row 1: the headline tiles. Power subline shows the precise 0-10 rating and the
+  // deck's raw total power score (scoring.total), what per-card contributions sum to.
   const powerSub = typeof f.power === 'number'
     ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
@@ -226,8 +225,8 @@ function renderBody(body, f) {
   const powerTile = tile('Power', powerVal, powerSub);
   const bracketTile = tile('Bracket', [`${f.bracketBaseline} / `, bracketValue(f)], 'baseline / realistic');
   // Manabase: percentages.overall is a PERCENT of the benchmark (the curve axis vs its
-  // 100 par — CommanderSalt's Nutrition Facts total "% daily value"), so 111% = 11% over
-  // par. NOT shown as "/300" — that widget framing divides a percent by the sum of the
+  // 100 par, CommanderSalt's Nutrition Facts total "% daily value"), so 111% = 11% over
+  // par. NOT shown as "/300": that widget framing divides a percent by the sum of the
   // axis benchmarks and makes a solid manabase (100%) read as a failing 33%.
   const mb = f.manabase || {};
   const mbc = mb.composition || {};
@@ -241,7 +240,7 @@ function renderBody(body, f) {
   const mainTiles = el('div', { class: 'solring-tiles' }, [powerTile, bracketTile, tierTile, manabaseTile, archTile]);
 
   // Row 2: the report-card grades. Wincons folds in the deck's combos (its panel holds
-  // the combo list); Saltiness moves down here so Manabase can take its slot up top.
+  // the combo list). Saltiness moves down here so Manabase can take its slot up top.
   const threatTile = gradeTile('Threat', 'threat', 'threatRating');
   const interactionTile = gradeTile('Interaction', 'interaction', 'interactionRating');
   const hasCombos = !!(f.combos && f.combos.length);
@@ -273,7 +272,7 @@ function renderBody(body, f) {
 }
 
 function renderMessage(body, text, action) {
-  // Don't pass a null child — replaceChildren stringifies it into a literal "null".
+  // Don't pass a null child: replaceChildren stringifies it into a literal "null".
   const kids = [el('div', { class: 'solring-msg', text })];
   if (action) kids.push(action);
   body.replaceChildren(...kids);
@@ -302,11 +301,11 @@ export async function mount({ waitFor }) {
   if (!publicId) return;
 
   // Anchor in the slot below the "Support us on Patreon" banner and above the
-  // Primer/Playtest toolbar — i.e. just before the deck-body container. The
+  // Primer/Playtest toolbar, i.e. just before the deck-body container. The
   // toolbar is the container's previous sibling (a div containing Primer/Playtest).
   const deckview = await waitFor('section.deckview');
-  if (!deckview) return; // private/404 page with no decklist → stay silent
-  // If the SPA navigated to a different deck while we awaited, abort — otherwise this
+  if (!deckview) return; // private/404 page with no decklist, stay silent
+  // If the SPA navigated to a different deck while we awaited, abort. Otherwise this
   // stale mount injects a panel for the old URL next to the new deck's (two panels).
   if (parseDeckId(location.href) !== publicId) return;
   const container = deckview.closest('.container') || deckview;
@@ -323,22 +322,22 @@ export async function mount({ waitFor }) {
 
   currentOptions = await getOptions();
   applyOptionColors(currentOptions);
-  // Deck panel initial state: 'open'/'collapsed' force it; 'auto' opens when analyzed.
+  // Deck panel initial state: 'open'/'collapsed' force it, 'auto' opens when analyzed.
   const panelOpenFor = (analyzed) => (currentOptions.deckPanelDefault === 'open' ? true
     : currentOptions.deckPanelDefault === 'collapsed' ? false : analyzed);
 
   const body = el('div', { class: 'solring-panel-body' });
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
-  // The ↻ glyph lives in its own span so spinning rotates only the icon, not the
+  // The refresh glyph lives in its own span so spinning rotates only the icon, not the
   // whole button (border/focus ring stay put).
   const refreshIcon = el('span', { class: 'solring-spin-icon', text: '↻' });
   const refreshBtn = el('button', {
     class: 'solring-refresh',
     attrs: { type: 'button', 'aria-label': 'Re-analyze', title: 'Re-analyze (~5s)' },
   }, [refreshIcon]);
-  // Spin the refresh icon (and disable the button) whenever a fetch is in flight —
-  // the initial load, an edit re-analysis, or a manual ↻.
+  // Spin the refresh icon (and disable the button) whenever a fetch is in flight:
+  // the initial load, an edit re-analysis, or a manual refresh.
   const setRefreshSpinning = (on) => { refreshIcon.classList.toggle('solring-spin', on); refreshBtn.disabled = on; };
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
@@ -365,12 +364,12 @@ export async function mount({ waitFor }) {
     synced.textContent = lastSync ? `analyzed ${relTime(lastSync)}` : '';
     synced.title = lastSync ? new Date(lastSync).toLocaleString() : '';
   }
-  // Keep the relative "synced …ago" label current without re-fetching. Clear any
+  // Keep the relative "synced ...ago" label current without re-fetching. Clear any
   // ticker left by a prior mount so intervals never stack across SPA navigations.
   clearInterval(syncTimer);
   syncTimer = setInterval(() => { if (lastSync) synced.textContent = `analyzed ${relTime(lastSync)}`; }, 30000);
-  // The sync button always forces a fresh re-analysis (POST /decks?url=…&oldDeckId=md5),
-  // not just a re-fetch — so decklist edits are reflected. Spins the icon while the
+  // The sync button always forces a fresh re-analysis (POST /decks?url=...&oldDeckId=md5),
+  // not just a re-fetch, so decklist edits are reflected. Spins the icon while the
   // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)
   async function doRefresh() {
     setRefreshSpinning(true);
@@ -391,7 +390,7 @@ export async function mount({ waitFor }) {
 
   setRefreshSpinning(true); // spin the icon while the initial fetch runs
   const res = await guardAsync(() => getDeck(md5, {
-    allowFetch: currentOptions.autoFetch !== false, // off → never hit the network for uncached decks
+    allowFetch: currentOptions.autoFetch !== false, // off = never hit the network for uncached decks
     maxAgeMs: cacheMaxAgeMs(currentOptions),         // 0 = never expire
   }));
   setRefreshSpinning(false);
@@ -408,18 +407,18 @@ export async function mount({ waitFor }) {
   function showFields(f) {
     // We only reach here with real (non-stub) analysis. CommanderSalt still returns
     // full metrics for decks it flags isIllegal (banned card / not strictly legal),
-    // so render them — don't mistake the flag for "can't analyze". Genuinely
+    // so render them. Don't mistake the flag for "can't analyze". Genuinely
     // unanalyzable decks (private / un-indexed) come back as stubs and are handled
     // by the Analyze flow below.
     renderBody(body, f);
-    setOpen(panelOpenFor(true)); // analyzed → honor the configured default ('auto' opens)
+    setOpen(panelOpenFor(true)); // analyzed: honor the configured default ('auto' opens)
     startAnnotations(f);
   }
 
   // When auto-fetch is on, re-analyze (POST) a deck that Moxfield says was edited
-  // after CommanderSalt last analyzed it — otherwise the cached numbers describe a
-  // stale decklist. Best-effort: skipped when Moxfield's "updated" time is unreadable
-  // or not newer than analyzedAt. Mirrors the manual ↻ (POST /decks?url=…&oldDeckId=md5).
+  // after CommanderSalt last analyzed it, else the cached numbers describe a stale
+  // decklist. Skipped when Moxfield's "updated" time is unreadable or not newer than
+  // analyzedAt. Mirrors the manual refresh (POST /decks?url=...&oldDeckId=md5).
   async function maybeReanalyzeIfEdited(f) {
     if (currentOptions.autoFetch === false || !f || !f.analyzedAt) return;
     const mox = moxfieldLastUpdatedMs();
@@ -432,7 +431,7 @@ export async function mount({ waitFor }) {
 
   // Stats never auto-revalidate on a timer: an analysis can change anytime, but a
   // silent background refresh would shift the numbers under the user. We paint the
-  // cached values and leave updating to the manual ↻ button; the "synced …ago"
+  // cached values and leave updating to the manual refresh button. The "synced ...ago"
   // label (ticked live above) keeps the staleness visible. The one exception is an
   // edited decklist (above), which auto-fetch re-analyzes so the data stays truthful.
   if (res.fields) {
@@ -441,7 +440,7 @@ export async function mount({ waitFor }) {
     maybeReanalyzeIfEdited(res.fields);
     return;
   }
-  // stub / un-indexed / cold miss with auto-fetch off → honor default; expand to Analyze
+  // stub / un-indexed / cold miss with auto-fetch off: honor default, expand to Analyze
   currentFields = null;
   clearAnnotations();
   renderAnalyze(body, canonicalDeckUrl(publicId), md5, showFields);

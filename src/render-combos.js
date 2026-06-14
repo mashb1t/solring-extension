@@ -1,5 +1,5 @@
 // Deck combos section (Commander Spellbook, from details.combos). Hidden by
-// default; toggled by the Combos tile in the deck panel. All text via
+// default, toggled by the Combos tile in the deck panel. All text via
 // textContent (data is third-party). Mirrors CommanderSalt's combo card.
 
 import { el, chevronSvg } from './dom.js';
@@ -60,7 +60,7 @@ function breakdownBlock(breakdown) {
 }
 
 function comboCard(combo) {
-  // Collapsible detail (prereqs / steps / produces / difficulty) — hidden by default.
+  // Collapsible detail (prereqs / steps / produces / difficulty), hidden by default.
   const blocks = [
     listBlock('Prerequisites', combo.prerequisites),
     listBlock('Step-by-step', combo.steps, true),
@@ -69,7 +69,7 @@ function comboCard(combo) {
   ].filter(Boolean);
   const body = blocks.length ? el('div', { class: 'solring-combo-body', attrs: { hidden: '' } }, blocks) : null;
 
-  // The whole header row toggles the body; a chevron (rotated 180° when closed,
+  // The whole header row toggles the body. A chevron (rotated 180 deg when closed,
   // like the metric tiles) replaces the old "Details" button.
   const chev = body ? el('span', { class: 'solring-combo-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]) : null;
 
@@ -124,7 +124,7 @@ function winconSummary(p, combos) {
     const parts = [`${c.count} combo${c.count === 1 ? '' : 's'}`];
     if (c.effectiveLines != null) parts.push(`${c.effectiveLines} effective line${c.effectiveLines === 1 ? '' : 's'}`);
     if (typeof c.redundancy === 'number') parts.push(`${Math.round(c.redundancy * 100)}% redundancy`);
-    // Size breakdown from the combo list (cards per combo) — next to redundancy.
+    // Size breakdown from the combo list (cards per combo), shown next to redundancy.
     const bySize = {};
     for (const cb of combos || []) { const n = (cb.pieces || []).length; if (n) bySize[n] = (bySize[n] || 0) + 1; }
     const sizeStr = Object.keys(bySize).map(Number).sort((a, b) => a - b).map((n) => `${n}-card ×${bySize[n]}`).join(', ');
@@ -149,7 +149,7 @@ export function buildCombosSection(combos, profile) {
   if (summary) children.push(summary);
   // Most-relevant first: fewest pieces (a 2-card infinite is the most consistent,
   // threatening win), then highest score as a tiebreak. CommanderSalt's combo `score`
-  // is a narrow popularity-ish band that doesn't track combo power on its own — so card
+  // is a narrow popularity-ish band that doesn't track combo power on its own, so card
   // count leads and score only breaks ties within a size tier. (Copy, don't mutate.)
   const ordered = [...(combos || [])].sort((a, b) =>
     (a.pieces || []).length - (b.pieces || []).length || (b.score || 0) - (a.score || 0));

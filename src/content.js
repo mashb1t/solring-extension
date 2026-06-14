@@ -1,5 +1,5 @@
-// Content-script bootstrap. Loaded as a classic script; dynamically imports the
-// ES-module logic (web-accessible). Detects page type, survives Moxfield's SPA
+// Content-script bootstrap. Loaded as a classic script that dynamically imports
+// the web-accessible ES-module logic. Detects page type, survives Moxfield's SPA
 // navigation, and dispatches to the right renderer. Every pass is idempotent and
 // guarded so exceptions never reach Moxfield's page.
 
@@ -24,9 +24,9 @@
     return mods;
   }
 
-  // The username whose decks a list page shows: from the URL on /users/{name};
-  // on /decks/personal the logged-in user, read best-effort from a profile link in
-  // the page chrome. LIVE-VERIFY: confirm the navbar profile-link selector when
+  // The username whose decks a list page shows. On /users/{name} it comes from the
+  // URL. On /decks/personal it is the logged-in user, read best-effort from a profile
+  // link in the page chrome. LIVE-VERIFY: confirm the navbar profile-link selector when
   // logged in (the personal route stays inert until a username resolves).
   function listUsername(moxfield) {
     if (moxfield.pageType(location.href) === 'user') return moxfield.parseUsername(location.href);
@@ -34,7 +34,7 @@
     return link ? moxfield.parseUsername(link.href) : null;
   }
 
-  // Wait (briefly) for an anchor Moxfield renders asynchronously.
+  // Wait briefly for an anchor Moxfield renders asynchronously.
   function waitFor(selector, timeout = 8000) {
     return new Promise((resolve) => {
       const found = document.querySelector(selector);
@@ -51,18 +51,18 @@
   async function route() {
     const m = await load();
     const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync } = m;
-    wideLayout.installWideToggle(); // global header toggle (idempotent); applies on every page
+    wideLayout.installWideToggle(); // idempotent global header toggle, applies on every page
     dom.guard('teardown', () => dom.teardown());
     decklist.teardownDeckList(); // drop any prior list observer/state on every nav
-    renderUser.teardownUserAverages(); // …and the profile-averages card
-    sync.teardownSync(); // …and the bulk-sync controls
+    renderUser.teardownUserAverages(); // and the profile-averages card
+    sync.teardownSync(); // and the bulk-sync controls
     const type = moxfield.pageType(location.href);
     if (type === 'deck') {
       await renderDeck.mount({ ...m, waitFor });
     } else if (type === 'user' || type === 'personal') {
       let username = listUsername(moxfield);
       // On a fresh /decks/personal load the header (and its profile link) may not be
-      // rendered yet when route() runs — wait for it rather than giving up silently.
+      // rendered yet when route() runs, so wait for it rather than giving up silently.
       if (!username && type === 'personal') {
         const link = await waitFor('header a[href^="/users/"], nav a[href^="/users/"]');
         if (link) username = moxfield.parseUsername(link.href);
@@ -87,7 +87,7 @@
     timer = setTimeout(() => route().catch((e) => console.warn('[solring] route failed', e)), 150);
   }
 
-  // SPA navigation detection: patch history + popstate + a coarse href poll.
+  // Detect SPA navigation via patched history methods, popstate, and a coarse href poll.
   for (const fn of ['pushState', 'replaceState']) {
     const orig = history[fn];
     history[fn] = function patched(...args) {

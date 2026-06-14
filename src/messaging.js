@@ -1,5 +1,5 @@
-// Content-script → worker messaging helpers. Thin Promise wrappers over
-// chrome.runtime.sendMessage; every response may carry { error }.
+// Content-script to worker messaging helpers. Thin Promise wrappers over
+// chrome.runtime.sendMessage. Every response may carry { error }.
 
 export function send(msg) {
   return chrome.runtime.sendMessage(msg);

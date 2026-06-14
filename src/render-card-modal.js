@@ -1,12 +1,12 @@
 // Per-card CommanderSalt "Info" panel injected into Moxfield's card-detail modal
-// (the overlay opened by clicking a card). It lists every per-card metric we hold
-// — saltiness, category total, tags, bracket flags, power contribution, salt
-// breakdown, synergy — reusing the deck panel's tile/bar/chip/flag design, re-fit
-// for the narrow (~220px) sidebar: a fixed 2-up tile grid and stacked bar rows.
+// (the overlay opened by clicking a card). Lists every per-card metric we hold
+// (saltiness, category total, tags, bracket flags, power contribution, salt
+// breakdown, synergy), reusing the deck panel's tile/bar/chip/flag design, re-fit
+// for the narrow (~220px) sidebar with a fixed 2-up tile grid and stacked bar rows.
 //
-// Deck-scoped: CommanderSalt is keyed by md5(deck URL), so we only have per-card
-// data while a deck is analyzed. The fields are read live via a getter; a bare
-// /cards/ page with no deck simply shows nothing.
+// CommanderSalt is keyed by md5(deck URL), so we only have per-card data while a
+// deck is analyzed. Fields are read live via a getter. A bare /cards/ page with no
+// deck shows nothing.
 
 import { el, isDark } from './dom.js';
 import { num } from './format.js';
@@ -17,8 +17,8 @@ import { powerMark, saltMark, deckAvgPower } from './ratings.js';
 import { onPrefChange } from './prefs.js';
 
 const MODAL_SEL = '.modal.show';
-// The sticky image/price/buy container; we append the panel inside it (last child,
-// below the buy buttons) so it scrolls with the sticky image instead of being
+// The sticky image/price/buy container. We append the panel inside it as the last
+// child (below the buy buttons) so it scrolls with the sticky image instead of being
 // covered by it. On mobile a media query widens this container to the full column.
 const IMG_BOX_SEL = '.deckviewmodal-image-container';
 
@@ -27,9 +27,9 @@ let getOpts = () => ({});
 let observer = null;
 let raf = null;
 
-// Match a card name to a per-card entry: raw name → normalized → a DFC-tolerant
-// scan (the cards map keys by full "Front // Back", normName strips it). Exported
-// so the deck-page sidebar mirror can resolve the same way.
+// Match a card name to a per-card entry: try raw name, then normalized, then a
+// DFC-tolerant scan (the cards map keys by full "Front // Back", normName strips it).
+// Exported so the deck-page sidebar mirror can resolve the same way.
 export function lookupCard(fields, name) {
   if (!fields || !fields.cards || !name) return null;
   const cards = fields.cards;
@@ -41,9 +41,9 @@ export function lookupCard(fields, name) {
   return null;
 }
 
-// value is a string (wrapped in .solring-num + optional valueClass for color) or a
-// prebuilt node. valueClass uses solring-tier-* — 'a' is red for high salt /
-// above-2×-average power; saltTier/powerTier live in ratings.js.
+// value is a string (wrapped in .solring-num plus optional valueClass for color) or a
+// prebuilt node. valueClass uses solring-tier-*, where 'a' is red for high salt or
+// above-2x-average power. saltTier/powerTier live in ratings.js.
 function tile(label, value, sub, valueClass) {
   const node = typeof value === 'string'
     ? el('span', { class: `solring-num${valueClass ? ` ${valueClass}` : ''}`, text: value })
@@ -55,7 +55,7 @@ function tile(label, value, sub, valueClass) {
   ]);
 }
 
-// Deck-wide totals (denominators for each card's "/ total") + the average power.
+// Deck-wide totals (denominators for each card's "/ total") plus average power.
 // Both use the deck's authoritative totals: power's scoring.total (powerScoreTotal)
 // and salt's saltRating (fields.salt IS the deck total saltiness). Summed per-card
 // values are a fallback for older cached decks. Exported for the sidebar mirror.
@@ -72,7 +72,7 @@ export function deckStats(fields) {
 
 const pct = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}% contribution` : 'contribution');
 
-// Stacked bar row (narrow column): label + value on one line, full-width bar below.
+// Stacked bar row for the narrow column: label and value on one line, full-width bar below.
 function stackRow(label, valText, pct) {
   const fill = el('span', { style: `width:${Math.max(0, Math.min(100, pct))}%` });
   return el('div', { class: 'solring-cm-row' }, [
@@ -89,7 +89,7 @@ function sectionBlock(title, children, headSuffix) {
   return el('div', { class: 'solring-cm-section' }, [head, ...children]);
 }
 
-// A small "↓" on a section header marking its list as sorted high→low (by weight).
+// A small "down" caret on a section header marking its list as sorted by weight, high to low.
 function sortDownCaret() {
   return el('span', {
     class: 'solring-sort-caret',
@@ -114,7 +114,7 @@ function installCardHover() {
   // All delegated listeners use CAPTURE: inside Moxfield's card modal an ancestor
   // calls stopPropagation() on mouseover/click, so a bubble-phase document listener
   // never fires there (it does on the deck sidebar). Capture runs before any
-  // descendant can stop it. (Verified live: bubble=0, capture=1 in the modal.)
+  // descendant can stop it. Verified live: bubble=0, capture=1 in the modal.
   document.addEventListener('mouseover', (e) => {
     const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-img]');
     if (!chip) return;
@@ -124,11 +124,11 @@ function installCardHover() {
     }
     const img = hoverPop.querySelector('img');
     const primary = chip.dataset.img;
-    const fallback = chip.dataset.imgCs; // CommanderSalt print, if the deck print 404s (e.g. DFCs)
+    const fallback = chip.dataset.imgCs; // CommanderSalt print, used if the deck print 404s (e.g. DFCs)
     if (img.getAttribute('src') !== primary) {
       // The synthesized deck-print URL (card-<id>-normal.webp) doesn't exist for
-      // double-faced cards (Moxfield serves card-face-<faceId>-…). On error, promote
-      // the CommanderSalt fallback so we don't retry the dead URL on every hover.
+      // double-faced cards (Moxfield serves card-face-<faceId>-... instead). On error,
+      // promote the CommanderSalt fallback so we don't retry the dead URL on every hover.
       img.onerror = fallback ? () => { img.onerror = null; chip.dataset.img = fallback; img.setAttribute('src', fallback); } : null;
       img.setAttribute('src', primary);
     }
@@ -169,9 +169,9 @@ function installCardHover() {
   }, true);
 }
 
-// Map decklist rows → normalized name → { img, href }. A card's id in its
+// Map decklist rows to normalized name to { img, href }. A card's id in its
 // /cards/<id>- link is printing-specific, so `img` is the deck's SELECTED art
-// (CommanderSalt's imageUri is only a default print, used as a fallback); `href`
+// (CommanderSalt's imageUri is only a default print, used as a fallback). `href`
 // is the on-page card link we click to open Moxfield's card view.
 function deckPrintMap() {
   const map = {};
@@ -190,7 +190,7 @@ function deckPrintMap() {
 // Each previews the card's deck print on hover (the deck's selected art when the card is
 // on the page, else the supplied image) and opens Moxfield's card view on click for
 // cards in the deck. Exported so other panels (bracket-defining cards, combo pieces)
-// reuse the same hover/click behavior. `opts.chip` → pill style (synergy anchors);
+// reuse the same hover/click behavior. `opts.chip` gives pill style (synergy anchors),
 // otherwise an inline card-name style for prose lists.
 export function cardRefs(items, opts = {}) {
   installCardHover();
@@ -212,7 +212,7 @@ export function cardRefs(items, opts = {}) {
   });
 }
 
-// Synergy anchor chips: scoreBias-ranked pills; top SYN_VISIBLE shown, "+N more" reveals
+// Synergy anchor chips: scoreBias-ranked pills. Top SYN_VISIBLE shown, "+N more" reveals
 // the rest (already capped upstream at SYN_ANCHOR_CAP).
 const SYN_VISIBLE = 8;
 function synChips(anchors) {
@@ -245,11 +245,11 @@ function buildBody(card, stats) {
   const body = el('div', { class: 'solring-panel-body' });
 
   // Power/salt get their own mark color above the configured threshold (decoupled
-  // from the A–D grade ramp); otherwise the value is plain.
+  // from the A-D grade ramp), otherwise the value is plain.
   const pm = powerMark(card.powerTotal, stats.avgPower, stats.powerThreshold) ? 'solring-mark-power' : null;
   const sm = saltMark(card.salt, stats.saltThreshold) ? 'solring-mark-salt' : null;
   // Each value shows the card's contribution next to the deck total ("19.6 / 789.8"),
-  // mirroring the deck panel's "x / 10" tile; only the card's number takes the color,
+  // mirroring the deck panel's "x / 10" tile. Only the card's number takes the color,
   // the "/ total" stays muted.
   const withTotal = (value, markCls, total) => el('span', { class: 'solring-num' }, [
     el('span', { class: markCls || undefined, text: value }),
@@ -260,7 +260,7 @@ function buildBody(card, stats) {
     tile('Saltiness', withTotal(num(card.salt), sm, num(stats.saltTotal)), pct(card.salt, stats.saltTotal)),
   ]));
 
-  // Tags + bracket flags share one "Tags" section — flag chips first, then tag chips.
+  // Tags and bracket flags share one "Tags" section: flag chips first, then tag chips.
   const tagItems = [...flagChips(card.flags), ...tagChips(card.tags)];
   if (tagItems.length) body.append(sectionBlock('Tags', [el('div', { class: 'solring-cm-chips' }, tagItems)]));
   if (card.power && card.power.length) body.append(bars('Power contribution', card.power));
@@ -270,12 +270,12 @@ function buildBody(card, stats) {
   if (anchors.length || card.deckCombos) {
     const kids = [];
     // The cards this card synergizes with (CommanderSalt "outgoing impact"), then its
-    // Commander Spellbook combo count. Chips preview the card's deck print on hover.
+    // Commander Spellbook combo count. Chips preview the deck print on hover.
     if (anchors.length) kids.push(synChips(anchors));
     if (card.deckCombos) {
       kids.push(el('div', { class: 'solring-cm-note', text: `${card.deckCombos} combo${card.deckCombos === 1 ? '' : 's'} in this deck` }));
     }
-    // ↓ marks the chips as ranked by weight (only meaningful with 2+ partners).
+    // The caret marks the chips as ranked by weight (only meaningful with 2+ partners).
     body.append(sectionBlock('Synergy', kids, anchors.length > 1 ? sortDownCaret() : null));
   }
   return body;
@@ -294,8 +294,8 @@ export function buildPanel(card, key, stats) {
 }
 
 // Re-fit the panel to the currently shown card. Idempotent: if the panel already
-// matches the visible card, it returns without touching the DOM (so our own
-// insertion never re-triggers the observer into a rebuild loop).
+// matches the visible card, it returns without touching the DOM, so our own
+// insertion never re-triggers the observer into a rebuild loop.
 function apply() {
   raf = null;
   const modal = [...document.querySelectorAll(MODAL_SEL)].pop();
@@ -316,8 +316,8 @@ function apply() {
   const stats = { ...deckStats(fields), powerThreshold: opts.powerThreshold, saltThreshold: opts.saltThreshold };
   const panel = buildPanel(card, key, stats);
   // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
-  // list would stretch the whole modal. Cap the panel to the card image's width
-  // (measured before inserting, since our content could otherwise widen the box). On
+  // list would stretch the whole modal. Cap the panel to the card image's width,
+  // measured before inserting since our content could otherwise widen the box. On
   // mobile a media query widens the container to the full column and lifts this cap.
   const img = box.querySelector('.deckview-image-wrapper') || box.querySelector('img.deckview-image');
   const w = img ? Math.round(img.getBoundingClientRect().width) : 0;
@@ -334,7 +334,7 @@ function schedule() {
 }
 
 /** Install the modal observer once. `fieldsGetter` returns the live deck fields
-    (or null when no deck is analyzed); `optsGetter` returns the live options. */
+    (or null when no deck is analyzed). `optsGetter` returns the live options. */
 export function installCardModal(fieldsGetter, optsGetter) {
   getFields = fieldsGetter || (() => null);
   if (optsGetter) getOpts = optsGetter;

@@ -1,5 +1,5 @@
 // Persistent cache + prefs over chrome.storage.local. Stores only extracted
-// display fields (never raw payloads). Stale-while-revalidate + in-flight
+// display fields (never raw payloads). Stale-while-revalidate with in-flight
 // de-duplication. Used by the background service worker.
 
 export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -8,11 +8,11 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // field, a renamed/removed one, a changed unit). Entries written by an older extractor
 // carry an older `v` (or none) and are treated as stale: served for display continuity
 // but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
-// without a manual Clear cache or Re-analyze. History: 1 = pre-manabase; 2 = + manabase;
-// 3 = + per-card synergy count; 4 = synergy score + scoreBias-ranked partners;
-// 5 = + bracket/power profile (coaching, score drivers, anti-patterns); 6 = + wincon
-// profile; 7 = + inferred deck type; 8 = + fringeCEDH; 9 = bracket cards carry images;
-// 10 = + power fingerprint, synergy anchors/hubs carry images.
+// without a manual Clear cache or Re-analyze. History, by version:
+// 1 pre-manabase. 2 adds manabase. 3 adds per-card synergy count. 4 adds synergy score
+// and scoreBias-ranked partners. 5 adds bracket/power profile (coaching, score drivers,
+// anti-patterns). 6 adds wincon profile. 7 adds inferred deck type. 8 adds fringeCEDH.
+// 9 bracket cards carry images. 10 adds power fingerprint, synergy anchors/hubs carry images.
 export const SCHEMA_VERSION = 10;
 
 const inFlight = new Map();
@@ -42,7 +42,7 @@ export async function setEntry(key, data) {
     await chrome.storage.local.set({ [key]: entry });
   } catch (e) {
     // Storage full (QUOTA_BYTES): evict the oldest cached analyses and retry once. If
-    // it still fails, give up PERSISTING — the caller keeps the in-memory fields it
+    // it still fails, give up persisting. The caller keeps the in-memory fields it
     // already has, so a full cache degrades to "not cached" (it self-bounds via the
     // eviction), never a rejected getDeck/importDeck that breaks the display.
     const evicted = await evictOldestCache(0.25).catch(() => 0);
@@ -59,7 +59,7 @@ export function isFresh(entry, ttl = TTL_MS) {
   return !!entry && entry.v === SCHEMA_VERSION && Date.now() - entry.fetchedAt < ttl;
 }
 
-// Cached analyses only — deck:* and search:* entries (not prefs:* / sync:*).
+// Cached analyses only: deck:* and search:* entries (not prefs:* / sync:*).
 function isCacheKey(k) {
   return k.startsWith('deck:') || k.startsWith('search:');
 }

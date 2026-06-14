@@ -1,7 +1,7 @@
-// Pure string/number formatters shared across the render modules. No DOM, no state —
+// Pure string/number formatters shared across the render modules. No DOM, no state,
 // kept out of dom.js (DOM-injection helpers) so each module's purpose stays honest.
 
-/** Relative "… ago" label for a timestamp (ms). Falsy `ts` → '' (no timestamp yet);
+/** Relative "ago" label for a timestamp (ms). Falsy `ts` returns '' (no timestamp yet),
     otherwise 'just now' (<60s), 'N min ago', 'N h ago', or 'N d ago'. */
 export function relTime(ts) {
   if (!ts) return '';
@@ -13,7 +13,7 @@ export function relTime(ts) {
   return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
 }
 
-/** Format a number to `d` decimals, or '—' when it isn't a finite number. */
+/** Format a number to `d` decimals, returning an em-dash placeholder when it isn't a finite number. */
 export function num(n, d = 1) {
   return typeof n === 'number' && Number.isFinite(n) ? n.toFixed(d) : '—';
 }

@@ -1,7 +1,7 @@
-// Inject Saltiness / Tags / Stats checkboxes into Moxfield's
-// Customize View → "Include Extra Data" group. The modal mounts on demand, so we
-// watch for it; injection is idempotent. Toggles apply immediately (our global
-// prefs are independent of Moxfield's own Save/Cancel).
+// Inject Saltiness, Tags, and Stats checkboxes into Moxfield's Customize View
+// "Include Extra Data" group. The modal mounts on demand, so we watch for it.
+// Injection is idempotent. Toggles apply immediately (our global prefs are
+// independent of Moxfield's own Save/Cancel).
 
 import { el } from './dom.js';
 import { getCardPrefs, setCardPrefs } from './prefs.js';

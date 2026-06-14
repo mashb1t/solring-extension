@@ -1,5 +1,5 @@
 // Deck-level detail panels, each toggled by its metric tile (Saltiness, Power,
-// Bracket, Archetype, Synergy). Compact bar/chip layouts; all colors via CSS
+// Bracket, Archetype, Synergy). Compact bar/chip layouts. Colors come from CSS
 // vars so they follow Moxfield light/dark. Hidden by default.
 
 import { el } from './dom.js';
@@ -16,7 +16,7 @@ function section(title, children) {
 function barRow(label, valueText, pct) {
   const fill = el('span', { style: `width:${Math.max(0, Math.min(100, pct))}%` });
   const labelEl = el('span', { class: 'solring-pl-label' });
-  if (label && typeof label === 'object' && label.nodeType) labelEl.append(label); // a node (e.g. a linked card name)
+  if (label && typeof label === 'object' && label.nodeType) labelEl.append(label); // a node, e.g. a linked card name
   else labelEl.textContent = label == null ? '' : String(label);
   return el('div', { class: 'solring-pl-row' }, [
     labelEl,
@@ -25,8 +25,8 @@ function barRow(label, valueText, pct) {
   ]);
 }
 
-// Deck-fingerprint stat row (Power panel) — same tile style as the manabase header line.
-// Power-relevant shape metrics; null values are dropped.
+// Deck-fingerprint stat row (Power panel), same tile style as the manabase header line.
+// Power-relevant shape metrics. Null values are dropped.
 function fingerprintRow(fp) {
   if (!fp) return null;
   const tiles = [
@@ -67,14 +67,14 @@ function signalGroup(title, entries) {
   return el('div', { class: 'solring-sig-group' }, [el('div', { class: 'solring-pl-h', text: title }), ...items]);
 }
 
-// CommanderSalt's boost/penalty (and anti-pattern) severity scale, most → least severe.
-// Verified across 23 decks: the non-"none" values are major / notable / minor.
+// CommanderSalt's boost/penalty (and anti-pattern) severity scale, most to least severe.
+// Verified across 23 decks: the non-"none" values are major, notable, minor.
 const SEVERITY_RANK = { major: 3, notable: 2, minor: 1 };
-// Copy + order entries by severity, most severe first (stable within a level).
+// Copy and order entries by severity, most severe first (stable within a level).
 const sortBySeverity = (list) => [...list].sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
 
-// A labeled list of id→severity entries ("Narrow synergy focus · major"), ordered by
-// severity (major first, then notable, then minor; stable within a level).
+// A labeled list of id->severity entries ("Narrow synergy focus, major"), ordered by
+// severity (major first, then notable, then minor, stable within a level).
 function severityGroup(title, entries) {
   if (!(entries || []).length) return null;
   const sorted = sortBySeverity(entries);
@@ -86,7 +86,7 @@ function severityGroup(title, entries) {
 }
 
 // Anti-pattern flags: CommanderSalt's own label + "why" string, shown verbatim. Ordered
-// by severity (major → minor) — the same scale/SEVERITY_RANK as the boost/penalty lists.
+// by severity (major to minor), same SEVERITY_RANK scale as the boost/penalty lists.
 function flagGroup(title, patterns) {
   if (!(patterns || []).length) return null;
   const sorted = sortBySeverity(patterns);
@@ -106,10 +106,10 @@ export function buildSaltPanel(sources) {
 const POWER_ORDER = [
   ['consistency', 'Consistency'], ['efficiency', 'Efficiency'], ['interaction', 'Interaction'],
   ['winConditions', 'Win conditions'],
-]; // Manabase is excluded — its pillar score is capped at the baseline, so it's always 100%.
+]; // Manabase is excluded: its pillar score is capped at the baseline, so it's always 100%.
 // Power pillars vs a baseline, like CommanderSalt's "compare pillar scores against baseline":
-// each pillar's raw score ÷ the baseline, as a %. Bars share one scale (highest fills) with a
-// 100% baseline line. A Casual/cEDH toggle re-renders in place. Pass { scores, casual, cedh }
+// each pillar's raw score over the baseline, as a %. Bars share one scale (highest fills) with
+// a 100% baseline line. A Casual/cEDH toggle re-renders in place. Pass { scores, casual, cedh }
 // from extract.powerPillars.
 export function buildPowerPanel(p, profile, meta) {
   const scores = (p && p.scores) || {};
@@ -122,7 +122,7 @@ export function buildPowerPanel(p, profile, meta) {
       el('button', { class: 'solring-pw-btn', attrs: { type: 'button', 'data-mode': 'cedh' }, text: 'cEDH' }),
     ]),
   ]);
-  // CS's inferred lens (picks which baseline) + a fringe-cEDH flag — shown by the toggle,
+  // CS's inferred lens (picks which baseline) plus a fringe-cEDH flag, shown by the toggle,
   // which we default to that lens.
   const note = (inferred || (meta && meta.fringeCEDH)) ? el('div', { class: 'solring-pw-inferred' }, [
     inferred ? el('span', { text: `Classification: ${inferred === 'spike' ? 'spike (cEDH)' : 'casual'}` }) : null,
@@ -151,12 +151,12 @@ export function buildPowerPanel(p, profile, meta) {
     e.preventDefault(); e.stopPropagation(); render(b.getAttribute('data-mode'));
   }));
   render(inferred === 'spike' ? 'cedh' : 'casual'); // open on the lens CS inferred
-  // Deck fingerprint — a stat-tile line (tutors / ramp / curve / …) like the manabase
-  // header; shown top-most, above the pillar bars.
+  // Deck fingerprint: a stat-tile line (tutors / ramp / curve) like the manabase
+  // header, shown top-most, above the pillar bars.
   const fpRow = fingerprintRow(meta && meta.fingerprint);
   const fp = fpRow ? el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]) : null;
   const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows]);
-  // Score drivers — what nudged the final number off the pillar baselines. Laid out as
+  // Score drivers: what nudged the final number off the pillar baselines. Laid out as
   // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
   // anti-patterns, and improvement suggestions.
   if (profile) {
@@ -184,7 +184,7 @@ function group(title, desc, rows) {
   ]);
 }
 
-// Synergy: two complementary lenses on the synergy web — Anchors carry the most score,
+// Synergy: two complementary lenses on the synergy web. Anchors carry the most score,
 // Hubs are referenced by the most other entries (connective tissue). Either may be empty.
 export function buildSynergyPanel(anchors, hubs) {
   const groups = [];
@@ -201,7 +201,7 @@ export function buildSynergyPanel(anchors, hubs) {
 }
 
 // On-curve castability per turn: this deck's `actual` (solid, filled) against a typical
-// `baseline` (dashed). Values are fractions 0–1. The SVG holds ONLY geometry — axis
+// `baseline` (dashed). Values are fractions 0 to 1. The SVG holds ONLY geometry. Axis
 // labels live in HTML around it, because SVG <text> scales with the viewBox (there is no
 // non-scaling-size vector-effect in browsers) while HTML text keeps its font size at any
 // panel width. Strokes stay crisp via non-scaling-stroke.
@@ -218,7 +218,7 @@ function manaCurveChart(curve) {
   const path = (key) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.turn).toFixed(1)} ${Y(p[key]).toFixed(1)}`).join(' ');
   const area = `${path('actual')} L${X(tMax).toFixed(1)} ${Y(0).toFixed(1)} L${X(tMin).toFixed(1)} ${Y(0).toFixed(1)} Z`;
   const grid = [0, 0.5, 1].map((v) => `<line x1="${pad}" y1="${Y(v).toFixed(1)}" x2="${W - pad}" y2="${Y(v).toFixed(1)}" class="solring-mc-grid"/>`).join('');
-  // preserveAspectRatio=none so the SVG fills its (flex-stretched) box; strokes hold
+  // preserveAspectRatio=none so the SVG fills its (flex-stretched) box. Strokes hold
   // their width via non-scaling-stroke and the data still maps to the gridlines.
   const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="On-curve castability by turn: this deck vs a typical baseline">`
     + grid
@@ -235,8 +235,8 @@ function manaCurveChart(curve) {
     + `</div>`;
 }
 
-// Mana source breakdown: card count per source category as label·bar·value rows
-// (normalised to the largest category — lands dominate by design).
+// Mana source breakdown: card count per source category as label/bar/value rows
+// (normalised to the largest category, since lands dominate by design).
 function sourceBreakdownRows(c) {
   const cats = [
     ['Lands', c.lands], ['Land ramp', c.landRamp], ['Rocks', c.rocks],
@@ -259,9 +259,9 @@ function sourceBreakdownCaption(c) {
 }
 
 // Per-colour production vs requirement, CommanderSalt-style: a grey "required" bar over a
-// "produced" bar — req/prod are CS's own percentages (fractions of one shared scale), so
-// the bars compare directly. The ×ratio label compacts huge surpluses (×6.8, not 684%);
-// deficits (<×1) turn the produced bar + label red.
+// "produced" bar. req/prod are CS's own percentages (fractions of one shared scale), so
+// the bars compare directly. The ratio label compacts huge surpluses (x6.8, not 684%).
+// Deficits (<1x) turn the produced bar + label red.
 function colorReqProdChart(perColor) {
   const pc = (perColor || []).filter((c) => c.req != null || c.prod != null);
   if (!pc.length) return '';
@@ -290,8 +290,8 @@ function diagramCell(title, svgHtml, caption) {
   ]);
 }
 
-// Mana quality block: the three axes (Fixing / Quality / Curve) on ONE shared scale — the
-// highest of the three fills its bar — with a single 100-benchmark line running top-to-
+// Mana quality block: the three axes (Fixing / Quality / Curve) on ONE shared scale (the
+// highest of the three fills its bar) with a single 100-benchmark line running top to
 // bottom across all three, so you read which axes clear par and by how much. Scale floored
 // at 100 so the line stays on the track even if all three are below benchmark.
 function qualityBlock(m) {
@@ -349,7 +349,7 @@ function statTiles(s) {
 }
 
 // One column of the profile table: header + count badge over the RAW { id, data }
-// entries — the id humanized as the title, the data key/value pairs beneath verbatim.
+// entries. The id is humanized as the title, the data key/value pairs sit beneath verbatim.
 function profileColumn(title, entries, emptyText) {
   const items = (entries || []).map(({ id, data }) => {
     const pairs = Object.entries(data || {}).map(([k, v]) => `${k}: ${v}`).join(' · ');
@@ -378,8 +378,8 @@ function profileTable(strengths, risks, improve) {
 }
 
 // Manabase: a header band (title + headline score, then the stat tiles), one content row
-// — quality + colour-coverage bars stacked in one column, the source breakdown in a
-// second, the castability chart in the third — and the raw Strengths / Risks /
+// (quality + colour-coverage bars stacked in one column, the source breakdown in a
+// second, the castability chart in the third), and the raw Strengths / Risks /
 // Suggestions profile table as the footer.
 export function buildManabasePanel(m) {
   const children = [];
@@ -395,9 +395,9 @@ export function buildManabasePanel(m) {
     statTiles(m.stats),
   ]));
 
-  // Column 1: the three bar widgets stacked — Mana quality, Colour coverage, and the
-  // mana-source breakdown (all share the label·bar·value language). Mana quality bars
-  // share one scale (highest fills) with a 100-benchmark line — see qualityBlock.
+  // Column 1: the three bar widgets stacked, Mana quality, Colour coverage, and the
+  // mana-source breakdown (all share the label/bar/value language). Mana quality bars
+  // share one scale (highest fills) with a 100-benchmark line, see qualityBlock.
   const barsCol = [];
   const quality = qualityBlock(m);
   if (quality) barsCol.push(quality);
@@ -443,7 +443,7 @@ export function buildBracketPanel(baseline, realistic, categories, profile) {
   const cats = categories || [];
   const prof = profile || {};
   const children = [];
-  // 1) Bracket-defining cards — an aligned label / card-names grid (label column sizes to
+  // 1) Bracket-defining cards: an aligned label / card-names grid (label column sizes to
   // the widest chip so every card list starts at the same left edge).
   if (cats.length) {
     children.push(el('div', { class: 'solring-pl-h', text: 'Bracket-defining cards' }));
@@ -458,7 +458,7 @@ export function buildBracketPanel(baseline, realistic, categories, profile) {
   } else {
     children.push(el('div', { class: 'solring-msg', text: 'No bracket-defining cards.' }));
   }
-  // 2) Rule-zero notes — pre-game disclosure chips, above the coaching columns.
+  // 2) Rule-zero notes: pre-game disclosure chips, above the coaching columns.
   const rz = ruleZeroChips(prof.ruleZero);
   if (rz) children.push(rz);
   // 3) Coaching, three columns side by side: why this bracket / how to drop / how to push.

@@ -1,6 +1,6 @@
 // Shared presentational components for the injected report-card UIs. Extracted so
 // the deck panel (render-deck.js), the deck-list strip (decklist.js), and the
-// profile averages (render-user.js) render identical tiles / grade chips / bracket
+// profile averages (render-user.js) render identical tiles, grade chips, and bracket
 // values instead of each re-implementing them. Pure DOM builders, no state.
 
 import { el, tierFromGrade } from './dom.js';
@@ -14,22 +14,22 @@ export function tile(label, valueNode, sub) {
   ]);
 }
 
-/** A–D letter-grade chip, colored by tier via [data-tier] (a=red worst … d=green best).
-    Split into letter + modifier (+/–) spans so a fixed-width modifier slot (in list
-    columns) lines the letters up regardless of suffix — "A" sits at the same x as the
-    "B" in "B–". */
+/** A-to-D letter-grade chip, colored by tier via [data-tier] (a=red worst, d=green best).
+    Split into letter and modifier (plus/minus) spans so a fixed-width modifier slot in
+    list columns lines the letters up regardless of suffix: "A" sits at the same x as the
+    "B" in a "B" with a minus modifier. */
 export function gradeChip(grade) {
   const g = String(grade);
   return el('span', { class: 'solring-grade', attrs: { 'data-tier': tierFromGrade(g) } }, [
     el('span', { class: 'solring-grade-letter', text: g.slice(0, 1) }),
-    el('span', { class: 'solring-grade-mod', text: g.slice(1) }), // '+', '–', or ''
+    el('span', { class: 'solring-grade-mod', text: g.slice(1) }), // plus, minus, or empty
   ]);
 }
 
-// Bracket value = realistic bracket number, plus an arrow if it differs from the
-// baseline (WOTC) bracket: red ↑ when it plays above (high = bad), grey ↓ below.
-// Reads bracketRealistic/bracketBaseline; a search hit (no baseline) gets no arrow,
-// so callers normalize hit.bracketRating into bracketRealistic before calling.
+// Bracket value is the realistic bracket number, plus an arrow if it differs from the
+// baseline (WOTC) bracket: red up-arrow when it plays above (high is bad), grey down
+// below. Reads bracketRealistic/bracketBaseline. A search hit (no baseline) gets no
+// arrow, so callers normalize hit.bracketRating into bracketRealistic before calling.
 export function bracketValue(f) {
   const real = f.bracketRealistic;
   const base = f.bracketBaseline;
@@ -48,13 +48,13 @@ export function bracketValue(f) {
 }
 
 /** Bracket-flag chips as a bare span array (`.solring-flag`). The caller supplies the
-    container — both call sites render flags first, then tags (see `tagChips`). */
+    container. Both call sites render flags first, then tags (see `tagChips`). */
 export function flagChips(flags) {
   return (flags || []).map((f) => el('span', { class: 'solring-flag', text: f }));
 }
 
 /** CommanderSalt tag chips as a bare span array (`.solring-tag`). Caller-owned container.
-    (The combo panel has its own `.solring-combo-tag` variant — kept local there.) */
+    (The combo panel has its own `.solring-combo-tag` variant, kept local there.) */
 export function tagChips(tags) {
   return (tags || []).map((t) => el('span', { class: 'solring-tag', text: t }));
 }

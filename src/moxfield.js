@@ -1,6 +1,6 @@
 // Moxfield URL parsing + page-type detection (pure). Reserved `/decks/<word>`
-// routes are the deck manager (Your Decks, Liked, Following, Explore, …), NOT
-// individual decks — misclassifying one makes the extension try to render a deck
+// routes are the deck manager (Your Decks, Liked, Following, Explore, etc.), NOT
+// individual decks. Misclassifying one makes the extension try to render a deck
 // panel for a non-deck (e.g. /decks/liked).
 
 const RESERVED = new Set(['personal', 'all', 'public', 'private', 'bookmarks', 'shared', 'liked', 'following']);
@@ -24,7 +24,7 @@ function path(url) {
   }
 }
 
-/** `/decks/<publicId>` → publicId; manager routes and other paths → null. */
+/** `/decks/<publicId>` returns publicId. Manager routes and other paths return null. */
 export function parseDeckId(url) {
   const p = path(url);
   if (!p) return null;
@@ -33,7 +33,7 @@ export function parseDeckId(url) {
   return m[1];
 }
 
-/** `/users/<name>` → name; else null. */
+/** `/users/<name>` returns name, else null. */
 export function parseUsername(url) {
   const p = path(url);
   if (!p) return null;

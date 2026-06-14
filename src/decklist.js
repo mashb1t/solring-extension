@@ -1,20 +1,18 @@
 // Shared deck-list engine for the user profile (/users/{name}) and the personal
 // deck manager (/decks/personal + folders). It injects CommanderSalt metric COLUMNS
-// into Moxfield's deck table (a togglable subset; "Stats columns" menu), joining
-// each row (a Moxfield publicId) to a CommanderSalt search hit via md5 and filling
-// full-payload-only metrics from cache (or on demand by clicking a blank cell).
+// into Moxfield's deck table (a togglable subset via the "Stats columns" menu),
+// joining each row (a Moxfield publicId) to a CommanderSalt search hit via md5 and
+// filling full-payload-only metrics from cache (or on demand by clicking a blank cell).
 //
 // The join key: a hit carries only its CommanderSalt deckId (an md5), never the
-// Moxfield publicId — so we map each DOM row's publicId through
-// deckMd5(canonicalDeckUrl(publicId)) and match that against hit.deckId. Proven by
-// the md5 known-vector test.
+// Moxfield publicId, so we map each DOM row's publicId through
+// deckMd5(canonicalDeckUrl(publicId)) and match that against hit.deckId.
 //
-// Verified live on /users/mashb1t: the deck list is a <table>; a <th> appended to
-// each <thead> and a <td> to each row align perfectly. React drops our trailing
-// cells from some rows on re-render (sort/filter/paginate), so a reconcile pass
-// re-adds any missing cells (self-heals within a frame — confirmed live). Selectors
-// are content-anchored (deck links + the table), never Moxfield's hashed classes.
-// LIVE-VERIFY: /decks/personal column structure is inferred (login-gated).
+// The deck list is a <table>: a <th> appended to each <thead> and a <td> to each row
+// align perfectly. React drops our trailing cells from some rows on re-render
+// (sort/filter/paginate), so a reconcile pass re-adds any missing cells (self-heals
+// within a frame). Selectors are content-anchored (deck links + the table), never
+// Moxfield's hashed classes.
 
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { parseDeckId } from './moxfield.js';
@@ -28,12 +26,12 @@ import { el, guard, installOutsideClose } from './dom.js';
 import { num } from './format.js';
 import { gradeChip, bracketValue } from './components.js';
 
-const HIT_PAGE_CAP = 20; // safety bound on search pagination (≈ HIT_PAGE_CAP×page-size decks)
+const HIT_PAGE_CAP = 20; // safety bound on search pagination
 
 // ---- pure logic (unit-tested) ------------------------------------------------
 
 // Merge a search hit (always-available metrics) with a full cached payload
-// (threat/interaction/wincons/tier/combos — present only once analyzed+cached) into
+// (threat/interaction/wincons/tier/combos, present only once analyzed+cached) into
 // one normalized view. `analyzed` = whether the full payload is in hand.
 export function mergeView(hit, full) {
   const h = hit || {};
@@ -53,7 +51,7 @@ export function mergeView(hit, full) {
     salt: pick(f && f.salt, h.salt),
     synergy: pick(f && f.synergy, h.synergy),
     archetype: (f && f.archetype) || h.archetypeMajor || null,
-    // full-payload only (— until cached)
+    // full-payload only (blank until cached)
     threat: f && f.threat != null ? f.threat : null,
     interaction: f && f.interaction != null ? f.interaction : null,
     wincons: f && f.wincons != null ? f.wincons : null,
@@ -63,8 +61,8 @@ export function mergeView(hit, full) {
   };
 }
 
-// Sortable score keys. `hit:true` → available from the search hit alone; `hit:false`
-// → needs the full payload (rows lacking it sort last). HIGH grades (salt/threat/
+// Sortable score keys. `hit:true` is available from the search hit alone. `hit:false`
+// needs the full payload (rows lacking it sort last). HIGH grades (salt/threat/
 // interaction/synergy) are "more" by raw value, which is what sort exposes.
 export const SORT_KEYS = {
   tier: { label: 'Commander tier', get: (v) => v.commanderTier, hit: false },
@@ -78,7 +76,7 @@ export const SORT_KEYS = {
   synergy: { label: 'Synergy', get: (v) => v.synergy, hit: true },
 };
 
-// Comparator over views: rows with the metric present sort by value (asc/desc);
+// Comparator over views. Rows with the metric present sort by value (asc/desc),
 // rows missing it always sort last (so a "scan all" fills them in).
 export function compareViews(key, dir = 'desc') {
   const get = (SORT_KEYS[key] || {}).get || (() => null);
@@ -99,19 +97,19 @@ export function compareViews(key, dir = 'desc') {
 // state is tracked PER ROW, not per md5. Fetched full payloads are shared by md5
 // (fullByMd5) so every row of the same deck shows the analysis once any is scanned.
 
-let hitMap = new Map(); // md5 → search hit
-let fullByMd5 = new Map(); // md5 → full DeckFields (cached/expanded)
-let checkedCache = new Set(); // md5s we've already probed cache-only (avoid re-probing each pass)
-let rowEntries = []; // [{ md5, publicId, row, hit }] — one per visible deck row
-let rowMap = new WeakMap(); // row element → its current entry (idempotency)
-let listColumns = {}; // prefs:listColumns — which metric columns are enabled
-let columnOrder = []; // prefs:listColumnOrder — display order of the metric columns
-let hiddenNative = []; // prefs:hiddenNativeCols — Moxfield native columns to hide
-let sortState = { key: null, dir: 'desc' }; // prefs:sort — active score-sort (null = none)
-let nativeIdx = new WeakMap(); // row → Moxfield's native ordinal, snapshotted while no sort is active (to restore on clear)
-let pendingNativeRestore = false; // set only by our own "clear sort" click → restore the page default ONCE, then leave Moxfield's own sort alone
+let hitMap = new Map(); // md5 to search hit
+let fullByMd5 = new Map(); // md5 to full DeckFields (cached/expanded)
+let checkedCache = new Set(); // md5s already probed cache-only (avoid re-probing each pass)
+let rowEntries = []; // [{ md5, publicId, row, hit }], one per visible deck row
+let rowMap = new WeakMap(); // row element to its current entry (idempotency)
+let listColumns = {}; // prefs:listColumns, which metric columns are enabled
+let columnOrder = []; // prefs:listColumnOrder, display order of the metric columns
+let hiddenNative = []; // prefs:hiddenNativeCols, Moxfield native columns to hide
+let sortState = { key: null, dir: 'desc' }; // prefs:sort, active score-sort (null = none)
+let nativeIdx = new WeakMap(); // row to Moxfield's native ordinal, snapshotted while no sort is active (to restore on clear)
+let pendingNativeRestore = false; // set only by our own "clear sort" click, restores the page default ONCE, then leaves Moxfield's own sort alone
 let nativeSortClause = null; // Moxfield's own "sorted by X in Y order" caption clause, captured before we override it (restored on clear)
-let resultsCaptionEl = null; // cached "Showing … sorted by … order" element
+let resultsCaptionEl = null; // cached "Showing ... sorted by ... order" element
 let prefSubscribed = false; // onPrefChange wired only once
 let nativeSortYieldInstalled = false;
 const subscribers = new Set();
@@ -124,8 +122,8 @@ function viewFor(entry) {
 }
 
 // A deck row belongs to THIS list only if it lives in the main content column
-// (.flex-grow-1). Moxfield's sidebar widgets ("Most Recent Deck" / "Favorite
-// Decks" / …) are deck links too, but they aren't the user's listed decks — so
+// (.flex-grow-1). Moxfield's sidebar widgets ("Most Recent Deck", "Favorite
+// Decks") are deck links too, but they aren't the user's listed decks, so
 // columns, averages, and bulk sync must all ignore them. Mirrors reconcileColumns'
 // table-level predicate, and is re-checked live at read time because Moxfield
 // briefly reparents a sidebar table THROUGH .flex-grow-1 (see sweepStrayCols),
@@ -142,7 +140,7 @@ function emitChange() {
   for (const cb of subscribers) guard('deck-list subscriber', () => cb());
 }
 
-/** Unique per-deck views (deduped by md5 — duplicate folder rows collapse to one),
+/** Unique per-deck views (deduped by md5, so duplicate folder rows collapse to one),
     for the profile averages. */
 export function getViews() {
   const seen = new Set();
@@ -173,9 +171,9 @@ export function isCached(md5) {
   return fullByMd5.has(md5);
 }
 
-/** True when a deck-list TABLE (deck-row links in the main column) is on the page — the
+/** True when a deck-list TABLE (deck-row links in the main column) is on the page, the
     surface our toolbar controls (Stats / Columns) attach to. False on image/grid browse
-    pages (/decks/public, /liked, /private, …), which carry a Sort button but no table. */
+    pages (/decks/public, /liked, /private), which carry a Sort button but no table. */
 export function hasDeckListTable() {
   return [...document.querySelectorAll('table.table')]
     .some((t) => t.closest('.flex-grow-1') && t.querySelector('tbody a[href*="/decks/"]'));
@@ -201,18 +199,18 @@ async function loadAllHits(username) {
 // ---- DOM: find deck rows -----------------------------------------------------
 
 // A deck link on a list page: an <a> whose resolved href is a real /decks/<publicId>
-// (parseDeckId rejects the reserved /decks/personal|all|… routes and non-deck paths).
+// (parseDeckId rejects the reserved /decks/personal|all routes and non-deck paths).
 function isDeckLink(a) {
   return a.tagName === 'A' && a.href && parseDeckId(a.href);
 }
 
 // The "row unit" for a deck link. In Moxfield's deck tables/lists that's the enclosing
-// <tr>/<li> — the element our columns attach to — so prefer it. Climbing for a "repeating
+// <tr>/<li> (the element our columns attach to), so prefer it. Climbing for a "repeating
 // element" instead over-shoots when a profile shows a single deck across several tables:
 // the per-table wrappers then look like the repeating siblings and we'd key the row off a
 // <div>, so reconcileColumns (which matches <tbody tr>) finds nothing and renders no
 // columns. Only when there's no <tr>/<li> (non-table layouts) fall back to the repeating
-// element: an ancestor with ≥2 sibling deck-link containers. Content-anchored, no classes.
+// element: an ancestor with 2+ sibling deck-link containers. Content-anchored, no classes.
 function rowOf(link) {
   const cell = link.closest('tr, li');
   if (cell) return cell;
@@ -228,14 +226,14 @@ function rowOf(link) {
   return link.parentElement || link;
 }
 
-// Distinct deck rows on the page (deduped — a row may hold multiple deck links).
+// Distinct deck rows on the page (deduped, since a row may hold multiple deck links).
 function deckRows() {
   const seen = new Set();
   const rows = [];
   for (const a of document.querySelectorAll('a[href*="/decks/"]')) {
     if (!isDeckLink(a)) continue;
     const row = rowOf(a);
-    if (!row || seen.has(row) || !inMainList(row)) continue; // main list only — not sidebar widgets
+    if (!row || seen.has(row) || !inMainList(row)) continue; // main list only, not sidebar widgets
     const publicId = parseDeckId(a.href);
     seen.add(row);
     rows.push({ row, publicId, link: a });
@@ -249,10 +247,10 @@ const numNode = (n) => (typeof n === 'number' && Number.isFinite(n) ? el('span',
 const textNode = (t) => el('span', { text: t });
 const gradeNode = (value, field) => (typeof value === 'number' && Number.isFinite(value) ? gradeChip(csRatingGrade(value, field)) : null);
 
-// Every metric column the deck-list can show. `hit:true` = available from the search
-// hit alone (always populated); `hit:false` = needs the full payload (blank until the
-// deck is scanned). `cell(view)` returns the inner node, or null → a blank "—" cell.
-// Order here = left-to-right order of the injected columns.
+// Every metric column the deck-list can show. `hit:true` is available from the search
+// hit alone (always populated). `hit:false` needs the full payload (blank until the
+// deck is scanned). `cell(view)` returns the inner node, or null for a blank cell.
+// Order here is the left-to-right order of the injected columns.
 const COLUMNS = [
   { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
   { key: 'power', label: 'Pow', title: 'Power level (0–10)', hit: true, cell: (v) => numNode(v.power) },
@@ -265,12 +263,12 @@ const COLUMNS = [
   { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
   { key: 'synergy', label: 'Syn', title: 'Synergy grade', hit: true, cell: (v) => gradeNode(v.synergy, 'synergyRating') },
   { key: 'archetype', label: 'Archetype', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
-  // Per-row actions (CS link + Analysis) — built from the entry, not the view; see
+  // Per-row actions (CS link + Analysis), built from the entry, not the view. See
   // buildActionsCell. `action:true` flags the special render path.
   { key: 'actions', label: '', title: 'Solring actions', hit: true, action: true, cell: () => null },
 ];
 
-// Enabled columns, in the user's saved order (columnOrder); keys missing from the
+// Enabled columns, in the user's saved order (columnOrder). Keys missing from the
 // order fall back to the default COLUMNS order at the end (forward-compatible).
 function enabledColumns() {
   const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
@@ -291,7 +289,7 @@ function ourColKeys(container) {
   return [...container.querySelectorAll(':scope > .solring-col')].map((n) => n.getAttribute('data-col')).join(',');
 }
 
-// Per-column sort accessors (numeric/grade columns only; archetype/actions aren't
+// Per-column sort accessors (numeric/grade columns only, archetype/actions aren't
 // sortable). Keyed by COLUMN key so the header click maps straight through.
 const SORT_VALUE = {
   power: (v) => v.power,
@@ -308,8 +306,8 @@ const SORT_VALUE = {
 const isSortable = (key) => Object.prototype.hasOwnProperty.call(SORT_VALUE, key);
 
 // Header cells. Sortable ones get a click/keydown handler here (headers are rebuilt
-// each reconcile, so the handler must live here, not be attached afterward); the
-// ▲/▼ indicator is managed separately by updateSortIndicators so it can change
+// each reconcile, so the handler must live here, not be attached afterward). The
+// caret indicator is managed separately by updateSortIndicators so it can change
 // without rebuilding the header.
 function buildHeaderCells() {
   return enabledColumns().map((c) => {
@@ -328,19 +326,19 @@ function buildHeaderCells() {
   });
 }
 
-// Click a sortable header, cycling: unsorted → descending → ascending → cleared. A new
-// column starts at descending; the third click on the active column clears the sort and
-// restores Moxfield's native order. Persisted (prefs:sort) → onPrefChange('sort') re-applies.
+// Click a sortable header, cycling: unsorted, descending, ascending, cleared. A new
+// column starts at descending. The third click on the active column clears the sort and
+// restores Moxfield's native order. Persisted to prefs:sort, then onPrefChange('sort') re-applies.
 function toggleSort(key) {
   let next;
   if (sortState.key !== key) next = { key, dir: 'desc' };
   else if (sortState.dir === 'desc') next = { key, dir: 'asc' };
-  else { next = { key: null, dir: 'desc' }; pendingNativeRestore = true; } // 3rd click → restore the page default once
+  else { next = { key: null, dir: 'desc' }; pendingNativeRestore = true; } // 3rd click restores the page default once
   setSortPref(next);
 }
 
 // Moxfield's own "caret-down" icon (FontAwesome, inline SVG) so our sort indicator
-// matches the native UI; the wrapping span is rotated 180° for the ascending state.
+// matches the native UI. The wrapping span is rotated 180deg for the ascending state.
 // viewBox + path copied verbatim from Moxfield's rendered FA icon.
 function sortCaretSvg() {
   const NS = 'http://www.w3.org/2000/svg';
@@ -354,7 +352,7 @@ function sortCaretSvg() {
   return svg;
 }
 
-// Reflect the active sort on the header (caret + active class), idempotently — only
+// Reflect the active sort on the header (caret + active class), idempotently. Only
 // touches the DOM when something actually changed, so it never drives the observer.
 function updateSortIndicators(htr) {
   for (const th of htr.querySelectorAll(':scope > th.solring-col')) {
@@ -373,7 +371,7 @@ function updateSortIndicators(htr) {
   }
 }
 
-// Lowercase field names for Moxfield's results caption ("…sorted by <field> in … order").
+// Lowercase field names for Moxfield's results caption ("...sorted by <field> in ... order").
 const SORT_TITLE_LABEL = {
   tier: 'commander tier', power: 'power', bracket: 'bracket', manabase: 'manabase',
   threat: 'threat', salt: 'saltiness', interaction: 'interaction', wincons: 'win conditions', combos: 'combos',
@@ -382,13 +380,13 @@ const SORT_TITLE_LABEL = {
 const RESULTS_CLAUSE = /sorted by .+? in (?:ascending|descending) order/i;
 const directText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('');
 // The text node that holds the sort clause (so we edit only it, preserving any element
-// siblings Moxfield may add — e.g. a bolded count). null if the clause spans nodes.
+// siblings Moxfield may add, e.g. a bolded count). null if the clause spans nodes.
 function clauseTextNode(el) {
   for (const n of el.childNodes) if (n.nodeType === 3 && RESULTS_CLAUSE.test(n.textContent)) return n;
   return null;
 }
-// Moxfield's "Showing … sorted by … order" caption (a <span> on /users/{name}, a <div>
-// on /decks/personal). Cached; re-found when detached. Our own overridden text still
+// Moxfield's "Showing ... sorted by ... order" caption (a <span> on /users/{name}, a <div>
+// on /decks/personal). Cached, and re-found when detached. Our own overridden text still
 // matches RESULTS_CLAUSE, so the cache stays valid after we rewrite it.
 function findResultsCaption() {
   if (resultsCaptionEl && resultsCaptionEl.isConnected && RESULTS_CLAUSE.test(directText(resultsCaptionEl))) return resultsCaptionEl;
@@ -402,10 +400,10 @@ function findResultsCaption() {
   return resultsCaptionEl;
 }
 
-// Rewrite the caption's sort clause to reflect our active score-sort ("…sorted by power
+// Rewrite the caption's sort clause to reflect our active score-sort ("...sorted by power
 // in descending order"), preserving Moxfield's count/prefix. We capture Moxfield's own
-// clause the first time we override so clearing the sort restores it. Idempotent; editing
-// the text node is characterData, which the (childList-only) observer ignores → no loop.
+// clause the first time we override so clearing the sort restores it. Idempotent: editing
+// the text node is characterData, which the (childList-only) observer ignores, so no loop.
 function updateResultsTitle() {
   const cap = findResultsCaption();
   const node = cap && clauseTextNode(cap);
@@ -417,7 +415,7 @@ function updateResultsTitle() {
     const want = `sorted by ${label} in ${sortState.dir === 'asc' ? 'ascending' : 'descending'} order`;
     const next = cur.replace(RESULTS_CLAUSE, want);
     if (next !== cur) node.nodeValue = next;
-  } else if (nativeSortClause) { // sort cleared → restore Moxfield's own clause once
+  } else if (nativeSortClause) { // sort cleared, restore Moxfield's own clause once
     const next = cur.replace(RESULTS_CLAUSE, nativeSortClause);
     if (next !== cur) node.nodeValue = next;
     nativeSortClause = null;
@@ -439,9 +437,9 @@ function compareEntries(key, dir) {
 }
 
 // Reorder a table's deck rows by the active sort, pinning non-deck rows (folders /
-// "Up a level") in their slots. STRICT no-op when already sorted — otherwise moving
-// a Moxfield <tr> (no solring class) re-triggers the observer → annotate → applySort
-// → infinite loop. With the guard, the first real sort costs one extra (no-op) pass.
+// "Up a level") in their slots. STRICT no-op when already sorted, otherwise moving
+// a Moxfield <tr> (no solring class) re-triggers the observer (annotate, applySort)
+// in an infinite loop. With the guard, the first real sort costs one extra (no-op) pass.
 function applySort(tbl) {
   if (!sortState.key) return;
   const tbody = tbl.querySelector(':scope > tbody');
@@ -451,7 +449,7 @@ function applySort(tbl) {
   if (deckRows.length < 2) return;
   const cmp = compareEntries(sortState.key, sortState.dir);
   const sorted = [...deckRows].sort((a, b) => cmp(rowMap.get(a), rowMap.get(b)));
-  if (deckRows.every((r, i) => r === sorted[i])) return; // already sorted → no DOM ops
+  if (deckRows.every((r, i) => r === sorted[i])) return; // already sorted, no DOM ops
   let si = 0;
   const target = allRows.map((tr) => (rowMap.get(tr) ? sorted[si++] : tr)); // fill deck slots, pin folders
   target.forEach((tr) => tbody.appendChild(tr));
@@ -459,7 +457,7 @@ function applySort(tbl) {
 
 // Restore Moxfield's native row order after the score-sort is cleared. Mirrors applySort
 // (incl. the STRICT no-op guard, so it never drives the observer): rows sort by their
-// snapshotted native ordinal; any without one (rendered mid-sort) sort stably to the end.
+// snapshotted native ordinal, and any without one (rendered mid-sort) sort stably to the end.
 function applyNativeOrder(tbl) {
   const tbody = tbl.querySelector(':scope > tbody');
   if (!tbody) return;
@@ -468,7 +466,7 @@ function applyNativeOrder(tbl) {
   if (deckRows.length < 2) return;
   const ord = (tr) => (nativeIdx.has(tr) ? nativeIdx.get(tr) : Number.MAX_SAFE_INTEGER);
   const sorted = [...deckRows].sort((a, b) => ord(a) - ord(b));
-  if (deckRows.every((r, i) => r === sorted[i])) return; // already native → no DOM ops
+  if (deckRows.every((r, i) => r === sorted[i])) return; // already native, no DOM ops
   let si = 0;
   const target = allRows.map((tr) => (rowMap.get(tr) ? sorted[si++] : tr));
   target.forEach((tr) => tbody.appendChild(tr));
@@ -490,19 +488,19 @@ function installNativeSortYield() {
 function nativeCells(row) {
   return [...row.children].filter((c) => !(c.classList && c.classList.contains('solring-col')));
 }
-// Index of Moxfield's "Updated" column among native header cells (-1 if absent) — we
+// Index of Moxfield's "Updated" column among native header cells (-1 if absent). We
 // insert our columns just before it, so they sit between Format and Updated.
 function updatedIndex(htr) {
   return nativeCells(htr).findIndex((c) => /updated/i.test(c.textContent || ''));
 }
-// The cell our columns insert before in `row`, for a given header updated-index;
-// null → append (Updated column not found / row shorter than expected).
+// The cell our columns insert before in `row`, for a given header updated-index.
+// null means append (Updated column not found, or row shorter than expected).
 function anchorCell(row, idx) {
   return idx < 0 ? null : (nativeCells(row)[idx] || null);
 }
 
 // Stable key for a Moxfield native column = its lowercased header label. Icon-only
-// columns (likes/comments/views — blank headers) have no key and aren't hideable.
+// columns (likes/comments/views, with blank headers) have no key and aren't hideable.
 function nativeKey(headerCell) {
   const t = (headerCell.textContent || '').trim();
   return t ? t.toLowerCase() : null;
@@ -527,14 +525,14 @@ function applyNativeHide(tbl, htr) {
 }
 
 // Per-row actions cell: a CommanderSalt link + a Sync (re-analyze) button. Sync POSTs
-// the deck for a fresh analysis (like the deck page's ↻), spins while running, then
-// refreshes the row from the new payload. Never auto-syncs — explicit click only.
+// the deck for a fresh analysis (like the deck page's refresh), spins while running, then
+// refreshes the row from the new payload. Never auto-syncs, explicit click only.
 function buildActionsCell(entry) {
   const cs = el('a', {
     class: 'solring-row-act', text: 'CS', title: 'Open on CommanderSalt',
     attrs: { href: `https://commandersalt.com/details/deck/${entry.md5}`, target: '_blank', rel: 'noopener' },
   });
-  // ↻ in its own span so spinning rotates only the icon, not the bordered button.
+  // Icon in its own span so spinning rotates only the icon, not the bordered button.
   const sync = el('button', {
     class: 'solring-row-act solring-row-sync',
     attrs: { type: 'button', title: 'Re-analyze' },
@@ -563,7 +561,7 @@ async function syncDeck(entry, btn) {
   }
 }
 
-/** Spin (or stop) the per-row ↻ icon for every main-list row showing this deck — used
+/** Spin (or stop) the per-row sync icon for every main-list row showing this deck. Used
     by bulk Analyze to mark the deck currently being processed. A successful scan
     rerenders the row (fresh, un-spun icon), so callers still flip it off for the
     failure/cancel paths. The button is disabled while spinning to avoid a conflicting
@@ -579,9 +577,9 @@ export function setRowSpinning(md5, on) {
   }
 }
 
-// Native tooltip for a cell whose displayed value hides the raw number — the grade
+// Native tooltip for a cell whose displayed value hides the raw number. The grade
 // columns show a letter, so hovering surfaces the underlying score + its metric name
-// (e.g. Saltiness C+ → "130.6 saltiness"). Keyed by column; rounded to 1 decimal.
+// (e.g. Saltiness C+ shows "130.6 saltiness"). Keyed by column, rounded to 1 decimal.
 const scoreTitle = (n, label) => (typeof n === 'number' && Number.isFinite(n) ? `${Math.round(n * 10) / 10} ${label}` : null);
 const CELL_TITLE = {
   salt: (v) => scoreTitle(v.salt, 'saltiness'),
@@ -593,7 +591,7 @@ const CELL_TITLE = {
 
 // Build/rebuild one row's metric cells from its current view, inserted before the
 // "Updated" column (idx). A blank full-only cell (deck not yet scanned) is clickable
-// to scan just that deck. idx omitted → resolve it from the row's own table header.
+// to scan just that deck. idx omitted resolves it from the row's own table header.
 function renderRowCells(entry, idx) {
   const tr = entry.row;
   tr.querySelectorAll(':scope > td.solring-col').forEach((n) => n.remove());
@@ -611,7 +609,7 @@ function renderRowCells(entry, idx) {
       const inner = c.cell(view);
       td.append(inner || el('span', { class: 'solring-num', text: '—' }));
       const titleFn = CELL_TITLE[c.key];
-      // hover → raw total; help cursor signals the cell carries it
+      // hover shows the raw total, help cursor signals the cell carries it
       if (inner && titleFn) { const t = titleFn(view); if (t) { td.title = t; td.classList.add('solring-col-help'); } }
       else if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
@@ -624,8 +622,8 @@ function renderRowCells(entry, idx) {
 }
 
 // Non-deck rows (folders, "up a level", spacers) in a deck table get matching BLANK
-// metric cells before "Updated" — otherwise our inserted columns shift the deck rows'
-// Updated/⋯ right while the folder rows' stay put, breaking the right-side alignment.
+// metric cells before "Updated", otherwise our inserted columns shift the deck rows'
+// Updated/menu right while the folder rows' stay put, breaking the right-side alignment.
 function renderBlankCells(row, idx) {
   row.querySelectorAll(':scope > td.solring-col').forEach((n) => n.remove());
   const ref = anchorCell(row, idx);
@@ -637,7 +635,7 @@ function renderBlankCells(row, idx) {
 
 // Reconcile every Moxfield deck table to exactly the enabled columns, inserting them
 // before the "Updated" column. Each table is handled independently (its own
-// <thead>); a table with no joined rows is skipped (and any stale header cells
+// <thead>). A table with no joined rows is skipped (and any stale header cells
 // removed). This is also the self-heal: rows React recreated without our cells get
 // them re-added here.
 function reconcileColumns() {
@@ -646,14 +644,14 @@ function reconcileColumns() {
   for (const tbl of document.querySelectorAll('table.table')) {
     const htr = tbl.querySelector('thead tr');
     if (!htr) continue;
-    const idx = updatedIndex(htr); // native index of "Updated" — same for header + rows
+    const idx = updatedIndex(htr); // native index of "Updated", same for header + rows
     // Only decorate the MAIN deck-list table: a Name + Updated header AND positively
     // inside the main content column (.flex-grow-1). Moxfield's sidebar widgets
-    // ("Most Recent Deck" / "Favorite Decks" / …) are 1-row Name+Updated tables too,
-    // so the header alone isn't enough — and a negative "not in .flex-shrink-0" check
+    // ("Most Recent Deck", "Favorite Decks") are 1-row Name+Updated tables too,
+    // so the header alone isn't enough, and a negative "not in .flex-shrink-0" check
     // lets a transiently-positioned sidebar table slip through. Requiring .flex-grow-1
-    // is positive and excludes it. (Verified main tables on /users/{name} +
-    // /decks/personal are in .flex-grow-1; the sidebar is not.)
+    // is positive and excludes it. (Main tables on /users/{name} +
+    // /decks/personal are in .flex-grow-1, the sidebar is not.)
     const isDeckList = idx >= 0
       && nativeCells(htr).some((c) => /^name$/i.test((c.textContent || '').trim()))
       && !!tbl.closest('.flex-grow-1');
@@ -664,7 +662,7 @@ function reconcileColumns() {
     decorated.add(tbl);
     const bodyRows = [...tbl.querySelectorAll('tbody tr')];
     const ours = bodyRows.filter((tr) => rowMap.get(tr));
-    if (!ours.length) { // no joined rows yet → strip any stale header cells
+    if (!ours.length) { // no joined rows yet, strip any stale header cells
       htr.querySelectorAll(':scope > .solring-col').forEach((n) => n.remove());
       continue;
     }
@@ -673,7 +671,7 @@ function reconcileColumns() {
       const headRef = anchorCell(htr, idx);
       buildHeaderCells().forEach((th) => (headRef ? htr.insertBefore(th, headRef) : htr.appendChild(th)));
     }
-    // Every body row keeps the same column count so Updated/⋯ stay aligned: deck rows
+    // Every body row keeps the same column count so Updated/menu stay aligned: deck rows
     // get metric cells, folder/other rows get matching blank cells.
     for (const tr of bodyRows) {
       if (ourColKeys(tr) === sig) continue; // already current
@@ -681,9 +679,9 @@ function reconcileColumns() {
       if (entry) renderRowCells(entry, idx); else renderBlankCells(tr, idx);
     }
     applyNativeHide(tbl, htr);
-    updateSortIndicators(htr); // ▲/▼ on the active sort column
+    updateSortIndicators(htr); // caret on the active sort column
     if (sortState.key) applySort(tbl); // reorder deck rows by the active sort (no-op if already sorted)
-    else if (pendingNativeRestore) applyNativeOrder(tbl); // our clear → restore the page default order, once
+    else if (pendingNativeRestore) applyNativeOrder(tbl); // our clear restores the page default order, once
   }
   // One-shot: consume the restore only once the sort is actually cleared (a reconcile that
   // still sees the old active sort must keep it pending). After this, cleared-state reconciles
@@ -691,7 +689,7 @@ function reconcileColumns() {
   if (!sortState.key) pendingNativeRestore = false;
   // Sweep stray cells anywhere outside the tables we decorated. Moxfield's sidebar
   // ("Most Recent Deck") transiently renders as a table we may decorate before it
-  // lands in .flex-shrink-0, then React re-renders it into <div>s — orphaning our
+  // lands in .flex-shrink-0, then React re-renders it into <div>s, orphaning our
   // <td>s where the per-table strip above can't reach them. Remove any such cells.
   for (const cell of document.querySelectorAll('.solring-col')) {
     if (!decorated.has(cell.closest('table.table'))) cell.remove();
@@ -739,7 +737,7 @@ function columnsIcon() {
   return svg;
 }
 
-// All metric columns in the saved display order (enabled or not) — for the menu, so
+// All metric columns in the saved display order (enabled or not), for the menu, so
 // reordering works regardless of which are currently shown.
 function orderedColumns() {
   const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
@@ -769,7 +767,7 @@ function onDropReorder(targetKey, list) {
   if (!dragged || !target) return;
   list.insertBefore(dragged, target); // reorder our own menu DOM (stable, not React's)
   const order = [...list.querySelectorAll('[data-colkey]')].map((n) => n.getAttribute('data-colkey'));
-  setColumnOrder(order); // → onPrefChange('listColumns') → reconcile repaints the table
+  setColumnOrder(order); // fires onPrefChange('listColumns'), then reconcile repaints the table
 }
 
 // A draggable Solring-metric row: grip + show/hide checkbox + label. Drag reorders
@@ -790,8 +788,8 @@ function buildSolringItem(c, list) {
   return item;
 }
 
-// A native-column show/hide row. 'name' is pinned (always shown — it carries the
-// deck link). Checked = visible; unchecking adds the column to hiddenNative.
+// A native-column show/hide row. 'name' is pinned (always shown, it carries the
+// deck link). Checked = visible, unchecking adds the column to hiddenNative.
 function buildNativeItem(n) {
   const pinned = n.key === 'name';
   const input = el('input', { class: 'form-check-input m-0', attrs: { type: 'checkbox', id: `solring-natcol-${n.key}` } });
@@ -811,7 +809,7 @@ function buildNativeItem(n) {
 }
 
 // The "Stats" dropdown: a reorderable, toggleable list of Solring metric columns +
-// a show/hide list of Moxfield's own columns. Button copies Sort's styling; panel
+// a show/hide list of Moxfield's own columns. Button copies Sort's styling, panel
 // uses Moxfield's dropdown chrome so both match the native Sort control.
 function buildColumnMenu(sortClassName) {
   const wrap = el('div', { class: 'solring-colmenu', attrs: { 'data-solring-root': '' } });
@@ -825,7 +823,7 @@ function buildColumnMenu(sortClassName) {
   const list = el('div', { class: 'solring-colmenu-list' });
   for (const c of orderedColumns()) list.append(buildSolringItem(c, list));
   inner.append(list);
-  // Native-columns section is (re)built each time the menu opens — the toolbar can
+  // Native-columns section is (re)built each time the menu opens, since the toolbar can
   // render before the deck table, so the native columns aren't known at build time,
   // and this also keeps the checkboxes in sync with hiddenNative.
   const nativeWrap = el('div', { class: 'solring-native-wrap' });
@@ -853,11 +851,11 @@ function buildColumnMenu(sortClassName) {
 }
 
 // Inject the menu into the deck-list toolbar (next to Moxfield's native Sort), once
-// per toolbar; re-injected by annotate when React rebuilds the toolbar. The button
+// per toolbar, re-injected by annotate when React rebuilds the toolbar. The button
 // copies Sort's exact class list so it stays visually identical.
 function ensureToolbarMenu() {
-  // Only where a deck-list table is actually shown — not on image/grid browse pages
-  // (/decks/public, /liked, …) which have a Sort button but no table to add columns to.
+  // Only where a deck-list table is actually shown, not on image/grid browse pages
+  // (/decks/public, /liked) which have a Sort button but no table to add columns to.
   if (!hasDeckListTable()) { document.querySelectorAll('.solring-colmenu').forEach((n) => n.remove()); return; }
   const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()));
   const toolbar = sortBtn && sortBtn.parentElement;
@@ -868,7 +866,7 @@ function ensureToolbarMenu() {
 // ---- DOM: annotate rows ------------------------------------------------------
 
 // Fetch a deck's full payload into the shared md5 cache, then re-render every row
-// of that deck. `allowFetch` false = cache-only probe (no network).
+// of that deck. `allowFetch` false = cache-only probe, no network.
 async function loadFull(md5, { allowFetch }) {
   if (fullByMd5.has(md5)) return true;
   let res = null;
@@ -893,7 +891,7 @@ function probeCache(md5) {
   loadFull(md5, { allowFetch: false });
 }
 
-// Manual "Analyze" (click a blank cell) → force a fetch (GET/import) of the full payload.
+// Manual "Analyze" (click a blank cell) forces a fetch (GET/import) of the full payload.
 async function expandEntry(entry, btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
   const ok = await loadFull(entry.md5, { allowFetch: true });
@@ -901,7 +899,7 @@ async function expandEntry(entry, btn) {
 }
 
 // Re-render the metric cells of every row showing this deck (duplicate folder rows
-// included) — e.g. after its full payload loads.
+// included), e.g. after its full payload loads.
 function rerenderMd5(md5) {
   for (const e of rowEntries) if (e.md5 === md5) renderRowCells(e);
 }
@@ -922,12 +920,12 @@ function annotate() {
     const hit = hitMap.get(md5) || null;
     const entry = { md5, publicId, row, hit };
     next.push(entry);
-    rowMap.set(row, entry); // maps the (possibly newly-rendered) row → its deck
+    rowMap.set(row, entry); // maps the (possibly newly-rendered) row to its deck
     probeCache(md5); // fold in an already-cached full payload (no network)
   }
   rowEntries = next;
-  // Record each row's ordinal the FIRST time we see it — that moment is always Moxfield's
-  // default order (it just rendered the row; our applySort runs later, in reconcileColumns).
+  // Record each row's ordinal the FIRST time we see it: that moment is always Moxfield's
+  // default order (it just rendered the row, and our applySort runs later, in reconcileColumns).
   // Capturing on first sight (rather than only while unsorted) means "clear sort" can
   // restore the page default even when a sort was already active at load (persisted prefs),
   // and our own reorders (which move existing rows, never new ones) can't overwrite it.
@@ -949,7 +947,7 @@ function scheduleAnnotate() {
 // Remove any of our cells that aren't inside a main-content (.flex-grow-1) deck table.
 // React renders Moxfield's sidebar "Most Recent Deck" as a table inside .flex-grow-1
 // just long enough for us to decorate it, then reparents our <td>s into the sidebar
-// (.flex-shrink-0) divs — orphaning them where reconcile's per-table strip can't see
+// (.flex-shrink-0) divs, orphaning them where reconcile's per-table strip can't see
 // them. This sweep is idempotent (only removes), so running it on every mutation is
 // loop-safe (the relevance filter that drives annotate intentionally ignores our own
 // nodes, so it wouldn't otherwise fire on that reparent).
@@ -995,10 +993,10 @@ export async function installDeckList(username, { waitFor } = {}) {
   if (!listObserver) {
     listObserver = new MutationObserver((mutations) => {
       // Always sweep cells React may have reparented out of the main table (cheap,
-      // idempotent — see sweepStrayCols). The relevance check below ignores our own
-      // nodes, so it would miss that reparent; the sweep covers it.
+      // idempotent, see sweepStrayCols). The relevance check below ignores our own
+      // nodes, so it would miss that reparent. The sweep covers it.
       scheduleSweep();
-      // Re-annotate when Moxfield adds/replaces rows; ignore our OWN injected nodes
+      // Re-annotate when Moxfield adds/replaces rows. Ignore our OWN injected nodes
       // (any solring-* class), or inserting our cells would re-trigger forever.
       const relevant = mutations.some((m) => [...m.addedNodes].some((n) => {
         if (n.nodeType !== 1) return false;
@@ -1013,7 +1011,7 @@ export async function installDeckList(username, { waitFor } = {}) {
 
 /** Tear down observers + state and remove our injected columns (SPA navigation away
     from the list). Our cells aren't tagged data-solring-root, so dom.teardown leaves
-    them — we remove them here. */
+    them, so we remove them here. */
 export function teardownDeckList() {
   if (listObserver) { listObserver.disconnect(); listObserver = null; }
   document.querySelectorAll('.solring-col, .solring-colmenu').forEach((n) => n.remove());
@@ -1023,6 +1021,6 @@ export function teardownDeckList() {
   hitMap = new Map();
   fullByMd5 = new Map();
   checkedCache = new Set();
-  nativeSortClause = null; // new page → re-capture its own caption clause on next override
+  nativeSortClause = null; // new page, re-capture its own caption clause on next override
   resultsCaptionEl = null;
 }

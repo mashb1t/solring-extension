@@ -1,4 +1,4 @@
-// CommanderSalt per-card stat-flag vocabulary → human-friendly tag labels.
+// Maps CommanderSalt per-card stat flags to human-friendly tag labels.
 // Flags not listed pass through unchanged (e.g. "burn", "stax", "ramp").
 
 export const TAG_LABELS = {
@@ -18,7 +18,7 @@ export function prettifyTag(flag) {
   return Object.prototype.hasOwnProperty.call(TAG_LABELS, flag) ? TAG_LABELS[flag] : flag;
 }
 
-// Bracket-relevant per-card flags (details.brackets.categories) → labels.
+// Bracket-relevant per-card flags (details.brackets.categories) to labels.
 export const BRACKET_FLAG_LABELS = {
   gameChangers: 'Game Changer',
   cedhStaples: 'cEDH staple',

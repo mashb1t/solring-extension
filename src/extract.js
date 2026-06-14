@@ -1,7 +1,7 @@
-// Map a raw CommanderSalt payload (or search hit) → the small set of display
-// fields the extension renders. Pure + defensive: missing fields become
-// undefined, never throw. Deck value and baseline (WOTC) bracket are
-// intentionally NOT extracted — only the realistic bracket is shown.
+// Map a raw CommanderSalt payload (or search hit) to the small set of display
+// fields the extension renders. Defensive: missing fields become undefined
+// rather than throwing. Deck value and baseline (WOTC) bracket are
+// intentionally NOT extracted. Only the realistic bracket is shown.
 
 import { prettifyTag, BRACKET_FLAG_LABELS } from './labels.js';
 
@@ -14,8 +14,8 @@ function g(obj, ...path) {
   return cur;
 }
 
-// Collect a card's scoring contributions from a details.<area>.scoring object:
-// [{ cat, score }] for each category whose per-id list scores this card, top-first.
+// Collect a card's scoring contributions from a details.<area>.scoring object.
+// Returns [{ cat, score }] for each category whose per-id list scores this card, top-first.
 function scoringFor(scoring, id) {
   const out = [];
   for (const [cat, v] of Object.entries(scoring || {})) {
@@ -30,24 +30,24 @@ function titleCase(id) {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-// A finite number, or null. Used by the metric extractors to drop missing/NaN values
-// (a deliberately stricter guard than `parseFloat(...) || 0`, which coerces strings).
+// A finite number, or null. Drops missing/NaN values. Stricter than
+// `parseFloat(...) || 0`, which coerces strings.
 const finiteNumber = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 
 // CommanderSalt synergy ("Outgoing Impact"): the cards this card synergizes with.
-// synergy.list[id] is keyed by effect type (abilities / triggers / statics / …),
+// synergy.list[id] is keyed by effect type (abilities, triggers, statics, etc),
 // each a map of effects whose cardsOfSupportingType are the cards it feeds. We
-// surface the union of those cards (the per-clause rules texts are redundant with
-// the card's own text). Each anchor is { name, image } so the chip can preview the
-// card's exact deck print on hover; idToCard maps anchor id → that card.
+// surface the union of those cards. The per-clause rules texts are redundant with
+// the card's own text. Each anchor is { name, image } so the chip can preview the
+// card's exact deck print on hover. idToCard maps anchor id to that card.
 const SYN_ANCHOR_CAP = 20; // ranked partners kept per card (panel shows 8, rest expand)
 
 function cardCombos(synergy, id, idToCard) {
   const node = g(synergy, 'list', id);
   if (!node || typeof node !== 'object') return null;
-  const weight = new Map(); // partner card id → its highest scoreBias across this card's effects
+  const weight = new Map(); // partner card id to its highest scoreBias across this card's effects
   let total = 0; // number of synergy effect-clauses
-  let score = 0; // synergy SCORE: Σ conditionScoring.total — the same per-card number
+  let score = 0; // synergy score: sum of conditionScoring.total, the same per-card number
   //              CommanderSalt sums to rank a deck's synergy "anchors" (so it matches
   //              the site). Far more discriminating than a raw partner count.
   for (const group of Object.values(node)) {
@@ -65,9 +65,9 @@ function cardCombos(synergy, id, idToCard) {
     }
   }
   if (!total) return null;
-  // Anchors = supporting cards ranked by scoreBias (most-relevant first), capped; the
+  // Anchors = supporting cards ranked by scoreBias (most-relevant first), capped. The
   // panel shows the top 8 and expands to the rest. A card can score via commanderBonus
-  // with no supporting cards (anchors empty) — still surface its score.
+  // with no supporting cards (anchors empty), so still surface its score.
   const anchors = [...weight.entries()].sort((a, b) => b[1] - a[1]).slice(0, SYN_ANCHOR_CAP).map(([aid]) => {
     const c = idToCard && idToCard[aid];
     return { name: (c && c.name) || titleCase(aid), image: (c && c.image) || null };
@@ -75,14 +75,14 @@ function cardCombos(synergy, id, idToCard) {
   return { total, count: weight.size, score: Math.round(score * 10) / 10, anchors };
 }
 
-// Per-card "stats" that go beyond the tag flags: bracket flags + power & salt breakdowns.
+// Per-card stats beyond the tag flags: bracket flags plus power and salt breakdowns.
 function cardStats(details, id, idToCard) {
   const cats = g(details, 'brackets', 'categories') || {};
   const flags = Object.keys(BRACKET_FLAG_LABELS)
     .filter((k) => Array.isArray(cats[k] && cats[k].list) && cats[k].list.includes(id))
     .map((k) => BRACKET_FLAG_LABELS[k]);
   // Power categories include both a theme (e.g. `stompy`) and its win-condition
-  // mirror (`wincon_stompy`) with the same score — merge by base name (keep one,
+  // mirror (`wincon_stompy`) with the same score. Merge by base name (keep one,
   // not summed) and drop the aggregate buckets so nothing shows twice.
   const byBase = new Map();
   for (const { cat, score } of scoringFor(g(details, 'powerLevel', 'scoring'), id)) {
@@ -90,7 +90,7 @@ function cardStats(details, id, idToCard) {
     const base = cat.replace(/^wincon_/, '');
     byBase.set(base, Math.max(byBase.get(base) || 0, score));
   }
-  // Total power contribution = the sum across every (deduped) category; the
+  // Total power contribution = the sum across every (deduped) category. The
   // displayed `power` keeps only the top contributors.
   let powerTotal = 0;
   for (const v of byBase.values()) powerTotal += v;
@@ -98,7 +98,7 @@ function cardStats(details, id, idToCard) {
   const power = [...byBase.entries()].map(([cat, score]) => ({ cat, score }))
     .sort((a, b) => b.score - a.score).slice(0, 4);
 
-  // Salt breakdown: drop cardPrice — it is NOT part of the salt score (the rest
+  // Salt breakdown: drop cardPrice, which is NOT part of the salt score (the rest
   // sum to the card's saltiness). Show all components so they add up.
   const saltBreakdown = scoringFor(g(details, 'salt', 'scoring'), id)
     .filter((x) => x.cat !== 'cardPrice');
@@ -117,7 +117,7 @@ export function isStub(p) {
   return !p || p.name == null || (p._cardCount || 0) === 0;
 }
 
-// How many of the deck's actual combos (details.combos — Commander Spellbook)
+// How many of the deck's actual combos (details.combos, Commander Spellbook)
 // this card is a piece of. Matches the card's id/container/front-face against
 // the combo's card ids (prefix-aware to cover DFC ids).
 function countDeckCombos(comboList, c) {
@@ -127,13 +127,13 @@ function countDeckCombos(comboList, c) {
   )).length;
 }
 
-/** Per-card map keyed by normalized card name → { salt, tags, total, flags, power, powerTotal, saltBreakdown, combos, deckCombos }. */
+/** Per-card map keyed by normalized card name to { salt, tags, total, flags, power, powerTotal, saltBreakdown, combos, deckCombos }. */
 function extractCards(p) {
   const out = {};
   const cards = p.cards || {};
   const details = p.details || {};
   const comboList = g(details, 'combos', 'list') || [];
-  const idToCard = buildIdToCard(cards); // anchor id → { name, image } for synergy chips
+  const idToCard = buildIdToCard(cards); // anchor id to { name, image } for synergy chips
   for (const c of Object.values(cards)) {
     if (!c || !c.name) continue;
     const stats = g(c, 'categories', 'stats') || {};
@@ -149,8 +149,8 @@ function extractCards(p) {
   return out;
 }
 
-// Build an id → value map over the deck's cards: each card registers the same value
-// under every id it carries (id / frontFaceId / containerId), first write wins. Skips
+// Build an id-to-value map over the deck's cards: each card registers the same value
+// under every id it carries (id, frontFaceId, containerId), first write wins. Skips
 // nameless entries. `project(card)` yields the value (a name, or a { name, image }).
 function buildIdMap(cards, project) {
   const map = {};
@@ -162,7 +162,7 @@ function buildIdMap(cards, project) {
   return map;
 }
 
-// id → { name, image } for synergy anchors. image is the deck's exact print
+// id to { name, image } for synergy anchors. image is the deck's exact print
 // (CommanderSalt's per-card imageUri), upgraded from the border-crop art to the
 // full card (/normal/). Covers DFC front/container ids.
 const buildIdToCard = (cards) => buildIdMap(cards, (c) => ({
@@ -170,10 +170,10 @@ const buildIdToCard = (cards) => buildIdMap(cards, (c) => ({
   image: typeof c.imageUri === 'string' ? c.imageUri.replace('/border_crop/', '/normal/') : null,
 }));
 
-// id → display name, from the deck's own cards (covers DFC front/container ids).
+// id to display name, from the deck's own cards (covers DFC front/container ids).
 const buildIdToName = (cards) => buildIdMap(cards, (c) => c.name);
 
-// The deck's combos (details.combos.list — Commander Spellbook), shaped for display.
+// The deck's combos (details.combos.list, Commander Spellbook), shaped for display.
 function extractCombos(p) {
   const list = g(p, 'details', 'combos', 'list') || [];
   const idToName = buildIdToName(p.cards);
@@ -183,7 +183,7 @@ function extractCombos(p) {
     return {
       pieces: (c.cards || []).map((id) => idToName[id] || titleCase(id)),
       score: c.score,
-      complexity: g(cx, 'bias', 'final'), // 0–1
+      complexity: g(cx, 'bias', 'final'), // 0 to 1
       extraMana: cx.additionalCmcValue,
       type: c.type,
       categories: c.categories || [],
@@ -193,7 +193,7 @@ function extractCombos(p) {
         .map((l) => ({ text: l.parsed, payMana: !!(l.qualifiers && l.qualifiers.requiresPayMana) }))
         .filter((s) => s.text),
       produces: lines('results'),
-      breakdown: g(cx, 'bias', 'sections') || {}, // {easyPrerequisites, notablePrerequisites, preconditions, steps, results} → 0–1
+      breakdown: g(cx, 'bias', 'sections') || {}, // {easyPrerequisites, notablePrerequisites, preconditions, steps, results} each 0 to 1
       spellbookUri: c.spellbookUri,
     };
   });
@@ -206,9 +206,9 @@ function saltSources(dt) {
     .map(([cat, v]) => ({ cat, score: v.score }))
     .sort((a, b) => b.score - a.score);
 }
-// Power pillars as raw scores vs their casual / cEDH baselines — what CommanderSalt plots
-// in "compare pillar scores against baseline" (score ÷ baseline). NOT ratings.spike.* (a
-// normalized 0–1 internal rating that maps to nothing the site shows). Manabase is omitted:
+// Power pillars as raw scores vs their casual / cEDH baselines, what CommanderSalt plots
+// in "compare pillar scores against baseline" (score / baseline). NOT ratings.spike.* (a
+// normalized 0-to-1 internal rating that maps to nothing the site shows). Manabase is omitted:
 // its pillar score is capped at the baseline, so it's always 100% (the real manabase signal
 // lives in the manabase section).
 function powerPillars(dt) {
@@ -236,15 +236,15 @@ function bracketCategories(dt, idToCard) {
     .filter((c) => c.count > 0);
 }
 
-// Raw { id, data } scorer signals (passing through an optional up/down direction) —
-// the panel humanizes the id and shows the data pairs verbatim (no sentence templating),
+// Raw { id, data } scorer signals (passing through an optional up/down direction).
+// The panel humanizes the id and shows the data pairs verbatim (no sentence templating),
 // mirroring how the manabase strengths/risks are surfaced.
 const sigList = (list) => (Array.isArray(list) ? list : [])
   .filter((it) => it && it.id)
   .map((it) => (it.direction ? { id: it.id, data: it.data || {}, direction: it.direction } : { id: it.id, data: it.data || {} }));
 
 // Bracket coaching: why the deck lands at its bracket (rationale) and the concrete moves
-// to shift it down (soften) / up (harden), plus pre-game rule-zero disclosures. Each is a
+// to shift it down (soften) or up (harden), plus pre-game rule-zero disclosures. Each is a
 // raw { id, data } list. `rating` is the continuous bracket score behind the integer.
 function bracketProfile(dt) {
   const b = g(dt, 'brackets') || {};
@@ -259,8 +259,8 @@ function bracketProfile(dt) {
   };
 }
 
-// Win-condition shape: the deck's win paths (combo / combat / …) + combo consistency
-// metrics — the "what kind of win, how reliably" layer behind the Wincons grade.
+// Win-condition shape: the deck's win paths (combo, combat, etc) plus combo consistency
+// metrics, the "what kind of win, how reliably" layer behind the Wincons grade.
 function winconProfile(dt) {
   const prof = g(dt, 'powerLevel', 'profile') || {};
   const w = prof.wincons || {};
@@ -280,9 +280,9 @@ function winconProfile(dt) {
   };
 }
 
-// Power scoring drivers: which signals pushed the score up (boosts) / down (penalties),
-// the named anti-patterns (server-side label + why), and improvement suggestions. boosts/
-// penalties are id→severity maps; we drop the "none" entries.
+// Power scoring drivers: which signals pushed the score up (boosts) or down (penalties),
+// the named anti-patterns (server-side label plus why), and improvement suggestions. boosts/
+// penalties are id-to-severity maps. We drop the "none" entries.
 function powerProfile(dt) {
   const prof = g(dt, 'powerLevel', 'profile') || {};
   const adj = prof.scoreAdjustments || {};
@@ -306,7 +306,7 @@ function archetypeMajors(dt) {
     .map((m) => ({ name: m.major, pct: m.percentage }));
 }
 // Interaction breakdown: the score's own subCategories (spotRemoval, boardWipes,
-// counters, …), each scored at the deck level in powerLevel.scoring.
+// counters, etc), each scored at the deck level in powerLevel.scoring.
 function interactionParts(dt) {
   const scoring = g(dt, 'powerLevel', 'scoring') || {};
   const subs = g(scoring, 'interaction', 'subCategories');
@@ -322,7 +322,7 @@ function synergyAnchors(dt, idToCard) {
     .slice(0, 6)
     .map((a) => { const c = idToCard && idToCard[a.cardId]; return { name: (c && c.name) || titleCase(a.cardId), image: (c && c.image) || null, share: a.share, score: a.score }; });
 }
-// Synergy hubs: the cards referenced by the most other entries (graph connections) —
+// Synergy hubs: the cards referenced by the most other entries (graph connections),
 // the deck's connective tissue. Distinct from anchors, which carry the most score.
 function synergyHubs(dt, idToCard) {
   return (g(dt, 'synergy', 'profile', 'hubs') || [])
@@ -333,8 +333,8 @@ function synergyHubs(dt, idToCard) {
 }
 
 // Deck fingerprint: the headline deck-shape metrics CommanderSalt shows in its Power-
-// Levels tab (tutors, ramp, curve, instant-speed, creatures) — the "what kind of deck"
-// line. Tutor count comes from scoring.tutors.list (the per-tutor map); the rest from
+// Levels tab (tutors, ramp, curve, instant-speed, creatures), the "what kind of deck"
+// line. Tutor count comes from scoring.tutors.list (the per-tutor map). The rest come from
 // powerLevel.profile.
 function powerFingerprint(dt) {
   const pl = g(dt, 'powerLevel') || {};
@@ -359,14 +359,14 @@ function powerFingerprint(dt) {
     permanentRatio: finiteNumber(comp.permanentRatio),
   };
 }
-// Manabase quality. CommanderSalt's headline number is `percentages.overall` — the curve
+// Manabase quality. CommanderSalt's headline number is `percentages.overall`, the curve
 // axis as a PERCENT of its 100 benchmark (rounded). (`score`/totalCalories is the sum
 // of the axes, a separate number.) The three /100 axes are manaFixing, quality, curve
 // (bonuses can push an axis past 100). curveChart
-// gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`);
-// composition counts the mana sources (lands / rocks / dorks / rituals / treasures + land
-// sub-types: MDFC / fetch / utility / tapped); strengths/risks/improve are the scorer's
-// raw profile signals. Full payload only (— in search hits).
+// gives on-curve castability per turn (this deck's `actual` vs a typical `baseline`).
+// composition counts the mana sources (lands, rocks, dorks, rituals, treasures, plus land
+// sub-types: MDFC, fetch, utility, tapped). strengths/risks/improve are the scorer's
+// raw profile signals. Full payload only (absent in search hits).
 function manabase(dt) {
   const m = g(dt, 'manabase') || {};
   const pct = m.percentages || {};
@@ -384,13 +384,13 @@ function manabase(dt) {
     .map(Number).filter(Number.isFinite).sort((a, b) => a - b)
     .map((t) => ({ turn: t, actual: turns[t].actualPercentage, baseline: turns[t].baseLinePercentage }));
 
-  // Strengths / risks / improve suggestions: passed through RAW ({ id, data }) — the
-  // panel renders the id + data pairs directly, no sentence templating.
+  // Strengths / risks / improve suggestions: passed through RAW ({ id, data }). The
+  // panel renders the id and data pairs directly, no sentence templating.
   const rawList = (list) => (list || []).filter((it) => it && it.id).map((it) => ({ id: it.id, data: it.data || {} }));
 
   // Per-color production vs requirement (empty on colorless decks). The comparable
   // REQ/PROD pair is breakdown.production.breakdown[color].percentages (what the
-  // CommanderSalt bars plot — fractions of one shared scale, sometimes strings); the
+  // CommanderSalt bars plot, fractions of one shared scale, sometimes strings). The
   // raw requirementCount/productionCount are different units (pips vs producers).
   const prodBd = g(m, 'breakdown', 'production', 'breakdown') || {};
   const pf = (x) => { const v = parseFloat(x); return Number.isFinite(v) ? v : null; };
@@ -398,7 +398,7 @@ function manabase(dt) {
     const pcts = (prodBd[color] || {}).percentages || {};
     return {
       color,
-      req: pf(pcts.requirements), // fraction 0–1
+      req: pf(pcts.requirements), // fraction 0 to 1
       prod: pf(pcts.production),
       ratio: n(v.coverageRatio) != null ? n(v.coverageRatio) : pf(pcts.productionToRequirementRatio),
       deficit: !!v.deficit,
@@ -406,17 +406,17 @@ function manabase(dt) {
   });
 
   return {
-    // headline percent vs benchmark: percentages.overall (= round(curve); 111 = 11% over)
+    // headline percent vs benchmark: percentages.overall (= round(curve), 111 = 11% over)
     overall: n(pct.overall) != null ? n(pct.overall) : (n(pct.curve) != null ? Math.round(n(pct.curve)) : null),
-    score: n(m.score), // the SUM of the three axes ("total calories"; not the headline)
-    // axes are each scored vs their own /100 benchmark (100 = met; bonuses exceed)
+    score: n(m.score), // the SUM of the three axes ("total calories", not the headline)
+    // axes are each scored vs their own /100 benchmark (100 = met, bonuses exceed)
     fixing: n(pct.manaFixing),
     quality: n(pct.quality),
     curveScore: n(pct.curve),
-    curve, // [{ turn, actual, baseline }] — fractions 0–1
+    curve, // [{ turn, actual, baseline }], fractions 0 to 1
     perColor, // [{ color, req, prod, ratio, deficit }]
     composition: {
-      // "lands" = mana-producing lands (what CommanderSalt's Lands figures count;
+      // "lands" = mana-producing lands (what CommanderSalt's Lands figures count,
       // pure-utility lands are excluded), falling back to the total land count.
       lands: c0(comp.manaProducingLandCount) || c0(comp.landCount),
       basics: c0(comp.basicCount), rocks: c0(comp.rockCount),
@@ -435,19 +435,19 @@ function manabase(dt) {
       costReducers: Object.keys(g(m, 'breakdown', 'genericManaReducers') || {}).length,
       reducedCards: n(g(m, 'details', 'totalReducedCostCards')),
     },
-    strengths: rawList(prof.strengths), // [{ id, data }] — raw scorer signals
+    strengths: rawList(prof.strengths), // [{ id, data }], raw scorer signals
     risks: rawList(prof.risks),
     improve: rawList(prof.improve),
     sources: Object.keys(m.manaProducers || {}).length,
   };
 }
 
-/** Full deck payload → DeckFields. */
+/** Full deck payload to DeckFields. */
 export function extractDeck(p) {
   const combos = extractCombos(p);
   const dt = p.details || {};
   const idToName = buildIdToName(p.cards);
-  const idToCard = buildIdToCard(p.cards); // id → { name, image } for hover previews
+  const idToCard = buildIdToCard(p.cards); // id to { name, image } for hover previews
   return {
     combos,
     saltSources: saltSources(dt),
@@ -466,13 +466,13 @@ export function extractDeck(p) {
     commander: (p.commanders || [])[0],
     colorIdentity: p.colorIdentity,
     power: p.powerLevelRating,
-    // Deck's total power score (sum of all per-card contributions); basis for each
+    // Deck's total power score (sum of all per-card contributions). Basis for each
     // card's "% contribution" and the deck-average colouring threshold.
     powerScoreTotal: parseFloat(g(p, 'details', 'powerLevel', 'scoring', 'total')) || 0,
     bracketRealistic: g(p, 'details', 'brackets', 'csBracket'),
     bracketBaseline: g(p, 'details', 'brackets', 'wotcBracket'), // for the delta arrow only (not displayed as a number)
     commanderTier: g(p, 'details', 'powerLevel', 'ratings', 'commanderTier'),
-    inferredType: g(p, 'details', 'powerLevel', 'ratings', 'inferredType'), // CS's read of intent: casual / spike — picks the power baseline
+    inferredType: g(p, 'details', 'powerLevel', 'ratings', 'inferredType'), // CS's read of intent: casual or spike, picks the power baseline
     fringeCEDH: !!g(p, 'details', 'powerLevel', 'ratings', 'fringeCEDH'),
     salt: p.saltRating,
     threat: p.threatRating,

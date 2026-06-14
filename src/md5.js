@@ -1,4 +1,4 @@
-// Vendored MD5 (RFC 1321) — adapted from blueimp-md5 (MIT, © Sebastian Tschan)
+// Vendored MD5 (RFC 1321), adapted from blueimp-md5 (MIT, (c) Sebastian Tschan)
 // to an ES module, hashing the UTF-8 bytes of the input string.
 // Needed because Web Crypto (crypto.subtle) supports SHA-* only, not MD5, and
 // CommanderSalt keys decks by md5(canonical Moxfield URL).

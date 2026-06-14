@@ -24,7 +24,7 @@ export function installCommanderSaltLink(md5) {
     });
     const sep = el('span', { class: 'mx-2', text: '·', attrs: { 'data-solring-root': '' } });
     anchor.insertAdjacentElement('afterend', link);
-    link.insertAdjacentElement('beforebegin', sep); // "EDHRecs · CommanderSalt"
+    link.insertAdjacentElement('beforebegin', sep); // renders "EDHRecs . CommanderSalt"
     return true;
   };
   if (tryInject()) return null;
