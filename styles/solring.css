@@ -75,10 +75,6 @@
 @keyframes solring-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .solring-spin-icon.solring-spin { animation: none; } }
 .solring-wordmark { letter-spacing: 0.01em; }
-/*.solring-wordmark::before {*/
-/*  content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px;*/
-/*  border-radius: 50%; background: var(--solring-accent); vertical-align: middle;*/
-/*}*/
 /* Panel-bar chevron: same big ⌃ as the expandable tiles — rotated 180° when the
    panel is collapsed, upright when open. */
 .solring-chevron {
@@ -587,20 +583,6 @@ th.solring-hide-native, td.solring-hide-native { display: none !important; }
   color: var(--solring-text-2); font-weight: 600; margin-bottom: 0.5rem;
 }
 .solring-averages-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-
-/* compact inline "label · bar · value" — shared by the profile averages (T18) */
-.solring-mini { display: inline-flex; align-items: center; gap: 0.3rem; }
-.solring-mini-label { font-size: 0.64rem; color: var(--solring-text-2); }
-.solring-mini-bar {
-  display: inline-block; width: 2.75rem; height: 5px; vertical-align: middle;
-  background: var(--solring-surface-2); border-radius: 3px; overflow: hidden;
-}
-.solring-mini-fill { display: block; height: 100%; background: var(--solring-accent); }
-.solring-mini.solring-tier-a .solring-mini-fill { background: var(--solring-rating-a); }
-.solring-mini.solring-tier-b .solring-mini-fill { background: var(--solring-rating-b); }
-.solring-mini.solring-tier-c .solring-mini-fill { background: var(--solring-rating-c); }
-.solring-mini.solring-tier-d .solring-mini-fill { background: var(--solring-rating-d); }
-.solring-mini-val { font-variant-numeric: tabular-nums; }
 
 /* ---- wide layout toggle (header) ----
    Wide mode drops Moxfield's Bootstrap container max-widths so pages use the full

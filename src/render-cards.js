@@ -5,6 +5,7 @@
 // here. Controlled by global prefs; re-applied on Moxfield re-render via the observer.
 
 import { el, isDark } from './dom.js';
+import { flagChips, tagChips } from './components.js';
 import { powerMark, saltMark, deckAvgPower, synergyCutoff, synergyMark } from './ratings.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
@@ -96,9 +97,7 @@ export function annotate(fields, prefs, options = {}) {
     // 2) Tags + bracket flags — one full-width sub-line (flags first, then tags),
     // spanning name-column → row end.
     if (prefs.tags && hasTagLine) {
-      const chipNodes = [];
-      for (const f of card.flags || []) chipNodes.push(el('span', { class: 'solring-flag', text: f }));
-      for (const t of card.tags || []) chipNodes.push(el('span', { class: 'solring-tag', text: t }));
+      const chipNodes = [...flagChips(card.flags), ...tagChips(card.tags)];
       li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` }, chipNodes)));
     }
   });

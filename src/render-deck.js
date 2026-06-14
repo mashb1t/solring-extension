@@ -9,6 +9,7 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
 import { el, isDark, chevronSvg } from './dom.js';
+import { relTime, num } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
 import { getCardPrefs, getOptions, onPrefChange } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
@@ -207,7 +208,6 @@ function makeExpandable(tile, section, body) {
 function renderBody(body, f) {
   body.replaceChildren();
   expandGroup = []; // fresh accordion group for this render
-  const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
   // grade-style tile: big colored letter grade + raw score sub (like Saltiness)
   const gradeTile = (label, key, field) =>
     tile(label, gradeChip(csRatingGrade(f[key], field)), typeof f[key] === 'number' ? `${num(f[key])} total` : '—');
@@ -359,15 +359,6 @@ export async function mount({ waitFor }) {
   titleBar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   refreshBtn.addEventListener('click', (e) => { e.stopPropagation(); doRefresh(); });
 
-  function relTime(ts) {
-    if (!ts) return '';
-    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-    if (s < 60) return 'just now';
-    const m = Math.round(s / 60);
-    if (m < 60) return `${m} min ago`;
-    const h = Math.round(m / 60);
-    return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
-  }
   let lastSync = null;
   function setSynced(ts) {
     lastSync = ts || null;

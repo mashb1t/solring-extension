@@ -70,12 +70,14 @@ function signalGroup(title, entries) {
 // CommanderSalt's boost/penalty (and anti-pattern) severity scale, most → least severe.
 // Verified across 23 decks: the non-"none" values are major / notable / minor.
 const SEVERITY_RANK = { major: 3, notable: 2, minor: 1 };
+// Copy + order entries by severity, most severe first (stable within a level).
+const sortBySeverity = (list) => [...list].sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
 
 // A labeled list of id→severity entries ("Narrow synergy focus · major"), ordered by
 // severity (major first, then notable, then minor; stable within a level).
 function severityGroup(title, entries) {
   if (!(entries || []).length) return null;
-  const sorted = [...entries].sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
+  const sorted = sortBySeverity(entries);
   const items = sorted.map(({ id, severity }) => el('div', { class: 'solring-sig-item' }, [
     el('span', { class: 'solring-sig-id', text: humanizeId(id) }),
     el('span', { class: 'solring-sig-sev', text: String(severity) }),
@@ -87,7 +89,7 @@ function severityGroup(title, entries) {
 // by severity (major → minor) — the same scale/SEVERITY_RANK as the boost/penalty lists.
 function flagGroup(title, patterns) {
   if (!(patterns || []).length) return null;
-  const sorted = [...patterns].sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
+  const sorted = sortBySeverity(patterns);
   const items = sorted.map((p) => el('div', { class: 'solring-sig-item' }, [
     el('span', { class: 'solring-sig-id', text: p.label }),
     p.severity ? el('span', { class: 'solring-sig-sev', text: String(p.severity) }) : null,

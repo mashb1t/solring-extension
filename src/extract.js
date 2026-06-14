@@ -30,6 +30,10 @@ function titleCase(id) {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+// A finite number, or null. Used by the metric extractors to drop missing/NaN values
+// (a deliberately stricter guard than `parseFloat(...) || 0`, which coerces strings).
+const finiteNumber = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+
 // CommanderSalt synergy ("Outgoing Impact"): the cards this card synergizes with.
 // synergy.list[id] is keyed by effect type (abilities / triggers / statics / …),
 // each a map of effects whose cardsOfSupportingType are the cards it feeds. We
@@ -145,28 +149,29 @@ function extractCards(p) {
   return out;
 }
 
-// id → { name, image } for synergy anchors. image is the deck's exact print
-// (CommanderSalt's per-card imageUri), upgraded from the border-crop art to the
-// full card (/normal/). Covers DFC front/container ids.
-function buildIdToCard(cards) {
+// Build an id → value map over the deck's cards: each card registers the same value
+// under every id it carries (id / frontFaceId / containerId), first write wins. Skips
+// nameless entries. `project(card)` yields the value (a name, or a { name, image }).
+function buildIdMap(cards, project) {
   const map = {};
   for (const c of Object.values(cards || {})) {
     if (!c || !c.name) continue;
-    const image = typeof c.imageUri === 'string' ? c.imageUri.replace('/border_crop/', '/normal/') : null;
-    for (const id of [c.id, c.frontFaceId, c.containerId]) if (id && !(id in map)) map[id] = { name: c.name, image };
+    const value = project(c);
+    for (const id of [c.id, c.frontFaceId, c.containerId]) if (id && !(id in map)) map[id] = value;
   }
   return map;
 }
 
+// id → { name, image } for synergy anchors. image is the deck's exact print
+// (CommanderSalt's per-card imageUri), upgraded from the border-crop art to the
+// full card (/normal/). Covers DFC front/container ids.
+const buildIdToCard = (cards) => buildIdMap(cards, (c) => ({
+  name: c.name,
+  image: typeof c.imageUri === 'string' ? c.imageUri.replace('/border_crop/', '/normal/') : null,
+}));
+
 // id → display name, from the deck's own cards (covers DFC front/container ids).
-function buildIdToName(cards) {
-  const map = {};
-  for (const c of Object.values(cards || {})) {
-    if (!c || !c.name) continue;
-    for (const id of [c.id, c.frontFaceId, c.containerId]) if (id && !(id in map)) map[id] = c.name;
-  }
-  return map;
-}
+const buildIdToName = (cards) => buildIdMap(cards, (c) => c.name);
 
 // The deck's combos (details.combos.list — Commander Spellbook), shaped for display.
 function extractCombos(p) {
@@ -210,9 +215,8 @@ function powerPillars(dt) {
   const sc = g(dt, 'powerLevel', 'scoring') || {};
   const bv = g(dt, 'powerLevel', 'baseValues') || {};
   const PILLARS = ['consistency', 'efficiency', 'interaction', 'winConditions'];
-  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
   const scores = {};
-  for (const k of PILLARS) { const v = num(g(sc, k, 'score')); if (v != null) scores[k] = v; }
+  for (const k of PILLARS) { const v = finiteNumber(g(sc, k, 'score')); if (v != null) scores[k] = v; }
   const pick = (obj) => { const o = {}; for (const k of PILLARS) if (typeof (obj || {})[k] === 'number') o[k] = obj[k]; return o; };
   return { scores, casual: pick(bv.casual), cedh: pick(bv.spike) };
 }
@@ -261,18 +265,17 @@ function winconProfile(dt) {
   const prof = g(dt, 'powerLevel', 'profile') || {};
   const w = prof.wincons || {};
   const c = prof.combos || {};
-  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
   return {
     paths: Array.isArray(w.paths) ? w.paths.slice() : [],
     primary: w.primary || null,
-    count: num(w.count),
+    count: finiteNumber(w.count),
     goal: w.goal || null,
     mixedTypes: !!w.mixedTypes,
     combos: {
-      count: num(c.count),
-      effectiveLines: num(c.effectiveLines),
-      redundancy: num(c.redundancy),
-      winconCount: num(c.winconCount),
+      count: finiteNumber(c.count),
+      effectiveLines: finiteNumber(c.effectiveLines),
+      redundancy: finiteNumber(c.redundancy),
+      winconCount: finiteNumber(c.winconCount),
     },
   };
 }
@@ -336,7 +339,6 @@ function synergyHubs(dt, idToCard) {
 function powerFingerprint(dt) {
   const pl = g(dt, 'powerLevel') || {};
   const pr = pl.profile || {};
-  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
   const ramp = pr.ramp || {};
   const tutors = pr.tutors || {};
   const curve = pr.curve || {};
@@ -346,15 +348,15 @@ function powerFingerprint(dt) {
   return {
     tutors: Object.keys(g(pl, 'scoring', 'tutors', 'list') || {}).length,
     tutorDensity: tutors.density || null,
-    tutorQuality: num(tutors.avgQuality),
+    tutorQuality: finiteNumber(tutors.avgQuality),
     ramp: rampCount,
     rampDensity: ramp.total || null,
-    avgMv: num(curve.averageMv),
+    avgMv: finiteNumber(curve.averageMv),
     curveShape: curve.shape || null,
-    instantRatio: num(timing.instantSpeedRatio),
+    instantRatio: finiteNumber(timing.instantSpeedRatio),
     reactiveDensity: timing.reactiveDensity || null,
-    creatures: num(comp.creatureCount),
-    permanentRatio: num(comp.permanentRatio),
+    creatures: finiteNumber(comp.creatureCount),
+    permanentRatio: finiteNumber(comp.permanentRatio),
   };
 }
 // Manabase quality. CommanderSalt's headline number is `percentages.overall` — the curve
@@ -374,7 +376,7 @@ function manabase(dt) {
   const speed = prof.speed || {};
   const cons = prof.consistency || {};
   const dbg = m.debugManabase || {};
-  const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  const n = finiteNumber;
   const c0 = (x) => n(x) || 0;
 
   const turns = g(m, 'curveChart', 'turns') || {};

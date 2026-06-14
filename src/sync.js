@@ -6,7 +6,8 @@
 // row + the averages as it goes. Verb mirrors the single-deck panel ("Analyze" /
 // "Re-analyze" / "analyzed X ago").
 
-import { el, guard } from './dom.js';
+import { el, guard, installOutsideClose } from './dom.js';
+import { relTime } from './format.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
 import { getEntries, isCached, hasDeckListTable, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
@@ -23,15 +24,6 @@ let raf = null;
 let controls = null; // { wrap, analyzeBtn, cancelBtn, status }
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function relTime(ts) {
-  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (s < 60) return 'just now';
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.round(m / 60);
-  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
-}
 
 // Unique rendered decks, excluding private (their analyses aren't readable).
 function syncableEntries() {
@@ -154,18 +146,6 @@ function toggleAnalyzeMenu(dropdown) {
   menu.classList.toggle('show', show);
   if (btn) btn.setAttribute('aria-expanded', String(show));
 }
-let analyzeCloseInstalled = false;
-function installAnalyzeOutsideClose() {
-  if (analyzeCloseInstalled) return;
-  analyzeCloseInstalled = true;
-  // Capture phase: runs before any target's stopPropagation, so the Stats menu closes
-  // whenever the click lands elsewhere — including on the Columns menu or Moxfield's
-  // Sort (whose own handlers stopPropagation). This is what makes the three dropdowns
-  // mutually exclusive from our side; opening Sort/Columns thereby closes Stats.
-  document.addEventListener('click', (e) => {
-    document.querySelectorAll('.solring-analyze').forEach((dd) => { if (!dd.contains(e.target)) closeAnalyzeMenu(dd); });
-  }, true);
-}
 
 function buildControls(btnClass) {
   const status = el('span', { class: 'solring-sync-status' });
@@ -194,7 +174,7 @@ function buildControls(btnClass) {
 
   const wrap = el('div', { class: 'solring-sync', attrs: { 'data-solring-root': '' } }, [status, dropdown, cancelBtn]);
   controls = { wrap, analyzeBtn, cancelBtn, status };
-  installAnalyzeOutsideClose();
+  installOutsideClose('.solring-analyze', closeAnalyzeMenu);
   refreshStatus();
   return wrap;
 }

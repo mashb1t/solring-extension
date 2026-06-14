@@ -9,6 +9,8 @@
 // /cards/ page with no deck simply shows nothing.
 
 import { el, isDark } from './dom.js';
+import { num } from './format.js';
+import { flagChips, tagChips } from './components.js';
 import { prettifyStat } from './labels.js';
 import { normName } from './render-cards.js';
 import { powerMark, saltMark, deckAvgPower } from './ratings.js';
@@ -38,8 +40,6 @@ export function lookupCard(fields, name) {
   for (const k of Object.keys(cards)) if (normName(k) === n) return cards[k];
   return null;
 }
-
-const num = (n, d = 1) => (typeof n === 'number' && isFinite(n) ? n.toFixed(d) : '—');
 
 // value is a string (wrapped in .solring-num + optional valueClass for color) or a
 // prebuilt node. valueClass uses solring-tier-* — 'a' is red for high salt /
@@ -261,10 +261,7 @@ function buildBody(card, stats) {
   ]));
 
   // Tags + bracket flags share one "Tags" section — flag chips first, then tag chips.
-  const tagItems = [
-    ...(card.flags || []).map((f) => el('span', { class: 'solring-flag', text: f })),
-    ...(card.tags || []).map((t) => el('span', { class: 'solring-tag', text: t })),
-  ];
+  const tagItems = [...flagChips(card.flags), ...tagChips(card.tags)];
   if (tagItems.length) body.append(sectionBlock('Tags', [el('div', { class: 'solring-cm-chips' }, tagItems)]));
   if (card.power && card.power.length) body.append(bars('Power contribution', card.power));
   if (card.saltBreakdown && card.saltBreakdown.length) body.append(bars('Salt breakdown', card.saltBreakdown));
