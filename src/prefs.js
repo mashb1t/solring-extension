@@ -68,6 +68,8 @@ export const OPTIONS_DEFAULT = {
   deckPanelDefault: 'auto', // 'auto' | 'open' | 'collapsed'
   accordion: true, // deck report-card: only one metric tile open at a time
   cacheLifetimeDays: 30,
+  // External enrichment sources (Phase 4). Disabling one leaves its panel slot empty.
+  sources: { edhrec: true },
 };
 
 export async function getCardPrefs() {
@@ -113,6 +115,7 @@ export async function getOptions() {
     ...OPTIONS_DEFAULT,
     ...stored,
     ratingColors: { ...OPTIONS_DEFAULT.ratingColors, ...(stored.ratingColors || {}) },
+    sources: { ...OPTIONS_DEFAULT.sources, ...(stored.sources || {}) },
   };
 }
 export function setOptions(patch) {

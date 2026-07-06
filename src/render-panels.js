@@ -258,7 +258,37 @@ export function buildCommanderTierPanel(tier) {
   return section('Commander tier', [
     el('div', { class: 'solring-tier-ladder' }, steps),
     el('div', { class: 'solring-pl-desc', text: 'CommanderSalt commander tier' }),
+    // Filled asynchronously by renderEdhrecEnrichment when EDHREC data arrives (Phase 4).
+    el('div', { class: 'solring-edhrec-slot' }),
   ]);
+}
+
+// Fill the commander-tier expansion's EDHREC slot: commander popularity, its bracket
+// spread, and the deck's stock-o-meter (how netdecked vs brewed). Idempotent — clears the
+// slot first. Renders nothing when empty. Data Moxfield's EDHREC page never shows.
+export function renderEdhrecEnrichment(slot, data) {
+  slot.replaceChildren();
+  const kids = [];
+  const pop = data && data.popularity;
+  if (pop && pop.deckCount) {
+    kids.push(el('div', { class: 'solring-pop-chip', text: `~${Number(pop.deckCount).toLocaleString('en-US')} decks on EDHREC` }));
+  }
+  if (pop && pop.brackets) {
+    // bracket spread as B1..B5 count chips (only non-zero)
+    const chips = [1, 2, 3, 4, 5]
+      .filter((b) => pop.brackets[b])
+      .map((b) => el('span', { class: 'solring-bracket-chip', text: `B${b} ×${Number(pop.brackets[b]).toLocaleString('en-US')}` }));
+    if (chips.length) kids.push(el('div', { class: 'solring-bracket-mix' }, chips));
+  }
+  const s = data && data.stock;
+  if (s && s.cards) {
+    kids.push(el('div', { class: 'solring-pl-h2', text: 'Stock-o-meter' }));
+    const row = barRow(`${s.stockScore}% stock · ${s.brew} off-meta`, `${s.stockScore}%`, s.stockScore);
+    row.title = `Mean EDHREC inclusion across ${s.cards} non-land cards. ${s.brew} appear in no EDHREC list for this commander (your spice).`;
+    kids.push(row);
+  }
+  if (!kids.length) return;
+  slot.append(el('div', { class: 'solring-pl-desc', text: 'Community data · EDHREC' }), ...kids);
 }
 
 // On-curve castability per turn: this deck's `actual` (solid, filled) against a typical

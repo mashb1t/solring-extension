@@ -7,7 +7,7 @@
 import { parseDeckId } from './moxfield.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
-import { getDeck, importDeck } from './messaging.js';
+import { getDeck, importDeck, getEnrichment } from './messaging.js';
 import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
 import { relTime, num } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
@@ -19,7 +19,7 @@ import { installCardModal } from './render-card-modal.js';
 import { installCardSidebar } from './render-card-sidebar.js';
 import { buildCombosSection } from './render-combos.js';
 import { buildRuleZeroText } from './rule-zero.js';
-import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel, buildThreatPanel, buildCommanderTierPanel } from './render-panels.js';
+import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel, buildThreatPanel, buildCommanderTierPanel, renderEdhrecEnrichment } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -359,6 +359,21 @@ export async function mount({ waitFor }) {
     : currentOptions.deckPanelDefault === 'collapsed' ? false : analyzed);
 
   const body = el('div', { class: 'solring-panel-body' });
+
+  // EDHREC enrichment: resolves AFTER renderBody/startAnnotations, so guard against the
+  // panel being torn down or the SPA having navigated to another deck before injecting.
+  async function loadEdhrecEnrichment() {
+    if (currentOptions.sources && currentOptions.sources.edhrec === false) return;
+    const data = await guardAsync(() => getEnrichment('edhrec', md5));
+    if (parseDeckId(location.href) !== publicId) return;     // navigated away
+    if (!data || data.error || data.miss) return;
+    // per-card badges (Task 4.5): stash the inclusion map on the live fields + repaint
+    if (currentFields && data.inclusion) { currentFields.edhrecInclusion = data.inclusion; reannotate(); }
+    if (!body.isConnected) return;
+    const slot = body.querySelector('.solring-edhrec-slot');
+    if (slot && slot.isConnected) renderEdhrecEnrichment(slot, data);
+  }
+
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
   // The refresh glyph lives in its own span so spinning rotates only the icon, not the
@@ -462,6 +477,7 @@ export async function mount({ waitFor }) {
     rzBtn.hidden = false; // a real analysis is loaded → enable the rule-zero copy
     setOpen(panelOpenFor(true)); // analyzed: honor the configured default ('auto' opens)
     startAnnotations(f);
+    loadEdhrecEnrichment(); // async, fail-silent, guarded
   }
 
   // When auto-fetch is on, analyze (POST) a deck that Moxfield says was edited

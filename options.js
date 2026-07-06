@@ -21,6 +21,7 @@ const COLORS = [
 async function render() {
   const o = await getOptions();
   $('autoFetch').checked = o.autoFetch;
+  $('src-edhrec').checked = o.sources.edhrec !== false;
   $('cardPanelModal').checked = o.cardPanelModal;
   $('cardPanelSidebar').checked = o.cardPanelSidebar;
   $('accordion').checked = o.accordion;
@@ -47,6 +48,7 @@ async function refreshCacheSize() {
 function bind() {
   const onCheck = (id, key) => { $(id).addEventListener('change', () => setOptions({ [key]: $(id).checked })); };
   onCheck('autoFetch', 'autoFetch');
+  $('src-edhrec').addEventListener('change', () => setOptions({ sources: { edhrec: $('src-edhrec').checked } }));
   onCheck('cardPanelModal', 'cardPanelModal');
   onCheck('cardPanelSidebar', 'cardPanelSidebar');
   onCheck('accordion', 'accordion');
