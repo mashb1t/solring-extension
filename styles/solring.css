@@ -75,6 +75,14 @@
 @keyframes solring-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .solring-spin-icon.solring-spin { animation: none; } }
 .solring-wordmark { letter-spacing: 0.01em; }
+/* Rule-zero copy button in the panel bar: a compact text button (reuses .solring-refresh
+   for the muted/hover treatment), sized for its "Rule 0" / "Copied ✓" label. */
+.solring-rz-copy {
+  font-size: 0.72rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+  border: 1px solid var(--solring-border); border-radius: 4px; padding: 0.05rem 0.4rem;
+}
+.solring-rz-copy[hidden] { display: none; }
+.solring-rz-copy:hover { border-color: var(--solring-accent); }
 /* Panel-bar chevron: same big ⌃ as the expandable tiles — rotated 180° when the
    panel is collapsed, upright when open. */
 .solring-chevron {
@@ -595,6 +603,34 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
    Bootstrap's single-class .d-*-table-cell !important utilities, which otherwise win
    on source order (their CSS loads after ours) and keep the column visible. */
 th.solring-hide-native, td.solring-hide-native { display: none !important; }
+
+/* ---- power spread card (deck-list "Power spread" toggle) ---- */
+.solring-spread { margin: 0 0 1rem; }
+.solring-spread-bar { cursor: default; }
+.solring-spread-body { padding: 0.85rem; }
+.solring-spread-hist { display: flex; align-items: flex-end; gap: 0.3rem; height: 84px; }
+.solring-spread-col {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  height: 100%; gap: 0.15rem; cursor: pointer; border-radius: 4px; padding: 0.1rem 0;
+}
+.solring-spread-col:hover, .solring-spread-col:focus-visible { background: var(--solring-surface-2); outline: none; }
+.solring-spread-count { font-size: 0.62rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
+.solring-spread-bar { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.solring-spread-fill { width: 100%; min-height: 2px; background: var(--solring-surface-2); border-radius: 3px 3px 0 0; }
+.solring-spread-col-live .solring-spread-fill { background: var(--solring-accent); }
+.solring-spread-tick { font-size: 0.6rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
+.solring-spread-stats { font-size: 0.78rem; color: var(--solring-text-2); margin-top: 0.55rem; font-variant-numeric: tabular-nums; }
+.solring-spread-brackets { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+.solring-spread-outliers { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; }
+.solring-spread-outlier {
+  font-size: 0.74rem; color: var(--solring-accent); background: none;
+  border: 1px solid var(--solring-border); border-radius: 4px; padding: 0.05rem 0.4rem; cursor: pointer;
+}
+.solring-spread-outlier:hover { border-color: var(--solring-accent); }
+/* Dim rows outside the focused power band; flash a row scrolled-to from the outlier list. */
+.solring-dim { opacity: 0.35; transition: opacity 0.15s; }
+.solring-spread-flash { background: color-mix(in srgb, var(--solring-accent) 18%, transparent) !important; transition: background 0.4s; }
+@media (prefers-reduced-motion: reduce) { .solring-dim, .solring-spread-flash { transition: none; } }
 
 /* Profile-sidebar deck averages (T18): a card under the profile, 2-up tiles. */
 .solring-averages { margin-top: 1rem; }

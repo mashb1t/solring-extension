@@ -18,6 +18,7 @@ import { installCommanderSaltLink } from './links-menu.js';
 import { installCardModal } from './render-card-modal.js';
 import { installCardSidebar } from './render-card-sidebar.js';
 import { buildCombosSection } from './render-combos.js';
+import { buildRuleZeroText } from './rule-zero.js';
 import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel, buildThreatPanel, buildCommanderTierPanel } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
@@ -367,13 +368,28 @@ export async function mount({ waitFor }) {
     class: 'solring-refresh',
     attrs: { type: 'button', 'aria-label': 'Analyze', title: 'Analyze (~5s)' },
   }, [refreshIcon]);
+  // Rule-zero copy button: pastes a pre-game summary (commander, bracket, salt, combos,
+  // anti-patterns). Hidden until a deck is analyzed; flips to a confirmation on click.
+  const rzBtn = el('button', {
+    class: 'solring-refresh solring-rz-copy',
+    attrs: { type: 'button', hidden: '', 'aria-label': 'Copy rule-zero summary', title: 'Copy a rule-zero summary to the clipboard' },
+  }, ['Rule 0']);
+  rzBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!currentFields) return;
+    const title = (document.querySelector('.deckheader h1, .deckheader-wrapper h1, h1') || {}).textContent;
+    const text = buildRuleZeroText(currentFields, (title || '').trim());
+    try { await navigator.clipboard.writeText(text); rzBtn.textContent = 'Copied ✓'; }
+    catch { rzBtn.textContent = 'Copy failed'; }
+    setTimeout(() => { rzBtn.textContent = 'Rule 0'; }, 1500);
+  });
   // Spin the refresh icon (and disable the button) whenever a fetch is in flight:
   // the initial load, an edit analysis, or a manual refresh.
   const setRefreshSpinning = (on) => { refreshIcon.classList.toggle('solring-spin', on); refreshBtn.disabled = on; };
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
     el('span', { class: 'solring-wordmark', text: 'Solring' }),
-    el('span', { class: 'solring-bar-right' }, [synced, refreshBtn, chevron]),
+    el('span', { class: 'solring-bar-right' }, [synced, rzBtn, refreshBtn, chevron]),
   ]);
 
   const panel = el('div', { class: `solring-panel${isDark() ? ' solring-dark' : ''}` }, [titleBar, body]);
@@ -443,6 +459,7 @@ export async function mount({ waitFor }) {
     // unanalyzable decks (private / un-indexed) come back as stubs and are handled
     // by the Analyze flow below.
     renderBody(body, f);
+    rzBtn.hidden = false; // a real analysis is loaded → enable the rule-zero copy
     setOpen(panelOpenFor(true)); // analyzed: honor the configured default ('auto' opens)
     startAnnotations(f);
   }
