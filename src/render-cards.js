@@ -7,17 +7,8 @@
 import { el, isDark } from './dom.js';
 import { flagChips, tagChips } from './components.js';
 import { powerMark, saltMark, deckAvgPower, synergyCutoff, synergyMark } from './ratings.js';
-import { setCardSortView } from './prefs.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
-
-// Per-card sort metrics for the deck-view card sort (clickable column labels). Each maps a
-// card's extracted fields to a sortable number (null → sorts last). Keyed by sort key.
-const SORT_METRIC = {
-  power: (c) => (typeof c.powerTotal === 'number' ? c.powerTotal : null),
-  salt: (c) => (typeof c.salt === 'number' ? c.salt : null),
-  synergy: (c) => (c && c.combos && typeof c.combos.score === 'number' ? c.combos.score : null),
-};
 
 /** Normalize a card name for matching (lowercase, collapse spaces, drop DFC back). */
 export function normName(s) {
@@ -36,7 +27,7 @@ export function isTextView() {
 
 /** Annotate every matched text row. Removes prior annotations first (idempotent).
     `options` (prefs:options) supplies the mark thresholds, defaults apply if absent. */
-export function annotate(fields, prefs, options = {}, cardSort = null) {
+export function annotate(fields, prefs, options = {}) {
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
   const dark = isDark();
@@ -111,38 +102,7 @@ export function annotate(fields, prefs, options = {}, cardSort = null) {
     }
   });
 
-  injectColumnLegend(prefs, cardSort);
-  applyCardSort(cardSort, fields);
-}
-
-// Reorder card rows within each type group by the chosen per-card metric (desc/asc);
-// cards without a value sort last. Runs inside the annotate pass (observer disconnected),
-// so it re-applies after Moxfield re-sorts on its own. key null → leave Moxfield's order.
-function applyCardSort(cardSort, fields) {
-  const key = cardSort && cardSort.key;
-  const getVal = key && SORT_METRIC[key];
-  if (!getVal) return;
-  const sign = cardSort.dir === 'asc' ? 1 : -1;
-  const has = (x) => typeof x === 'number' && Number.isFinite(x);
-  const lists = new Set();
-  document.querySelectorAll(ROW_SEL).forEach((link) => { const ul = link.closest('li') && link.closest('li').parentElement; if (ul) lists.add(ul); });
-  for (const ul of lists) {
-    const rows = [...ul.children].filter((c) => c.querySelector(ROW_SEL));
-    if (rows.length < 2) continue;
-    const keyed = rows.map((r) => {
-      const link = r.querySelector(ROW_SEL);
-      const card = link && fields.cards[rowName(link)];
-      return { r, v: card ? getVal(card) : null };
-    });
-    keyed.sort((a, b) => {
-      if (has(a.v) && has(b.v)) return (a.v - b.v) * sign;
-      if (has(a.v)) return -1;
-      if (has(b.v)) return 1;
-      return 0;
-    });
-    // Re-append in sorted order (moves each card row to the end, after the header row).
-    keyed.forEach(({ r }) => ul.appendChild(r));
-  }
+  injectColumnLegend(prefs);
 }
 
 // Text view has no table header, so the power/salt/synergy columns are unlabeled numbers.
@@ -151,11 +111,11 @@ function applyCardSort(cardSort, fields) {
 // labels reuse the value-cell width classes and a trailing offset measured from a real row
 // (Moxfield's collection/menu columns sit to the right of ours), so each label lands over
 // its column. Absolutely positioned → adds nothing to the row's flow and no column widens.
-function injectColumnLegend(prefs, cardSort) {
+function injectColumnLegend(prefs) {
   const abbr = [];
-  if (prefs.power) abbr.push(['solring-power-cell', 'Pwr', 'Power contribution', 'power']);
-  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Slt', 'Saltiness', 'salt']);
-  if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score', 'synergy']);
+  if (prefs.power) abbr.push(['solring-power-cell', 'Pwr', 'Power contribution']);
+  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Slt', 'Saltiness']);
+  if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score']);
   if (!abbr.length) return;
   const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
   const sampleRow = sampleCell && sampleCell.closest('li');
@@ -183,39 +143,14 @@ function injectColumnLegend(prefs, cardSort) {
     // header — nothing to label.
     const cells = abbr
       .filter(([cls]) => ul.querySelector(`.${cls}`))
-      .map(([cls, t, title, sortKey]) => {
+      .map(([cls, t, title]) => {
         const info = colInfo(cls);
-        const active = cardSort && cardSort.key === sortKey;
-        const arrow = active ? (cardSort.dir === 'asc' ? ' ▴' : ' ▾') : '';
-        const label = el('span', {
-          class: `solring-collabel solring-collabel-btn${active ? ' solring-collabel-on' : ''}`,
-          text: t + arrow,
-          title: `${title} — click to sort`,
-          attrs: { role: 'button', tabindex: '0' },
-          style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none',
-        });
-        const toggle = (e) => { e.preventDefault(); e.stopPropagation(); cycleCardSort(sortKey, cardSort); };
-        label.addEventListener('click', toggle);
-        label.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') toggle(ev); });
-        return label;
+        return el('span', { class: 'solring-collabel', text: t, title, style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none' });
       });
     if (!cells.length) continue; // no annotated values in this group
     header.classList.add('solring-collegend-host');
-    // No aria-hidden: the labels are focusable sort buttons, so they must stay exposed to
-    // assistive tech (hiding a focusable descendant is an a11y violation).
-    header.append(el('span', { class: 'solring-collegend' }, cells));
+    header.append(el('span', { class: 'solring-collegend', attrs: { 'aria-hidden': 'true' } }, cells));
   }
-}
-
-// Click a column label to cycle its sort: none → descending → ascending → none. Persists
-// to prefs, which fires onPrefChange('card') → the deck re-annotates and re-sorts.
-function cycleCardSort(key, current) {
-  const cur = current || { key: null, dir: 'desc' };
-  let next;
-  if (cur.key !== key) next = { key, dir: 'desc' };
-  else if (cur.dir === 'desc') next = { key, dir: 'asc' };
-  else next = { key: null, dir: 'desc' };
-  setCardSortView(next);
 }
 
 export function clearAnnotations(root = document) {
