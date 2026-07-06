@@ -39,7 +39,6 @@ export function isTextView() {
 export function annotate(fields, prefs, options = {}, cardSort = null) {
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
-  cardSortState = cardSort || { key: null, dir: 'desc' }; // keep the click-cycle state in sync with the persisted pref
   const dark = isDark();
 
   // Marks (ratings.js): salt at/above the salt threshold, power above N× the deck
@@ -116,46 +115,33 @@ export function annotate(fields, prefs, options = {}, cardSort = null) {
   applyCardSort(cardSort, fields);
 }
 
-// Native card order, captured per row on first sight so a neutral setting can restore
-// Moxfield's own order. Rows always mount in Moxfield's order (a fresh render lays them
-// out sorted by its own criterion), so the first-sight index is the native ordinal; our
-// later reorders move already-seen rows and never overwrite it. WeakMap → GC'd with nodes.
-const nativeCardIdx = new WeakMap();
-
-// Reorder card rows within each type group: by the chosen per-card metric (desc/asc), or —
-// on a neutral setting (no key) — back to Moxfield's native order. Cards without a value
-// sort last. Runs inside the annotate pass (observer disconnected), so it re-applies after
-// Moxfield re-renders. Always runs (even neutral) so clearing the sort restores the order.
+// Reorder card rows within each type group by the chosen per-card metric (desc/asc);
+// cards without a value sort last. Runs inside the annotate pass (observer disconnected),
+// so it re-applies after Moxfield re-sorts on its own. key null → leave Moxfield's order.
 function applyCardSort(cardSort, fields) {
   const key = cardSort && cardSort.key;
   const getVal = key && SORT_METRIC[key];
-  const sign = cardSort && cardSort.dir === 'asc' ? 1 : -1;
+  if (!getVal) return;
+  const sign = cardSort.dir === 'asc' ? 1 : -1;
   const has = (x) => typeof x === 'number' && Number.isFinite(x);
   const lists = new Set();
   document.querySelectorAll(ROW_SEL).forEach((link) => { const ul = link.closest('li') && link.closest('li').parentElement; if (ul) lists.add(ul); });
   for (const ul of lists) {
     const rows = [...ul.children].filter((c) => c.querySelector(ROW_SEL));
     if (rows.length < 2) continue;
-    // Record native ordinals for rows seen for the first time (they're in Moxfield's order now).
-    rows.forEach((r, i) => { if (!nativeCardIdx.has(r)) nativeCardIdx.set(r, i); });
-    let ordered;
-    if (getVal) {
-      ordered = rows
-        .map((r) => { const link = r.querySelector(ROW_SEL); const card = link && fields.cards[rowName(link)]; return { r, v: card ? getVal(card) : null }; })
-        .sort((a, b) => {
-          if (has(a.v) && has(b.v)) return (a.v - b.v) * sign;
-          if (has(a.v)) return -1;
-          if (has(b.v)) return 1;
-          return 0;
-        })
-        .map((x) => x.r);
-    } else {
-      // Neutral: restore Moxfield's native order (by captured ordinal).
-      ordered = [...rows].sort((a, b) => (nativeCardIdx.get(a) ?? 0) - (nativeCardIdx.get(b) ?? 0));
-    }
-    // Re-append only when the order actually changes, so a no-op pass (or already-native
-    // rows) doesn't churn the DOM.
-    if (ordered.some((r, i) => r !== rows[i])) ordered.forEach((r) => ul.appendChild(r));
+    const keyed = rows.map((r) => {
+      const link = r.querySelector(ROW_SEL);
+      const card = link && fields.cards[rowName(link)];
+      return { r, v: card ? getVal(card) : null };
+    });
+    keyed.sort((a, b) => {
+      if (has(a.v) && has(b.v)) return (a.v - b.v) * sign;
+      if (has(a.v)) return -1;
+      if (has(b.v)) return 1;
+      return 0;
+    });
+    // Re-append in sorted order (moves each card row to the end, after the header row).
+    keyed.forEach(({ r }) => ul.appendChild(r));
   }
 }
 
@@ -208,7 +194,7 @@ function injectColumnLegend(prefs, cardSort) {
           attrs: { role: 'button', tabindex: '0' },
           style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none',
         });
-        const toggle = (e) => { e.preventDefault(); e.stopPropagation(); cycleCardSort(sortKey); };
+        const toggle = (e) => { e.preventDefault(); e.stopPropagation(); cycleCardSort(sortKey, cardSort); };
         label.addEventListener('click', toggle);
         label.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') toggle(ev); });
         return label;
@@ -221,20 +207,14 @@ function injectColumnLegend(prefs, cardSort) {
   }
 }
 
-// The active card sort, mirrored from the persisted pref on each annotate. cycleCardSort
-// reads/updates it synchronously so rapid clicks cycle correctly instead of racing on a
-// stale value captured when the legend was last rendered.
-let cardSortState = { key: null, dir: 'desc' };
-
 // Click a column label to cycle its sort: none → descending → ascending → none. Persists
 // to prefs, which fires onPrefChange('card') → the deck re-annotates and re-sorts.
-function cycleCardSort(key) {
-  const cur = cardSortState;
+function cycleCardSort(key, current) {
+  const cur = current || { key: null, dir: 'desc' };
   let next;
   if (cur.key !== key) next = { key, dir: 'desc' };
   else if (cur.dir === 'desc') next = { key, dir: 'asc' };
   else next = { key: null, dir: 'desc' };
-  cardSortState = next; // optimistic sync-update so the next click sees the new state immediately
   setCardSortView(next);
 }
 
