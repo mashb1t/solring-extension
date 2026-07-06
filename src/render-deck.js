@@ -11,7 +11,7 @@ import { getDeck, importDeck } from './messaging.js';
 import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
 import { relTime, num } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
-import { getCardPrefs, getOptions, onPrefChange } from './prefs.js';
+import { getCardPrefs, getOptions, onPrefChange, getCardSortView } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
@@ -72,9 +72,9 @@ function connectObserver() {
 
 async function reannotate() {
   if (!currentFields) return;
-  const prefs = await getCardPrefs();
-  if (deckObserver) deckObserver.disconnect(); // ignore our own mutations
-  annotate(currentFields, prefs, currentOptions);
+  const [prefs, cardSort] = await Promise.all([getCardPrefs(), getCardSortView()]);
+  if (deckObserver) deckObserver.disconnect(); // ignore our own mutations (incl. row reorder)
+  annotate(currentFields, prefs, currentOptions, cardSort);
   connectObserver();
 }
 
