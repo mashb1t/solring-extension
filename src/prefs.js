@@ -16,6 +16,18 @@ const WIDE_KEY = 'prefs:wide';
 const CARD_DEFAULT = { power: true, saltValue: true, synergies: false, tags: false };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
 
+// One serialization queue for every read-modify-write setter. chrome.storage.local
+// has no atomic update, so two setters firing in the same tick both read the old value
+// and the last write wins, silently dropping a patch. Chaining each write onto the
+// previous defers the next read until the prior write lands. Errors don't break the
+// chain (a failed write must not wedge later ones).
+let writeChain = Promise.resolve();
+function enqueue(fn) {
+  const next = writeChain.then(fn, fn);
+  writeChain = next.catch(() => {});
+  return next;
+}
+
 // Deck-list metric columns (user profile and personal manager). All are togglable via
 // the deck-list "Stats columns" menu. A small subset is on by default so the table
 // width stays sane. Keys match decklist.js COLUMNS.
@@ -57,20 +69,24 @@ export async function getCardPrefs() {
   const obj = await chrome.storage.local.get(CARD_KEY);
   return { ...CARD_DEFAULT, ...(obj[CARD_KEY] || {}) };
 }
-export async function setCardPrefs(patch) {
-  const next = { ...(await getCardPrefs()), ...patch };
-  await chrome.storage.local.set({ [CARD_KEY]: next });
-  return next;
+export function setCardPrefs(patch) {
+  return enqueue(async () => {
+    const next = { ...(await getCardPrefs()), ...patch };
+    await chrome.storage.local.set({ [CARD_KEY]: next });
+    return next;
+  });
 }
 
 export async function getSortPref() {
   const obj = await chrome.storage.local.get(SORT_KEY);
   return { ...SORT_DEFAULT, ...(obj[SORT_KEY] || {}) };
 }
-export async function setSortPref(patch) {
-  const next = { ...(await getSortPref()), ...patch };
-  await chrome.storage.local.set({ [SORT_KEY]: next });
-  return next;
+export function setSortPref(patch) {
+  return enqueue(async () => {
+    const next = { ...(await getSortPref()), ...patch };
+    await chrome.storage.local.set({ [SORT_KEY]: next });
+    return next;
+  });
 }
 
 export async function getOptions() {
@@ -82,22 +98,26 @@ export async function getOptions() {
     ratingColors: { ...OPTIONS_DEFAULT.ratingColors, ...(stored.ratingColors || {}) },
   };
 }
-export async function setOptions(patch) {
-  const cur = await getOptions();
-  const next = { ...cur, ...patch };
-  if (patch.ratingColors) next.ratingColors = { ...cur.ratingColors, ...patch.ratingColors };
-  await chrome.storage.local.set({ [OPTIONS_KEY]: next });
-  return next;
+export function setOptions(patch) {
+  return enqueue(async () => {
+    const cur = await getOptions();
+    const next = { ...cur, ...patch };
+    if (patch.ratingColors) next.ratingColors = { ...cur.ratingColors, ...patch.ratingColors };
+    await chrome.storage.local.set({ [OPTIONS_KEY]: next });
+    return next;
+  });
 }
 
 export async function getListColumns() {
   const obj = await chrome.storage.local.get(LIST_COLUMNS_KEY);
   return { ...LIST_COLUMNS_DEFAULT, ...(obj[LIST_COLUMNS_KEY] || {}) };
 }
-export async function setListColumns(patch) {
-  const next = { ...(await getListColumns()), ...patch };
-  await chrome.storage.local.set({ [LIST_COLUMNS_KEY]: next });
-  return next;
+export function setListColumns(patch) {
+  return enqueue(async () => {
+    const next = { ...(await getListColumns()), ...patch };
+    await chrome.storage.local.set({ [LIST_COLUMNS_KEY]: next });
+    return next;
+  });
 }
 
 // Display order of the Solring metric columns (array of keys). [] means use the
@@ -106,9 +126,11 @@ export async function getColumnOrder() {
   const obj = await chrome.storage.local.get(LIST_ORDER_KEY);
   return Array.isArray(obj[LIST_ORDER_KEY]) ? obj[LIST_ORDER_KEY] : [];
 }
-export async function setColumnOrder(order) {
-  await chrome.storage.local.set({ [LIST_ORDER_KEY]: Array.isArray(order) ? order : [] });
-  return order;
+export function setColumnOrder(order) {
+  return enqueue(async () => {
+    await chrome.storage.local.set({ [LIST_ORDER_KEY]: Array.isArray(order) ? order : [] });
+    return order;
+  });
 }
 
 // Moxfield native columns to hide (array of lowercased header labels, e.g. 'colors').
