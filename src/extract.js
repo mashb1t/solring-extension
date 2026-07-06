@@ -165,6 +165,7 @@ function extractCards(p) {
   const idToCard = buildIdToCard(cards); // anchor id to { name, image } for synergy chips
   for (const c of Object.values(cards)) {
     if (!c || !c.name) continue;
+    if (c.isFrontFace === false) continue; // skip DFC/MDFC/adventure back faces (same physical card as the front)
     const stats = g(c, 'categories', 'stats') || {};
     const tags = Object.keys(stats).filter((k) => stats[k]).map(prettifyTag);
     out[c.name.toLowerCase().trim()] = {

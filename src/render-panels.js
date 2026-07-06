@@ -284,7 +284,7 @@ export function renderEdhrecEnrichment(slot, data) {
   if (s && s.cards) {
     kids.push(el('div', { class: 'solring-pl-h2', text: 'Stock-o-meter' }));
     const row = barRow(`${s.stockScore}% stock · ${s.brew} off-meta`, `${s.stockScore}%`, s.stockScore);
-    row.title = `Mean EDHREC inclusion across ${s.cards} non-land cards. ${s.brew} appear in no EDHREC list for this commander (your spice).`;
+    row.title = `Mean EDHREC inclusion across ${s.cards} cards (excludes basics and your commander). ${s.brew} appear in no EDHREC list for this commander — your spice.`;
     kids.push(row);
     if (s.offMeta && s.offMeta.length) {
       const CAP = 12;

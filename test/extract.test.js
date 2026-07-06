@@ -36,6 +36,15 @@ test('extractDeck drops deck value; keeps both brackets (baseline only for the d
   assert.equal(d.bracketBaseline, 3); // wotcBracket — drives the up/down arrow
 });
 
+test('extractDeck drops DFC/MDFC back-face entries (keeps the front)', () => {
+  const d = extractDeck(deck);
+  assert.equal(d.cards['temple of power'], undefined);       // commander back face
+  assert.equal(d.cards['spikefield cave'], undefined);       // MDFC land back
+  assert.equal(d.cards['shatterskull, the hammer pass'], undefined);
+  assert.ok(d.cards['spikefield hazard']);                   // front kept
+  assert.ok(d.cards['ojer axonil, deepest might']);          // commander front kept
+});
+
 test('extractDeck builds a per-card map (salt + prettified tags)', () => {
   const d = extractDeck(deck);
   const ojer = d.cards['ojer axonil, deepest might'];

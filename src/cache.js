@@ -16,7 +16,8 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // 11 adds salt personality, card-advantage/denial/graveyard fingerprint, commander
 // centricity, anti-pattern score cap, per-card name + top threats.
 // 12 adds top-level commanders[] (partner/background EDHREC slugs).
-export const SCHEMA_VERSION = 12;
+// 13 drops non-front-face (DFC/MDFC/adventure back) entries from the per-card map.
+export const SCHEMA_VERSION = 13;
 
 const inFlight = new Map();
 
