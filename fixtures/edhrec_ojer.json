@@ -1,0 +1,977 @@
+{
+  "bracket_counts": {
+    "1": 28,
+    "2": 1138,
+    "3": 878,
+    "4": 493,
+    "5": 57
+  },
+  "container": {
+    "title": "Ojer Axonil, Deepest Might (Commander)",
+    "json_dict": {
+      "cardlists": [
+        {
+          "header": "New Cards",
+          "cardviews": [
+            {
+              "name": "Hawkeye's Bow",
+              "url": "/cards/hawkeyes-bow",
+              "synergy": 0.039019817082649545,
+              "inclusion": 36,
+              "potential_decks": 682
+            },
+            {
+              "name": "Hawkeye, Young Avenger",
+              "url": "/cards/hawkeye-young-avenger",
+              "synergy": 0.003833362590287992,
+              "inclusion": 29,
+              "potential_decks": 682
+            },
+            {
+              "name": "Hex Magic",
+              "url": "/cards/hex-magic",
+              "synergy": -0.016575809706800122,
+              "inclusion": 22,
+              "potential_decks": 726
+            },
+            {
+              "name": "Vision of Love",
+              "url": "/cards/vision-of-love",
+              "synergy": -0.004796163528360035,
+              "inclusion": 20,
+              "potential_decks": 682
+            },
+            {
+              "name": "Thor, Guardian of Midgard",
+              "url": "/cards/thor-guardian-of-midgard",
+              "synergy": 0.010256488147060414,
+              "inclusion": 16,
+              "potential_decks": 610
+            }
+          ]
+        },
+        {
+          "header": "High Synergy Cards",
+          "cardviews": [
+            {
+              "name": "Thermo-Alchemist",
+              "url": "/cards/thermo-alchemist",
+              "synergy": 0.729993722299556,
+              "inclusion": 8318,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Firebrand Archer",
+              "url": "/cards/firebrand-archer",
+              "synergy": 0.7247952954759689,
+              "inclusion": 8486,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Kessig Flamebreather",
+              "url": "/cards/kessig-flamebreather",
+              "synergy": 0.6846106246376233,
+              "inclusion": 7917,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Tectonic Hazard",
+              "url": "/cards/tectonic-hazard",
+              "synergy": 0.6675706764022364,
+              "inclusion": 7372,
+              "potential_decks": 10460
+            },
+            {
+              "name": "End the Festivities",
+              "url": "/cards/end-the-festivities",
+              "synergy": 0.6534698229558773,
+              "inclusion": 7252,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Manabarbs",
+              "url": "/cards/manabarbs",
+              "synergy": 0.617542742899459,
+              "inclusion": 7128,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Fiery Confluence",
+              "url": "/cards/fiery-confluence",
+              "synergy": 0.6006468172662535,
+              "inclusion": 7120,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Unruly Catapult",
+              "url": "/cards/unruly-catapult",
+              "synergy": 0.5881589314279327,
+              "inclusion": 6493,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Coruscation Mage",
+              "url": "/cards/coruscation-mage",
+              "synergy": 0.5812245025091862,
+              "inclusion": 6676,
+              "potential_decks": 10394
+            },
+            {
+              "name": "Roiling Vortex",
+              "url": "/cards/roiling-vortex",
+              "synergy": 0.5737188870451665,
+              "inclusion": 6604,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Top Cards",
+          "cardviews": [
+            {
+              "name": "Ruby Medallion",
+              "url": "/cards/ruby-medallion",
+              "synergy": 0.14942331419088473,
+              "inclusion": 7496,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Grapeshot",
+              "url": "/cards/grapeshot",
+              "synergy": 0.5525438831051813,
+              "inclusion": 6690,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Guttersnipe",
+              "url": "/cards/guttersnipe",
+              "synergy": 0.49258347191999513,
+              "inclusion": 6677,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Electrostatic Field",
+              "url": "/cards/electrostatic-field",
+              "synergy": 0.5520388717626641,
+              "inclusion": 6402,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Razorkin Needlehead",
+              "url": "/cards/razorkin-needlehead",
+              "synergy": 0.519705338768364,
+              "inclusion": 5848,
+              "potential_decks": 9838
+            },
+            {
+              "name": "Erebor Flamesmith",
+              "url": "/cards/erebor-flamesmith",
+              "synergy": 0.5406533459852655,
+              "inclusion": 6194,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Chaos Warp",
+              "url": "/cards/chaos-warp",
+              "synergy": -0.042471704365201646,
+              "inclusion": 5932,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Lightning Bolt",
+              "url": "/cards/lightning-bolt",
+              "synergy": 0.19865734696407022,
+              "inclusion": 5884,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Sulfuric Vortex",
+              "url": "/cards/sulfuric-vortex",
+              "synergy": 0.476591719081934,
+              "inclusion": 5840,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Faithless Looting",
+              "url": "/cards/faithless-looting",
+              "synergy": 0.13817845105666232,
+              "inclusion": 5651,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Game Changers",
+          "cardviews": [
+            {
+              "name": "Jeska's Will",
+              "url": "/cards/jeskas-will",
+              "synergy": 0.09658599932476564,
+              "inclusion": 4747,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Gamble",
+              "url": "/cards/gamble",
+              "synergy": -0.024691013753301738,
+              "inclusion": 2018,
+              "potential_decks": 10460
+            },
+            {
+              "name": "The One Ring",
+              "url": "/cards/the-one-ring",
+              "synergy": 0.012117468527498801,
+              "inclusion": 1309,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Underworld Breach",
+              "url": "/cards/underworld-breach",
+              "synergy": 0.025038067888279184,
+              "inclusion": 1154,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Ancient Tomb",
+              "url": "/cards/ancient-tomb",
+              "synergy": -0.021049273826763526,
+              "inclusion": 1099,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Chrome Mox",
+              "url": "/cards/chrome-mox",
+              "synergy": -0.014725118175796074,
+              "inclusion": 568,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Creatures",
+          "cardviews": [
+            {
+              "name": "Rampaging Ferocidon",
+              "url": "/cards/rampaging-ferocidon",
+              "synergy": 0.45505625191932764,
+              "inclusion": 5201,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Spear Spewer",
+              "url": "/cards/spear-spewer",
+              "synergy": 0.43921720390696706,
+              "inclusion": 4911,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Neheb, the Eternal",
+              "url": "/cards/neheb-the-eternal",
+              "synergy": 0.27709215450690416,
+              "inclusion": 4711,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Chandra's Incinerator",
+              "url": "/cards/chandras-incinerator",
+              "synergy": 0.32697511220781567,
+              "inclusion": 4165,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Urabrask",
+              "url": "/cards/urabrask",
+              "synergy": 0.3195617400294055,
+              "inclusion": 3919,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Harsh Mentor",
+              "url": "/cards/harsh-mentor",
+              "synergy": 0.3112215754316667,
+              "inclusion": 3762,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Blisterspit Gremlin",
+              "url": "/cards/blisterspit-gremlin",
+              "synergy": 0.3265110604986615,
+              "inclusion": 3580,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Defiler of Instinct",
+              "url": "/cards/defiler-of-instinct",
+              "synergy": 0.24161927829310506,
+              "inclusion": 3233,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Runaway Steam-Kin",
+              "url": "/cards/runaway-steam-kin",
+              "synergy": 0.12416649675858996,
+              "inclusion": 3078,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Firespitter Whelp",
+              "url": "/cards/firespitter-whelp",
+              "synergy": 0.2646675454580696,
+              "inclusion": 2640,
+              "potential_decks": 9001
+            },
+            {
+              "name": "Birgi, God of Storytelling",
+              "url": "/cards/birgi-god-of-storytelling",
+              "synergy": 0.16393762708513826,
+              "inclusion": 2972,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Storm-Kiln Artist",
+              "url": "/cards/storm-kiln-artist",
+              "synergy": 0.12361416086868748,
+              "inclusion": 2916,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Instants",
+          "cardviews": [
+            {
+              "name": "Thrill of Possibility",
+              "url": "/cards/thrill-of-possibility",
+              "synergy": 0.1704344041241289,
+              "inclusion": 5305,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Unleash Fury",
+              "url": "/cards/unleash-fury",
+              "synergy": 0.3749916462250525,
+              "inclusion": 4742,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Bolt Bend",
+              "url": "/cards/bolt-bend",
+              "synergy": 0.24765115384961572,
+              "inclusion": 4553,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Seething Song",
+              "url": "/cards/seething-song",
+              "synergy": 0.09683483196263587,
+              "inclusion": 4321,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Abrade",
+              "url": "/cards/abrade",
+              "synergy": -0.01565894917813221,
+              "inclusion": 4255,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Spikefield Hazard",
+              "url": "/cards/spikefield-hazard",
+              "synergy": 0.35790465017767253,
+              "inclusion": 4194,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Lava Dart",
+              "url": "/cards/lava-dart",
+              "synergy": 0.33743053871771334,
+              "inclusion": 3753,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Shock",
+              "url": "/cards/shock",
+              "synergy": 0.2503336198895708,
+              "inclusion": 3301,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Gut Shot",
+              "url": "/cards/gut-shot",
+              "synergy": 0.2864061090204389,
+              "inclusion": 3284,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Deflecting Swat",
+              "url": "/cards/deflecting-swat",
+              "synergy": 0.03558303367176491,
+              "inclusion": 3284,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Flick a Coin",
+              "url": "/cards/flick-a-coin",
+              "synergy": 0.2584128705326172,
+              "inclusion": 3208,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Big Score",
+              "url": "/cards/big-score",
+              "synergy": -0.011596236018503348,
+              "inclusion": 3082,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Sorceries",
+          "cardviews": [
+            {
+              "name": "Blasphemous Act",
+              "url": "/cards/blasphemous-act",
+              "synergy": -0.028198274255731404,
+              "inclusion": 5260,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Light Up the Stage",
+              "url": "/cards/light-up-the-stage",
+              "synergy": 0.32355102326964486,
+              "inclusion": 4581,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Grab the Prize",
+              "url": "/cards/grab-the-prize",
+              "synergy": 0.3459805185229401,
+              "inclusion": 4129,
+              "potential_decks": 9752
+            },
+            {
+              "name": "Vandalblast",
+              "url": "/cards/vandalblast",
+              "synergy": -0.012950707612398027,
+              "inclusion": 4142,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Mana Geyser",
+              "url": "/cards/mana-geyser",
+              "synergy": 0.06497304792950775,
+              "inclusion": 3912,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Boltwave",
+              "url": "/cards/boltwave",
+              "synergy": 0.309163841971521,
+              "inclusion": 3335,
+              "potential_decks": 8969
+            },
+            {
+              "name": "Witch's Mark",
+              "url": "/cards/witchs-mark",
+              "synergy": 0.19302019111737534,
+              "inclusion": 2538,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Wrenn's Resolve",
+              "url": "/cards/wrenns-resolve",
+              "synergy": 0.15633511045907159,
+              "inclusion": 2461,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Reckless Impulse",
+              "url": "/cards/reckless-impulse",
+              "synergy": 0.1268614270724252,
+              "inclusion": 2165,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Earthquake",
+              "url": "/cards/earthquake",
+              "synergy": 0.13265023111877747,
+              "inclusion": 1796,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Tormenting Voice",
+              "url": "/cards/tormenting-voice",
+              "synergy": 0.07272092051919138,
+              "inclusion": 1771,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Seize the Spoils",
+              "url": "/cards/seize-the-spoils",
+              "synergy": 0.03379391979358559,
+              "inclusion": 1746,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Utility Artifacts",
+          "cardviews": [
+            {
+              "name": "Swiftfoot Boots",
+              "url": "/cards/swiftfoot-boots",
+              "synergy": 0.10484045142418935,
+              "inclusion": 5301,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Blackblade Reforged",
+              "url": "/cards/blackblade-reforged",
+              "synergy": 0.3611742369077464,
+              "inclusion": 4576,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Champion's Helm",
+              "url": "/cards/champions-helm",
+              "synergy": 0.33481725373051885,
+              "inclusion": 4168,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Lightning Greaves",
+              "url": "/cards/lightning-greaves",
+              "synergy": 0.02452536665622529,
+              "inclusion": 3785,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Commander's Plate",
+              "url": "/cards/commanders-plate",
+              "synergy": 0.17328396243487562,
+              "inclusion": 3155,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Hero's Blade",
+              "url": "/cards/heros-blade",
+              "synergy": 0.1676113481189792,
+              "inclusion": 2106,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Mithril Coat",
+              "url": "/cards/mithril-coat",
+              "synergy": 0.07710408487714879,
+              "inclusion": 1939,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Wayfarer's Bauble",
+              "url": "/cards/wayfarers-bauble",
+              "synergy": -0.0047284071340036316,
+              "inclusion": 1426,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Mirran Banesplitter",
+              "url": "/cards/mirran-banesplitter",
+              "synergy": 0.12332579699932739,
+              "inclusion": 1420,
+              "potential_decks": 10460
+            },
+            {
+              "name": "The Fire Crystal",
+              "url": "/cards/the-fire-crystal",
+              "synergy": -0.11632259016918442,
+              "inclusion": 722,
+              "potential_decks": 6269
+            },
+            {
+              "name": "Hazoret's Monument",
+              "url": "/cards/hazorets-monument",
+              "synergy": -0.04881277721408858,
+              "inclusion": 1163,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Hammer of Nazahn",
+              "url": "/cards/hammer-of-nazahn",
+              "synergy": 0.038383333082687474,
+              "inclusion": 1084,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Enchantments",
+          "cardviews": [
+            {
+              "name": "Fiery Inscription",
+              "url": "/cards/fiery-inscription",
+              "synergy": 0.4093772989652948,
+              "inclusion": 4926,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Pyrohemia",
+              "url": "/cards/pyrohemia",
+              "synergy": 0.36567252318888843,
+              "inclusion": 4426,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Impact Tremors",
+              "url": "/cards/impact-tremors",
+              "synergy": 0.11551951647003267,
+              "inclusion": 3782,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Burning Earth",
+              "url": "/cards/burning-earth",
+              "synergy": 0.30469981114346895,
+              "inclusion": 3536,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Virtue of Courage",
+              "url": "/cards/virtue-of-courage",
+              "synergy": 0.2740752607336574,
+              "inclusion": 3308,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Spellshock",
+              "url": "/cards/spellshock",
+              "synergy": 0.2411482970179162,
+              "inclusion": 2867,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Tavern Brawler",
+              "url": "/cards/tavern-brawler",
+              "synergy": 0.2238985106772062,
+              "inclusion": 2638,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Dragon Mantle",
+              "url": "/cards/dragon-mantle",
+              "synergy": 0.19747258125300532,
+              "inclusion": 2387,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Blood Moon",
+              "url": "/cards/blood-moon",
+              "synergy": 0.0064546070376997056,
+              "inclusion": 2275,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Claws of Valakut",
+              "url": "/cards/claws-of-valakut",
+              "synergy": 0.1879181129352104,
+              "inclusion": 2264,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Valakut Exploration",
+              "url": "/cards/valakut-exploration",
+              "synergy": 0.13536625481917913,
+              "inclusion": 1859,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Repercussion",
+              "url": "/cards/repercussion",
+              "synergy": 0.09560738191379353,
+              "inclusion": 1608,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Planeswalkers",
+          "cardviews": [
+            {
+              "name": "Chandra, Torch of Defiance",
+              "url": "/cards/chandra-torch-of-defiance",
+              "synergy": 0.25716200699240455,
+              "inclusion": 3897,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Chandra, Dressed to Kill",
+              "url": "/cards/chandra-dressed-to-kill",
+              "synergy": 0.15026462332707166,
+              "inclusion": 1960,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Chandra, Awakened Inferno",
+              "url": "/cards/chandra-awakened-inferno",
+              "synergy": 0.057429666022870196,
+              "inclusion": 876,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Koth, Fire of Resistance",
+              "url": "/cards/koth-fire-of-resistance",
+              "synergy": -0.015197566987156061,
+              "inclusion": 791,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Chandra, Hope's Beacon",
+              "url": "/cards/chandra-hopes-beacon",
+              "synergy": 0.02126638811618839,
+              "inclusion": 550,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Utility Lands",
+          "cardviews": [
+            {
+              "name": "War Room",
+              "url": "/cards/war-room",
+              "synergy": 0.08052415695917114,
+              "inclusion": 3966,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Tyrite Sanctum",
+              "url": "/cards/tyrite-sanctum",
+              "synergy": 0.32499955694384164,
+              "inclusion": 3923,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Valakut, the Molten Pinnacle",
+              "url": "/cards/valakut-the-molten-pinnacle",
+              "synergy": 0.0796014121443678,
+              "inclusion": 3341,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Shivan Gorge",
+              "url": "/cards/shivan-gorge",
+              "synergy": 0.2712149125379191,
+              "inclusion": 3134,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Nykthos, Shrine to Nyx",
+              "url": "/cards/nykthos-shrine-to-nyx",
+              "synergy": 0.05281322770576352,
+              "inclusion": 2598,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Spinerock Knoll",
+              "url": "/cards/spinerock-knoll",
+              "synergy": 0.06259447927987077,
+              "inclusion": 2145,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Castle Embereth",
+              "url": "/cards/castle-embereth",
+              "synergy": -0.008074862011067968,
+              "inclusion": 1629,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Lindblum, Industrial Regency",
+              "url": "/cards/lindblum-industrial-regency",
+              "synergy": 0.11242604661347153,
+              "inclusion": 937,
+              "potential_decks": 6286
+            },
+            {
+              "name": "Forgotten Cave",
+              "url": "/cards/forgotten-cave",
+              "synergy": -0.03435158353861603,
+              "inclusion": 1368,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Bonders' Enclave",
+              "url": "/cards/bonders-enclave",
+              "synergy": 0.05359376686793064,
+              "inclusion": 1110,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Arena of Glory",
+              "url": "/cards/arena-of-glory",
+              "synergy": -0.11177459337647534,
+              "inclusion": 990,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Fire Nation Palace",
+              "url": "/cards/fire-nation-palace",
+              "synergy": -0.010401251661931038,
+              "inclusion": 362,
+              "potential_decks": 4107
+            }
+          ]
+        },
+        {
+          "header": "Mana Artifacts",
+          "cardviews": [
+            {
+              "name": "Sol Ring",
+              "url": "/cards/sol-ring",
+              "synergy": 0.04017259511213733,
+              "inclusion": 9241,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Arcane Signet",
+              "url": "/cards/arcane-signet",
+              "synergy": 0.08690797284728236,
+              "inclusion": 7258,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Mind Stone",
+              "url": "/cards/mind-stone",
+              "synergy": 0.061638744251940325,
+              "inclusion": 3966,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Fire Diamond",
+              "url": "/cards/fire-diamond",
+              "synergy": 0.05642091240721045,
+              "inclusion": 3100,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Fellwar Stone",
+              "url": "/cards/fellwar-stone",
+              "synergy": 0.05168968480845129,
+              "inclusion": 2259,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Heraldic Banner",
+              "url": "/cards/heraldic-banner",
+              "synergy": 0.12011157411954958,
+              "inclusion": 2236,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Cursed Mirror",
+              "url": "/cards/cursed-mirror",
+              "synergy": -0.07646865848689025,
+              "inclusion": 1584,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Tablet of Discovery",
+              "url": "/cards/tablet-of-discovery",
+              "synergy": 0.06570818823459967,
+              "inclusion": 271,
+              "potential_decks": 1879
+            },
+            {
+              "name": "Throne of Eldraine",
+              "url": "/cards/throne-of-eldraine",
+              "synergy": 0.02635175315784434,
+              "inclusion": 1483,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Pyromancer's Goggles",
+              "url": "/cards/pyromancers-goggles",
+              "synergy": 0.057902774526680446,
+              "inclusion": 1233,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Glittering Stockpile",
+              "url": "/cards/glittering-stockpile",
+              "synergy": -0.002525878532841752,
+              "inclusion": 940,
+              "potential_decks": 10460
+            },
+            {
+              "name": "The Irencrag",
+              "url": "/cards/the-irencrag",
+              "synergy": 0.06537839819181654,
+              "inclusion": 861,
+              "potential_decks": 10460
+            }
+          ]
+        },
+        {
+          "header": "Lands",
+          "cardviews": [
+            {
+              "name": "Mountain",
+              "url": "/cards/mountain",
+              "synergy": 0.0049964407356062335,
+              "inclusion": 9959,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Spikefield Hazard",
+              "url": "/cards/spikefield-hazard",
+              "synergy": 0.35790465017767253,
+              "inclusion": 4194,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Myriad Landscape",
+              "url": "/cards/myriad-landscape",
+              "synergy": -0.002960252467655078,
+              "inclusion": 2496,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Valakut Awakening",
+              "url": "/cards/valakut-awakening",
+              "synergy": 0.026540059013403117,
+              "inclusion": 2234,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Pinnacle Monk",
+              "url": "/cards/pinnacle-monk",
+              "synergy": -0.013493765878391961,
+              "inclusion": 1145,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Shatterskull Smashing",
+              "url": "/cards/shatterskull-smashing",
+              "synergy": -0.004023531341513106,
+              "inclusion": 944,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Sundering Eruption",
+              "url": "/cards/sundering-eruption",
+              "synergy": -0.05871675115109344,
+              "inclusion": 659,
+              "potential_decks": 10460
+            },
+            {
+              "name": "Snow-Covered Mountain",
+              "url": "/cards/snow-covered-mountain",
+              "synergy": -0.0070578818069289215,
+              "inclusion": 610,
+              "potential_decks": 10460
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
