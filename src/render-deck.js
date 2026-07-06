@@ -8,7 +8,7 @@ import { parseDeckId } from './moxfield.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck } from './messaging.js';
-import { el, isDark, chevronSvg } from './dom.js';
+import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
 import { relTime, num } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
 import { getCardPrefs, getOptions, onPrefChange } from './prefs.js';
@@ -108,6 +108,9 @@ function observeDecklist() {
       if (!mutationsAreRelevant(mutations) || raf) return;
       raf = requestAnimationFrame(() => { raf = null; reannotate(); });
     });
+    // Router drains this on nav so the decklist observer doesn't outlive its deck (and
+    // stale deck fields clear, so the card panels can't render the old deck's data).
+    registerDisposable(() => { if (deckObserver) deckObserver.disconnect(); deckObserver = null; dvRef = null; currentFields = null; });
   } else {
     deckObserver.disconnect();
   }
@@ -121,10 +124,13 @@ function installOnce() {
   installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
   installCardModal(() => currentFields, () => currentOptions);  // per-card Info panel (card-detail modal)
   installCardSidebar(() => currentFields, () => currentOptions); // mirrored on the deck-page sidebar
-  onPrefChange(async (which) => {
+  const offPref = onPrefChange(async (which) => {
     if (which === 'card') { reannotate(); return; }
     if (which === 'options') { currentOptions = await getOptions(); applyOptionColors(currentOptions); reannotate(); }
   });
+  // Router drains this on nav: drop the prefs listener and reset the once-guard so the
+  // next deck re-runs installOnce (which re-installs the card panels it also disposed).
+  registerDisposable(() => { offPref(); installedOnce = false; });
 }
 
 // Begin annotating card rows for this deck: store fields, watch the decklist for
@@ -162,13 +168,20 @@ function syncChartHeights(scope) {
   }
 }
 let chartSyncWired = false;
+let chartResizeHandler = null;
 function wireChartSync() {
   if (chartSyncWired) return;
   chartSyncWired = true;
   let raf = null;
-  window.addEventListener('resize', () => {
+  chartResizeHandler = () => {
     if (raf) return;
     raf = requestAnimationFrame(() => { raf = null; syncChartHeights(document); });
+  };
+  window.addEventListener('resize', chartResizeHandler);
+  // Router drains this on nav so the resize listener doesn't persist for the tab's life.
+  registerDisposable(() => {
+    if (chartResizeHandler) window.removeEventListener('resize', chartResizeHandler);
+    chartResizeHandler = null; chartSyncWired = false;
   });
 }
 
@@ -368,6 +381,7 @@ export async function mount({ waitFor }) {
   // ticker left by a prior mount so intervals never stack across SPA navigations.
   clearInterval(syncTimer);
   syncTimer = setInterval(() => { if (lastSync) synced.textContent = `analyzed ${relTime(lastSync)}`; }, 30000);
+  registerDisposable(() => clearInterval(syncTimer)); // stop ticking when we leave the deck page
   // The sync button always forces a fresh analysis (POST /decks?url=...&oldDeckId=md5),
   // not just a re-fetch, so decklist edits are reflected. Spins the icon while the
   // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)

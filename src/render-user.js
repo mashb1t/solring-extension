@@ -4,7 +4,7 @@
 // tier over the decks whose full payload is cached, each with a "from N" coverage
 // hint. Recomputes as decks load or get scanned (decklist's onDeckListChange).
 
-import { el, guard } from './dom.js';
+import { el, guard, registerDisposable } from './dom.js';
 import { num } from './format.js';
 import { tile, gradeChip } from './components.js';
 import { csRatingGrade } from './ratings.js';
@@ -97,11 +97,14 @@ export function installUserAverages() {
   active = true;
   if (!wired) {
     wired = true;
-    onDeckListChange(() => schedule());
+    const off = onDeckListChange(() => schedule());
     observer = new MutationObserver(() => {
       if (active && profileColumn() && !document.querySelector('.solring-averages')) schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true });
+    // On SPA nav the router drains this: disconnect the body observer, drop the
+    // deck-list subscription, and reset the once-guard so a later visit re-wires cleanly.
+    registerDisposable(() => { if (observer) observer.disconnect(); off(); observer = null; wired = false; });
   }
   schedule();
 }

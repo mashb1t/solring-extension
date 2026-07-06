@@ -3,7 +3,7 @@
 // Injection is idempotent. Toggles apply immediately (our global prefs are
 // independent of Moxfield's own Save/Cancel).
 
-import { el } from './dom.js';
+import { el, registerDisposable } from './dom.js';
 import { getCardPrefs, setCardPrefs } from './prefs.js';
 
 const TOGGLES = [
@@ -53,5 +53,6 @@ export function installCustomizeViewToggles() {
   tryInject(); // in case it's already open
   const obs = new MutationObserver(tryInject);
   obs.observe(document.body, { childList: true, subtree: true });
-  return obs;
+  // Router drains this on nav so the modal watcher doesn't outlive the deck page.
+  registerDisposable(() => obs.disconnect());
 }

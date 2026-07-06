@@ -3,7 +3,7 @@
 // is present regardless of login state. Marked data-solring-root so the router's
 // teardown removes it on navigation (re-injected per deck with the right md5).
 
-import { el } from './dom.js';
+import { el, registerDisposable } from './dom.js';
 
 const CS_URL = (md5) => `https://commandersalt.com/details/deck/${md5}`;
 
@@ -27,8 +27,9 @@ export function installCommanderSaltLink(md5) {
     link.insertAdjacentElement('beforebegin', sep); // renders "EDHRecs . CommanderSalt"
     return true;
   };
-  if (tryInject()) return null;
+  if (tryInject()) return;
   const obs = new MutationObserver(() => { if (tryInject()) obs.disconnect(); });
   obs.observe(document.body, { childList: true, subtree: true });
-  return obs;
+  // Router drains this on nav so a fallback observer never outlives its deck page.
+  registerDisposable(() => obs.disconnect());
 }

@@ -6,7 +6,7 @@
 // each row and the averages as it goes. Verb mirrors the single-deck panel ("Analyze",
 // "Analyze", "analyzed X ago").
 
-import { el, guard, installOutsideClose } from './dom.js';
+import { el, guard, installOutsideClose, registerDisposable } from './dom.js';
 import { relTime } from './format.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
@@ -207,9 +207,12 @@ export function installSync(user) {
   active = true;
   if (!wired) {
     wired = true;
-    onDeckListChange(() => { schedule(); refreshStatus(); }); // re-inject and tick the timestamp
+    const off = onDeckListChange(() => { schedule(); refreshStatus(); }); // re-inject and tick the timestamp
     const obs = new MutationObserver(() => schedule());
     obs.observe(document.body, { childList: true, subtree: true });
+    // Router drains this on nav: disconnect the body observer, drop the deck-list
+    // subscription, and reset the once-guard so a later list page re-wires cleanly.
+    registerDisposable(() => { obs.disconnect(); off(); wired = false; });
   }
   schedule();
 }

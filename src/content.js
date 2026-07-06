@@ -52,6 +52,7 @@
     const m = await load();
     const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync } = m;
     wideLayout.installWideToggle(); // idempotent global header toggle, applies on every page
+    dom.disposeAll(); // first: disconnect every observer/listener from the previous route
     dom.guard('teardown', () => dom.teardown());
     decklist.teardownDeckList(); // drop any prior list observer/state on every nav
     renderUser.teardownUserAverages(); // and the profile-averages card

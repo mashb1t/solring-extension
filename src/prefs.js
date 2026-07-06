@@ -135,14 +135,17 @@ async function getPrefRaw(key, fallback) {
 }
 
 /** Subscribe to pref changes. cb(which) where which is one of
-    'card', 'sort', 'options', 'listColumns', 'wide'. */
+    'card', 'sort', 'options', 'listColumns', 'wide'. Returns an unsubscribe fn so
+    callers re-installed across SPA navigation don't stack storage listeners. */
 export function onPrefChange(cb) {
-  chrome.storage.onChanged.addListener((changes, area) => {
+  const listener = (changes, area) => {
     if (area !== 'local') return;
     if (CARD_KEY in changes) cb('card');
     if (SORT_KEY in changes) cb('sort');
     if (OPTIONS_KEY in changes) cb('options');
     if (LIST_COLUMNS_KEY in changes || LIST_ORDER_KEY in changes || HIDDEN_NATIVE_KEY in changes) cb('listColumns');
     if (WIDE_KEY in changes) cb('wide');
-  });
+  };
+  chrome.storage.onChanged.addListener(listener);
+  return () => chrome.storage.onChanged.removeListener(listener);
 }

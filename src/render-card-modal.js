@@ -8,7 +8,7 @@
 // deck is analyzed. Fields are read live via a getter. A bare /cards/ page with no
 // deck shows nothing.
 
-import { el, isDark } from './dom.js';
+import { el, isDark, registerDisposable } from './dom.js';
 import { num } from './format.js';
 import { flagChips, tagChips } from './components.js';
 import { prettifyStat } from './labels.js';
@@ -341,5 +341,8 @@ export function installCardModal(fieldsGetter, optsGetter) {
   if (observer) return;
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true });
-  onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  const offPref = onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  // Router drains this on nav: disconnect the body observer, drop the prefs listener,
+  // and null the once-guard so a later deck re-installs cleanly.
+  registerDisposable(() => { if (observer) observer.disconnect(); offPref(); observer = null; });
 }
