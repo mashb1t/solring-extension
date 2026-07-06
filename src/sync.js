@@ -18,7 +18,8 @@ const THROTTLE_MS = 400; // breathing room so we don't hammer the API
 let username = null;
 let active = false; // on a deck-list page
 let running = false;
-let cancelFlag = false;
+let cancelFlag = false; // per-run: user hit Cancel
+let runId = 0; // monotonic run token; SPA nav bumps it to invalidate an in-flight run
 let wired = false;
 let raf = null;
 let controls = null; // { wrap, analyzeBtn, cancelBtn, status }
@@ -51,42 +52,52 @@ async function run({ force = false, uncachedOnly = false }) {
   if (running) return;
   running = true;
   cancelFlag = false;
+  const me = ++runId; // this run's token; a later installSync/teardownSync bumps runId to invalidate us
+  const user = username; // capture now so late results attribute to the right user, even if username is reassigned
   setBusy(true);
   let entries = syncableEntries();
   if (uncachedOnly) entries = entries.filter((e) => !isCached(e.md5));
   if (!entries.length) {
     running = false;
     setBusy(false);
-    if (controls) controls.status.textContent = uncachedOnly ? 'All listed decks already analyzed' : 'No analyzable decks';
+    if (controls && me === runId) controls.status.textContent = uncachedOnly ? 'All listed decks already analyzed' : 'No analyzable decks';
     return;
   }
   let done = 0;
   let failed = 0;
   for (const e of entries) {
-    if (cancelFlag) break;
-    if (controls) controls.status.textContent = `${force ? 'Recalculating' : 'Fetching'} ${done + 1}/${entries.length}…`;
+    if (cancelFlag || me !== runId) break;
+    if (controls && me === runId) controls.status.textContent = `${force ? 'Recalculating' : 'Fetching'} ${done + 1}/${entries.length}…`;
     setRowSpinning(e.md5, true); // spin this deck's per-row glyph while it's processing
     try {
       let res;
       if (force) {
         res = await importDeck(canonicalDeckUrl(e.publicId), e.md5, e.md5); // POST analysis
+        if (me !== runId) return; // navigated away mid-flight: abandon silently
       } else {
         res = await getDeck(e.md5, { allowFetch: true }); // GET, warm cache
-        if (res && res.stub) res = await importDeck(canonicalDeckUrl(e.publicId), e.md5); // un-indexed, first import
+        if (me !== runId) return; // navigated away mid-flight: abandon silently
+        if (res && res.stub) {
+          res = await importDeck(canonicalDeckUrl(e.publicId), e.md5); // un-indexed, first import
+          if (me !== runId) return; // navigated away mid-flight: abandon silently
+        }
       }
       if (res && res.fields) setFull(e.md5, res.fields); // update the row and averages
       else failed += 1; // stub, unanalyzable, error, or miss
     } catch (err) {
+      if (me !== runId) return; // navigated away during the await that threw: abandon silently
       failed += 1;
       console.warn('[solring] sync failed for', e.publicId, err);
     }
     setRowSpinning(e.md5, false); // stop (a successful scan already rerendered it un-spun)
     done += 1;
-    if (!cancelFlag) await delay(THROTTLE_MS);
+    if (cancelFlag || me !== runId) break;
+    await delay(THROTTLE_MS);
   }
+  if (me !== runId) return; // superseded run: don't write status/sync for a page that's gone
   running = false;
   setBusy(false);
-  await setSync(username, { at: Date.now() });
+  await setSync(user, { at: Date.now() });
   if (controls) {
     const ok = done - failed;
     controls.status.textContent = `${cancelFlag ? 'Cancelled' : 'Done'} · ${ok}/${entries.length} ok${failed ? ` · ${failed} failed` : ''}`;
@@ -220,7 +231,8 @@ export function installSync(user) {
 /** Remove the controls (SPA nav away). A run in progress is cancelled. */
 export function teardownSync() {
   active = false;
-  cancelFlag = true;
+  runId += 1; // invalidate any in-flight run so it abandons silently
+  running = false; // free the lock so a fresh scan on the next page isn't blocked by a stuck await
   controls = null;
   document.querySelectorAll('.solring-sync').forEach((n) => n.remove());
 }
