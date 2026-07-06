@@ -13,10 +13,10 @@ per-card stats for your decks, as well as the decks of other users.
 A report card is added below the deck header, most of the tiles expand an inline detail panel.
 The features are designed to be easily readable either using a ranking (A-D), raw scores, or a mix of both.
 
-Card names at all panels (such as e.g. synergies) are hoverable, so you can easily get the context of the related cards.
+Card names at all panels (such as e.g. synergy) are hoverable, so you can easily get the context of the related cards.
 
 Each card can be annotated. Use the **"Advanced"** menu to customize the view to add **Power**, **Saltiness** and 
-**Synergies** columns (color thresholds can be customized in the extension Options panel). **Tags** can also be toggled
+**Synergy** columns (color thresholds can be customized in the extension Options panel). **Tags** can also be toggled
 on.
 
 In addition to card metrics columns, you can also find per-card metrics in the card sidebar below the card image.

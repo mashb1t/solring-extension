@@ -85,12 +85,12 @@ export function annotate(fields, prefs, options = {}) {
     // Synergy score (CommanderSalt outgoing-impact score, the same number it sums to
     // rank a deck's synergy anchors). 3rd numeric column beside Power/Salt contribution,
     // 0 when the card has no synergy.
-    if (prefs.synergies) {
+    if (prefs.synergy) {
       const rawSyn = card.combos && typeof card.combos.score === 'number' ? card.combos.score : 0;
       place(el('span', {
         class: `solring-syn-cell text-end solring-card-anno${mark(synergyMark(rawSyn, synCut), 'solring-mark-synergy')}`,
         text: String(Math.round(rawSyn)),
-        title: 'synergy score',
+        title: 'synergy',
       }));
     }
 
@@ -113,9 +113,9 @@ export function annotate(fields, prefs, options = {}) {
 // its column. Absolutely positioned → adds nothing to the row's flow and no column widens.
 function injectColumnLegend(prefs) {
   const abbr = [];
-  if (prefs.power) abbr.push(['solring-power-cell', 'Pw', 'Power contribution']);
-  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Sa', 'Saltiness']);
-  if (prefs.synergies) abbr.push(['solring-syn-cell', 'Sy', 'Synergy score']);
+  if (prefs.power) abbr.push(['solring-power-cell', 'Pwr', 'Power contribution']);
+  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Slt', 'Saltiness']);
+  if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score']);
   if (!abbr.length) return;
   const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
   const sampleRow = sampleCell && sampleCell.closest('li');

@@ -9,7 +9,7 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // carry an older `v` (or none) and are treated as stale: served for display continuity
 // but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
 // without a manual Clear cache or Analyze. History, by version:
-// 1 pre-manabase. 2 adds manabase. 3 adds per-card synergy count. 4 adds synergy score
+// 1 pre-manabase. 2 adds manabase. 3 adds per-card synergy count. 4 adds synergy
 // and scoreBias-ranked partners. 5 adds bracket/power profile (coaching, score drivers,
 // anti-patterns). 6 adds wincon profile. 7 adds inferred deck type. 8 adds fringeCEDH.
 // 9 bracket cards carry images. 10 adds power fingerprint, synergy anchors/hubs carry images.

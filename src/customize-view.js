@@ -9,7 +9,7 @@ import { getCardPrefs, setCardPrefs } from './prefs.js';
 const TOGGLES = [
   ['power', 'Power'],
   ['saltValue', 'Saltiness'],
-  ['synergies', 'Synergies'],
+  ['synergy', 'Synergy'],
   ['tags', 'Tags'],
 ];
 

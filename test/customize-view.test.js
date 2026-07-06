@@ -28,6 +28,6 @@ test('injectInto is race-safe: two concurrent calls append toggles once', async 
   const { injectInto } = await import('../src/customize-view.js');
   const group = fakeGroup();
   await Promise.all([injectInto(group), injectInto(group)]);
-  // 4 toggles (power, saltValue, synergies, tags), not 8.
+  // 4 toggles (power, saltValue, synergy, tags), not 8.
   assert.equal(group.children.length, 4);
 });

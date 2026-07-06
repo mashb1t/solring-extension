@@ -26,8 +26,8 @@ test('concurrent setCardPrefs patches do not clobber each other', async () => {
   // Both fields default to false; each setter flips a different one. Without a write
   // queue the two read-modify-writes both read the (false,false) base and the last
   // write wins, reverting the other flip — so one field ends up lost.
-  await Promise.all([setCardPrefs({ synergies: true }), setCardPrefs({ tags: true })]);
+  await Promise.all([setCardPrefs({ synergy: true }), setCardPrefs({ tags: true })]);
   const saved = store['prefs:cardData'];
-  assert.equal(saved.synergies, true); // first patch survived
+  assert.equal(saved.synergy, true); // first patch survived
   assert.equal(saved.tags, true); // second patch survived (not lost to a stale read)
 });

@@ -415,8 +415,7 @@
 .solring-collegend { position: absolute; inset: 0; pointer-events: none; }
 .solring-collabel {
   position: absolute; top: 50%; transform: translateY(-50%); text-align: right;
-  font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
-  color: var(--solring-text-2); opacity: 0.8; white-space: nowrap;
+  text-transform: uppercase; color: var(--solring-text-2);
 }
 /* Mark for standout cards (thresholds + colors configurable in the options page):
    power above N× the deck average, saltiness at/above the threshold. Applied to the
