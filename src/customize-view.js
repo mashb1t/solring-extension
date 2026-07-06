@@ -26,8 +26,12 @@ function checkbox(id, label, checked, onChange) {
   ]);
 }
 
-async function injectInto(group) {
-  if (group.querySelector('.solring-cv')) return; // already injected
+export async function injectInto(group) {
+  // Claim the group SYNCHRONOUSLY before the await: the modal-mount observer fires
+  // tryInject several times inside the getCardPrefs() await window, so a querySelector
+  // sentinel checked before awaiting lets every call through and injects duplicates.
+  if (group.dataset.solringCv || group.querySelector('.solring-cv')) return;
+  group.dataset.solringCv = '1';
   const prefs = await getCardPrefs();
   for (const [key, label] of TOGGLES) {
     group.append(checkbox(key, label, !!prefs[key], (val) => { setCardPrefs({ [key]: val }); }));
