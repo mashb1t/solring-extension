@@ -13,7 +13,15 @@ import { getDeck, importDeck } from './messaging.js';
 import { getEntries, isCached, hasDeckListTable, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
 import { getSync, setSync } from './cache.js';
 
-const THROTTLE_MS = 400; // breathing room so we don't hammer the API
+const THROTTLE_MS = 400; // base breathing room between requests so we don't hammer the API
+const THROTTLE_MAX_MS = 30000; // backoff ceiling
+
+// Next inter-request delay: reset to the base on a good response, otherwise double (up to
+// the ceiling). Bulk "Analyze all" can fire hundreds of requests; if CommanderSalt starts
+// erroring (429/503/network), fixed pacing would keep hammering it. Pure + exported for test.
+export function nextDelay(cur, ok, base = THROTTLE_MS, cap = THROTTLE_MAX_MS) {
+  return ok ? base : Math.min(cap, cur * 2);
+}
 
 let username = null;
 let active = false; // on a deck-list page
@@ -65,10 +73,12 @@ async function run({ force = false, uncachedOnly = false }) {
   }
   let done = 0;
   let failed = 0;
+  let curDelay = THROTTLE_MS; // grows on API errors (429/503/network), resets on success
   for (const e of entries) {
     if (cancelFlag || me !== runId) break;
     if (controls && me === runId) controls.status.textContent = `${force ? 'Recalculating' : 'Fetching'} ${done + 1}/${entries.length}…`;
     setRowSpinning(e.md5, true); // spin this deck's per-row glyph while it's processing
+    let errored = false; // a real API/network error (not just a stub / no-data deck)
     try {
       let res;
       if (force) {
@@ -84,15 +94,18 @@ async function run({ force = false, uncachedOnly = false }) {
       }
       if (res && res.fields) setFull(e.md5, res.fields); // update the row and averages
       else failed += 1; // stub, unanalyzable, error, or miss
+      if (res && res.error) errored = true; // background surfaced an API/network failure
     } catch (err) {
       if (me !== runId) return; // navigated away during the await that threw: abandon silently
       failed += 1;
+      errored = true;
       console.warn('[solring] sync failed for', e.publicId, err);
     }
     setRowSpinning(e.md5, false); // stop (a successful scan already rerendered it un-spun)
     done += 1;
     if (cancelFlag || me !== runId) break;
-    await delay(THROTTLE_MS);
+    curDelay = nextDelay(curDelay, !errored); // back off while the API is erroring
+    await delay(curDelay);
   }
   if (me !== runId) return; // superseded run: don't write status/sync for a page that's gone
   running = false;
