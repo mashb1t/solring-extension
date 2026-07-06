@@ -181,7 +181,7 @@ function injectColumnLegend(prefs, cardSort) {
   if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score', 'synergy']);
   if (prefs.edhrec) abbr.push(['solring-edhrec-cell', 'EDH', 'EDHREC inclusion %', 'edhrec']);
   if (!abbr.length) return;
-  const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
+  const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell, .solring-edhrec-cell');
   const sampleRow = sampleCell && sampleCell.closest('li');
   if (!sampleRow) return; // no annotated rows (no matches) → nothing to label
   // Measure each column's right-offset from the row's right edge, and its width, from a real
