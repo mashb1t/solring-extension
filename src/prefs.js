@@ -123,6 +123,7 @@ export function setOptions(patch) {
     const cur = await getOptions();
     const next = { ...cur, ...patch };
     if (patch.ratingColors) next.ratingColors = { ...cur.ratingColors, ...patch.ratingColors };
+    if (patch.sources) next.sources = { ...cur.sources, ...patch.sources };
     await chrome.storage.local.set({ [OPTIONS_KEY]: next });
     return next;
   });

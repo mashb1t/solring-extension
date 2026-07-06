@@ -31,3 +31,14 @@ test('concurrent setCardPrefs patches do not clobber each other', async () => {
   assert.equal(saved.synergy, true); // first patch survived
   assert.equal(saved.tags, true); // second patch survived (not lost to a stale read)
 });
+
+test('setOptions deep-merges sources: patching one source preserves the others', async () => {
+  const { store, chrome } = makeChrome();
+  global.chrome = chrome;
+  const { setOptions, getOptions } = await import('../src/prefs.js');
+  await setOptions({ sources: { edhrec: true, spellbook: true } });
+  await setOptions({ sources: { edhrec: false } });
+  const o = await getOptions();
+  assert.equal(o.sources.edhrec, false);
+  assert.equal(o.sources.spellbook, true); // sibling preserved, not dropped
+});

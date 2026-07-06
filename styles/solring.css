@@ -168,7 +168,6 @@
 .solring-pop-chip { font-size: .82em; opacity: .7; margin: .35rem 0; }
 .solring-bracket-mix { display: flex; flex-wrap: wrap; gap: .25rem; margin: .25rem 0; }
 .solring-bracket-chip { font-size: .78em; padding: .05rem .35rem; border-radius: .5rem; background: var(--solring-chip-bg, rgba(127,127,127,.15)); }
-.opt-attr { font-size: .85em; opacity: .7; }
 .solring-pl-row { display: grid; grid-template-columns: 9rem 1fr 3rem; align-items: center; gap: 0.5rem; font-size: 0.78rem; margin: 0.18rem 0; }
 .solring-pl-label { color: var(--solring-text-2); min-width: 0; }
 /* A linked card name as a bar-row label must wrap inside its fixed column (card names
