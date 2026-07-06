@@ -271,7 +271,16 @@ const COLUMNS = [
 
 // Enabled columns, in the user's saved order (columnOrder). Keys missing from the
 // order fall back to the default COLUMNS order at the end (forward-compatible).
+// Memoized: enabledColumns depends only on listColumns + columnOrder (both change only
+// on a prefs update). reconcileColumns calls this once per row over the whole table, so
+// rebuilding the Map + loops each call is the bulk of a reconcile pass on a long list.
+// The signature auto-invalidates when either pref is reassigned. The result is read-only
+// to callers, so sharing the cached array is safe.
+let colCacheSig = null;
+let colCache = [];
 function enabledColumns() {
+  const sig = `${JSON.stringify(listColumns)}|${columnOrder.join(',')}`;
+  if (sig === colCacheSig) return colCache;
   const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
   const seen = new Set();
   const out = [];
@@ -280,6 +289,8 @@ function enabledColumns() {
     if (c && listColumns[k] && !seen.has(k)) { out.push(c); seen.add(k); }
   }
   for (const c of COLUMNS) if (listColumns[c.key] && !seen.has(c.key)) out.push(c);
+  colCacheSig = sig;
+  colCache = out;
   return out;
 }
 // Signature of the enabled set, to detect when a row/header needs rebuilding.
