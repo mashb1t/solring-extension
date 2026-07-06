@@ -138,10 +138,16 @@ function injectColumnLegend(prefs) {
     // without a /cards/ href, so the bare class can't distinguish it.
     const header = [...ul.children].find((c) => !c.querySelector(ROW_SEL));
     if (!header || header.querySelector(':scope > .solring-collegend')) continue;
-    const cells = abbr.map(([cls, t, title]) => {
-      const info = colInfo(cls);
-      return el('span', { class: 'solring-collabel', text: t, title, style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none' });
-    });
+    // Only label a column that actually has values in THIS group. Groups whose cards
+    // aren't in the analyzed deck (e.g. "Considering") get no value cells, so they get no
+    // header — nothing to label.
+    const cells = abbr
+      .filter(([cls]) => ul.querySelector(`.${cls}`))
+      .map(([cls, t, title]) => {
+        const info = colInfo(cls);
+        return el('span', { class: 'solring-collabel', text: t, title, style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none' });
+      });
+    if (!cells.length) continue; // no annotated values in this group
     header.classList.add('solring-collegend-host');
     header.append(el('span', { class: 'solring-collegend', attrs: { 'aria-hidden': 'true' } }, cells));
   }
