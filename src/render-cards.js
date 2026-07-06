@@ -116,14 +116,18 @@ export function annotate(fields, prefs, options = {}, cardSort = null) {
       }));
     }
 
-    // EDHREC inclusion %: how commonly this card is run in the commander's decks. Only when
-    // the toggle is on AND enrichment has loaded (fields.edhrecInclusion, set async). Muted;
-    // absent-from-EDHREC cards simply get no badge.
-    if (prefs.edhrec && typeof card.inclusion === 'number') {
+    // EDHREC inclusion %: how commonly this card is run in the commander's decks. Rendered
+    // for EVERY card once the toggle is on AND enrichment has loaded (fields.edhrecInclusion,
+    // set async), so the column aligns across rows and its header can anchor. Cards absent
+    // from EDHREC's list for this commander (the commander itself, off-meta spice) show a
+    // muted "–" rather than being skipped — a skipped cell left the column header (measured
+    // off the first row, which is the commander) hidden.
+    if (prefs.edhrec && fields.edhrecInclusion) {
+      const has = typeof card.inclusion === 'number';
       place(el('span', {
-        class: 'solring-edhrec-cell text-end solring-card-anno',
-        text: `${card.inclusion}%`,
-        title: `In ${card.inclusion}% of this commander's EDHREC decks`,
+        class: `solring-edhrec-cell text-end solring-card-anno${has ? '' : ' solring-edhrec-na'}`,
+        text: has ? `${card.inclusion}%` : '–',
+        title: has ? `In ${card.inclusion}% of this commander's EDHREC decks` : 'Not in EDHREC’s list for this commander',
       }));
     }
 
