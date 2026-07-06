@@ -335,9 +335,12 @@ function rankSparkline(rankHistory) {
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
   const current = pts[pts.length - 1].rank;
+  // y-axis: the rank range over the window. Inverted plot → best (lowest #) at top, worst
+  // (highest #) at the bottom, so the line rising means "climbing the rankings".
   const wrap = el('div', {
     class: 'solring-mc-wrap solring-rank-chart',
-    html: `<div class="solring-mc-plot">${svg}</div>`
+    html: `<div class="solring-mc-y"><span>#${rMin}</span><span>#${rMax}</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div>`
       + `<div class="solring-mc-x solring-rank-x"><span>${pts[0].date.slice(0, 7)}</span><span>EDHREC #${current}</span></div>`,
   });
   wireChartHover(wrap, pts.map((p, i) => ({ fx: X(i) / W, fy: Y(p.rank) / H, label: `${p.date.slice(0, 7)}: #${p.rank}` })));

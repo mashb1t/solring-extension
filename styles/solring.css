@@ -172,12 +172,12 @@
    lets each full-width SVG shrink within its grid track instead of overflowing. */
 .solring-edhrec-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 1.25rem; }
 .solring-edhrec-col { min-width: 0; }
-/* Bracket-spread and rank-sparkline have no y-axis column (single series, no baseline),
-   so unlike .solring-mc-wrap they're single-column: plot stacked over its x-axis row. */
-/* Compound selector so this beats `.solring-mc-wrap { display: grid }` (defined later in
-   this file at equal specificity) — otherwise the plot lands in the grid's auto column and
-   shrink-wraps to the SVG's 300px intrinsic width instead of filling the panel. */
-.solring-mc-wrap.solring-bracket-chart, .solring-mc-wrap.solring-rank-chart { display: block; }
+/* Bracket-spread has no y-axis (counts live in the hover), so it's single-column: plot
+   stacked over its x-axis row. (Rank-over-time keeps the 2-col .solring-mc-wrap grid so it
+   can show a rank-range y-axis, like the mana-curve chart.) Compound selector so this beats
+   `.solring-mc-wrap { display: grid }` (defined later at equal specificity) — otherwise the
+   plot lands in the grid's auto column and shrink-wraps to the SVG's 300px intrinsic width. */
+.solring-mc-wrap.solring-bracket-chart { display: block; }
 /* Cap the plot height: at full panel width, `.solring-mc { height: auto }` would inherit
    the 220×90 viewBox ratio and render ~560px tall. preserveAspectRatio="none" lets us pin a
    compact pixel height and just stretch the drawing (non-scaling-stroke keeps lines crisp). */
@@ -187,7 +187,7 @@
 .solring-chart-dot { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--solring-accent); box-shadow: 0 0 0 2px var(--solring-surface); pointer-events: none; }
 .solring-chart-tip { position: absolute; top: 0; transform: translate(-50%, -115%); white-space: nowrap; pointer-events: none; z-index: 3;
   font-size: .68rem; padding: .05rem .35rem; border-radius: .3rem; background: var(--solring-text); color: var(--solring-surface); }
-.solring-bracket-chart .solring-mc-x, .solring-rank-x { grid-column: auto; display: flex; justify-content: space-between; margin-top: .15rem; }
+.solring-bracket-chart .solring-mc-x { grid-column: auto; display: flex; justify-content: space-between; margin-top: .15rem; }
 .solring-bracket-chart .solring-mc-x span { font-size: .68rem; color: var(--solring-text-2); }
 .solring-rank-x span { font-size: .68rem; color: var(--solring-text-2); }
 .solring-rank-x span:last-child { font-weight: 600; color: var(--solring-text); }
