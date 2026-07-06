@@ -68,23 +68,26 @@ async function edhrecEnrichment(md5) {
     : (deck.data.commander ? [deck.data.commander] : []);
   const slug = commanderSlug(commanders);
   if (!slug) return { miss: true };
+  // dedupe ONLY the commander-scoped JSON fetch/cache (shared across every deck with this
+  // commander). Deck-specific derivation (stock meter) is done OUTSIDE per caller, so a
+  // concurrent request for a different deck sharing the commander can't get this deck's stock.
   const key = `edhrec:${slug}`;
-  return dedupe(key, async () => {
-    let entry = await getEntry(key);
-    if (!isFreshTtl(entry, ENRICH_TTL_MS)) {
-      const json = await fetchEdhrec(slug);
-      if (!json) return { miss: true };
-      entry = await setEntry(key, json);
-    }
-    const inclusion = inclusionByName(entry.data);
-    const deckNames = Object.keys(deck.data.cards || {});
-    return {
-      popularity: commanderPopularity(entry.data),
-      stock: stockMeter(inclusion, deckNames),
-      inclusion,
-      fetchedAt: entry.fetchedAt,
-    };
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
+    const json = await fetchEdhrec(slug);
+    if (!json) return null;
+    return setEntry(key, json);
   });
+  if (!entry || !entry.data) return { miss: true };
+  const inclusion = inclusionByName(entry.data);
+  const deckNames = Object.keys(deck.data.cards || {});
+  return {
+    popularity: commanderPopularity(entry.data),
+    stock: stockMeter(inclusion, deckNames),
+    inclusion,
+    fetchedAt: entry.fetchedAt,
+  };
 }
 
 async function getEnrichment({ source, md5 }) {
