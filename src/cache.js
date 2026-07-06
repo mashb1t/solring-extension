@@ -62,9 +62,18 @@ export function isFresh(entry, ttl = TTL_MS) {
   return !!entry && entry.v === SCHEMA_VERSION && Date.now() - entry.fetchedAt < ttl;
 }
 
-// Cached analyses only: deck:* and search:* entries (not prefs:* / sync:*).
+export const ENRICH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// Freshness for enrichment entries: TTL only, NO schema-version gate. Enrichment shape is
+// owned by its source module, not extractDeck, so a deck SCHEMA_VERSION bump must not
+// invalidate cached EDHREC data.
+export function isFreshTtl(entry, ttl) {
+  return !!entry && Date.now() - entry.fetchedAt < ttl;
+}
+
+// Cached analyses + enrichment: deck:* / search:* / edhrec:* (not prefs:* / sync:*).
 function isCacheKey(k) {
-  return k.startsWith('deck:') || k.startsWith('search:');
+  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:');
 }
 
 /** Total storage footprint of cached analyses → { bytes, count }. */

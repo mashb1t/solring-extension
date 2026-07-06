@@ -82,3 +82,11 @@ test('evictOldestCache removes the oldest fraction, cache keys only', async () =
   assert.ok(!store['deck:1'] && !store['deck:2']);
   assert.ok(store['deck:3'] && store['deck:4'] && store['prefs:keep']);
 });
+
+test('isFreshTtl ignores schema version, gates on age only', async () => {
+  const { isFreshTtl } = await import('../src/cache.js');
+  const now = Date.now();
+  assert.equal(isFreshTtl({ v: 1, fetchedAt: now }, 1000), true);         // stale schema, fresh age
+  assert.equal(isFreshTtl({ v: 999, fetchedAt: now - 5000 }, 1000), false); // too old
+  assert.equal(isFreshTtl(null, 1000), false);
+});

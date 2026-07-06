@@ -5,7 +5,8 @@
 
 import { getDeckById, searchByAuthor, importByUrl } from './api.js';
 import { extractDeck, extractHit, isStub } from './extract.js';
-import { getEntry, setEntry, isFresh, dedupe, SCHEMA_VERSION } from './cache.js';
+import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS } from './cache.js';
+import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
 
 async function fetchAndCacheDeck(md5) {
   const key = `deck:${md5}`;
@@ -55,7 +56,43 @@ async function importDeck({ canonicalUrl, md5, oldDeckId }) {
   return { fields, fetchedAt };
 }
 
-const HANDLERS = { getDeck, getUserDecks, importDeck };
+// EDHREC enrichment for a deck: read the commander + card names from the CACHED deck
+// entry (no extra CS fetch), derive the EDHREC slug, cache the commander page JSON
+// commander-scoped (shared across every deck with that commander, TTL-only), and derive
+// popularity + stock meter + the inclusion map. All three come from one payload.
+async function edhrecEnrichment(md5) {
+  const deck = await getEntry(`deck:${md5}`);
+  if (!deck || !deck.data) return { miss: true };
+  const commanders = (deck.data.commanders && deck.data.commanders.length)
+    ? deck.data.commanders
+    : (deck.data.commander ? [deck.data.commander] : []);
+  const slug = commanderSlug(commanders);
+  if (!slug) return { miss: true };
+  const key = `edhrec:${slug}`;
+  return dedupe(key, async () => {
+    let entry = await getEntry(key);
+    if (!isFreshTtl(entry, ENRICH_TTL_MS)) {
+      const json = await fetchEdhrec(slug);
+      if (!json) return { miss: true };
+      entry = await setEntry(key, json);
+    }
+    const inclusion = inclusionByName(entry.data);
+    const deckNames = Object.keys(deck.data.cards || {});
+    return {
+      popularity: commanderPopularity(entry.data),
+      stock: stockMeter(inclusion, deckNames),
+      inclusion,
+      fetchedAt: entry.fetchedAt,
+    };
+  });
+}
+
+async function getEnrichment({ source, md5 }) {
+  if (source === 'edhrec') return edhrecEnrichment(md5);
+  return { error: `unknown enrichment source: ${source}` };
+}
+
+const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = msg && HANDLERS[msg.type];
