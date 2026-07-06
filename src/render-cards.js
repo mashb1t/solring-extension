@@ -120,13 +120,16 @@ function injectColumnLegend(prefs) {
   const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
   const sampleRow = sampleCell && sampleCell.closest('li');
   if (!sampleRow) return; // no annotated rows (no matches) → nothing to label
-  const valueCells = [...sampleRow.querySelectorAll('.solring-power-cell, .solring-salt-cell, .solring-syn-cell')];
-  const lastCell = valueCells[valueCells.length - 1];
-  const trailW = Math.max(0, Math.round(sampleRow.getBoundingClientRect().right - lastCell.getBoundingClientRect().right));
-  // Pin each label to the exact width of its column's cell in the sample row (the value
-  // cells are content-width, so this tracks the columns as closely as possible without
-  // widening them — which the zero-width-growth rule forbids).
-  const widthOf = (cls) => { const c = sampleRow.querySelector(`.${cls}`); return c ? Math.round(c.getBoundingClientRect().width) : 0; };
+  // Measure each column's right-offset from the row's right edge, and its width, from a real
+  // row. Each label is then absolutely positioned at that exact offset — so it sits over its
+  // column regardless of the inter-cell gaps a flex layout can't replicate.
+  const rowRight = sampleRow.getBoundingClientRect().right;
+  const colInfo = (cls) => {
+    const c = sampleRow.querySelector(`.${cls}`);
+    if (!c) return null;
+    const r = c.getBoundingClientRect();
+    return { right: Math.max(0, Math.round(rowRight - r.right)), width: Math.round(r.width) };
+  };
   const lists = new Set();
   document.querySelectorAll(ROW_SEL).forEach((link) => { const ul = link.closest('li') && link.closest('li').parentElement; if (ul) lists.add(ul); });
   for (const ul of lists) {
@@ -135,9 +138,12 @@ function injectColumnLegend(prefs) {
     // without a /cards/ href, so the bare class can't distinguish it.
     const header = [...ul.children].find((c) => !c.querySelector(ROW_SEL));
     if (!header || header.querySelector(':scope > .solring-collegend')) continue;
-    const cells = abbr.map(([cls, t, title]) => { const w = widthOf(cls); return el('span', { class: `${cls} solring-collabel`, text: t, title, style: w ? `flex:0 0 ${w}px; min-width:0` : '' }); });
+    const cells = abbr.map(([cls, t, title]) => {
+      const info = colInfo(cls);
+      return el('span', { class: 'solring-collabel', text: t, title, style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none' });
+    });
     header.classList.add('solring-collegend-host');
-    header.append(el('span', { class: 'solring-collegend', style: `right:${trailW}px`, attrs: { 'aria-hidden': 'true' } }, cells));
+    header.append(el('span', { class: 'solring-collegend', attrs: { 'aria-hidden': 'true' } }, cells));
   }
 }
 
