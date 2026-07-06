@@ -504,6 +504,7 @@ export function extractDeck(p) {
     interactionParts: interactionParts(dt),
     deckId: p.id,
     commander: (p.commanders || [])[0],
+    commanders: Array.isArray(p.commanders) ? p.commanders.slice() : [],
     colorIdentity: p.colorIdentity,
     power: p.powerLevelRating,
     // Deck's total power score (sum of all per-card contributions). Basis for each

@@ -15,7 +15,8 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // 9 bracket cards carry images. 10 adds power fingerprint, synergy anchors/hubs carry images.
 // 11 adds salt personality, card-advantage/denial/graveyard fingerprint, commander
 // centricity, anti-pattern score cap, per-card name + top threats.
-export const SCHEMA_VERSION = 11;
+// 12 adds top-level commanders[] (partner/background EDHREC slugs).
+export const SCHEMA_VERSION = 12;
 
 const inFlight = new Map();
 

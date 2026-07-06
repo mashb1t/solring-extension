@@ -24,6 +24,11 @@ test('extractDeck pulls the displayed metrics', () => {
   assert.equal(d.analyzedAt, 1780256803317); // ingestDate — for edit-detection re-analysis
 });
 
+test('extractDeck keeps all commanders for partner slugs', () => {
+  const d = extractDeck(deck);
+  assert.deepEqual(d.commanders, ['Ojer Axonil, Deepest Might // Temple of Power']);
+});
+
 test('extractDeck drops deck value; keeps both brackets (baseline only for the delta arrow)', () => {
   const d = extractDeck(deck);
   assert.equal(d.value, undefined);
