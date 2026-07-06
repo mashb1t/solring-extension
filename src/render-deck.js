@@ -233,6 +233,10 @@ function renderBody(body, f) {
     ? `${num(f.power, 2)}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
+  // Tagged so loadEdhrecEnrichment (resolves later, async) can find this tile and set its
+  // subline to the EDHREC rank once enrichment arrives — the tile itself renders before
+  // that fetch settles, with no subline yet.
+  tierTile.dataset.solringTile = 'tier';
   // cEDH classification chip next to the power total: 'fringe cEDH' when borderline,
   // else 'cEDH' for a solid spike deck (casual decks get none).
   const cedhChip = f.fringeCEDH ? 'fringe cEDH' : (f.inferredType === 'spike' ? 'cEDH' : null);
@@ -372,6 +376,20 @@ export async function mount({ waitFor }) {
     if (!body.isConnected) return;
     const slot = body.querySelector('.solring-edhrec-slot');
     if (slot && slot.isConnected) renderEdhrecEnrichment(slot, data);
+    // Commander-tier tile subline: EDHREC #<rank>, only once the enrichment resolves (the
+    // tile itself rendered before this fetch settled, so it started with no subline).
+    const rank = data.popularity && data.popularity.rank;
+    if (rank) {
+      const tierTile = body.querySelector('[data-solring-tile="tier"]');
+      if (tierTile && tierTile.isConnected) {
+        let sub = tierTile.querySelector('.solring-tile-sub');
+        if (!sub) {
+          sub = el('div', { class: 'solring-tile-sub' });
+          tierTile.append(sub);
+        }
+        sub.textContent = `EDHREC #${rank}`;
+      }
+    }
   }
 
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);

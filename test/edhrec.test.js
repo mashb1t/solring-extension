@@ -77,3 +77,26 @@ test('commanderPopularity: deckCount from max potential_decks + bracket_counts',
   assert.equal(pop.deckCount, 10460);
   assert.equal(pop.brackets['2'], 1138);
 });
+test('commanderPopularity: rank is a positive integer, rankHistory ascending by date', () => {
+  const pop = commanderPopularity(ojer);
+  assert.equal(Number.isInteger(pop.rank), true);
+  assert.ok(pop.rank > 0);
+  assert.ok(Array.isArray(pop.rankHistory));
+  assert.ok(pop.rankHistory.length > 0);
+  for (const entry of pop.rankHistory) {
+    assert.equal(typeof entry.date, 'string');
+    assert.equal(Number.isInteger(entry.rank), true);
+  }
+  for (let i = 1; i < pop.rankHistory.length; i += 1) {
+    assert.ok(pop.rankHistory[i - 1].date < pop.rankHistory[i].date);
+  }
+  // rank is the latest date's rank
+  assert.equal(pop.rank, pop.rankHistory[pop.rankHistory.length - 1].rank);
+});
+test('commanderPopularity: rank/rankHistory absent → null/[]', () => {
+  const pop = commanderPopularity({ container: { json_dict: { cardlists: [
+    { header: 'Top Cards', cardviews: [{ name: 'X', inclusion: 1, potential_decks: 10 }] },
+  ] } } });
+  assert.equal(pop.rank, null);
+  assert.deepEqual(pop.rankHistory, []);
+});

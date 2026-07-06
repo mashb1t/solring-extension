@@ -263,22 +263,84 @@ export function buildCommanderTierPanel(tier) {
   ]);
 }
 
-// Fill the commander-tier expansion's EDHREC slot: commander popularity, its bracket
-// spread, and the deck's stock-o-meter (how netdecked vs brewed). Idempotent — clears the
-// slot first. Renders nothing when empty. Data Moxfield's EDHREC page never shows.
+// Bracket-spread graph: x = bracket 1..5, y = count normalized to the largest bracket.
+// Single series (no baseline to compare against), so just one area + one line, same SVG
+// idiom as manaCurveChart. Counts are labeled in HTML beneath the plot (never inside the
+// SVG — see manaCurveChart's comment on why <text> doesn't survive preserveAspectRatio).
+function bracketSpreadChart(brackets) {
+  const pts = [1, 2, 3, 4, 5].map((b) => ({ b, count: Number(brackets[b]) || 0 }));
+  if (!pts.some((p) => p.count > 0)) return '';
+  const W = 220; const H = 90; const pad = 2;
+  const max = Math.max(...pts.map((p) => p.count), 1);
+  const X = (b) => pad + ((b - 1) / 4) * (W - 2 * pad);
+  const Y = (v) => pad + (1 - v / max) * (H - 2 * pad);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.b).toFixed(1)} ${Y(p.count).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(5).toFixed(1)} ${Y(0).toFixed(1)} L${X(1).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+  const grid = [0, 0.5, 1].map((v) => `<line x1="${pad}" y1="${(pad + v * (H - 2 * pad)).toFixed(1)}" x2="${W - pad}" y2="${(pad + v * (H - 2 * pad)).toFixed(1)}" class="solring-mc-grid"/>`).join('');
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="Bracket spread: decks per bracket on EDHREC">`
+    + grid
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path}" class="solring-mc-line"/>`
+    + '</svg>';
+  const xl = pts.map((p) => `<span>B${p.b} ${p.count.toLocaleString('en-US')}</span>`).join('');
+  return `<div class="solring-mc-wrap solring-bracket-chart">`
+    + `<div class="solring-mc-plot">${svg}</div>`
+    + `<div class="solring-mc-x">${xl}</div>`
+    + `</div>`;
+}
+
+// Rank-over-time sparkline. EDHREC rank is "lower = more popular", so the y-axis is
+// inverted here (min rank plots at the top) so a rising line reads as "getting more
+// popular" like everything else in the panel. Endpoint label carries the current rank
+// (HTML, not SVG text, for the same reason as manaCurveChart).
+function rankSparkline(rankHistory) {
+  const pts = (rankHistory || []).filter((p) => Number.isFinite(p.rank));
+  if (pts.length < 2) return '';
+  const W = 220; const H = 60; const pad = 2;
+  const ranks = pts.map((p) => p.rank);
+  const rMin = Math.min(...ranks); const rMax = Math.max(...ranks);
+  const span = Math.max(1, rMax - rMin);
+  const X = (i) => pad + (i / (pts.length - 1)) * (W - 2 * pad);
+  // Inverted: best (lowest) rank maps near the top (small Y).
+  const Y = (rank) => pad + ((rank - rMin) / span) * (H - 2 * pad);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.rank).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(pts.length - 1).toFixed(1)} ${(H - pad).toFixed(1)} L${X(0).toFixed(1)} ${(H - pad).toFixed(1)} Z`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="EDHREC rank over time (rising = more popular)">`
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path}" class="solring-mc-line"/>`
+    + '</svg>';
+  const current = pts[pts.length - 1].rank;
+  return `<div class="solring-mc-wrap solring-rank-chart">`
+    + `<div class="solring-mc-plot">${svg}</div>`
+    + `<div class="solring-mc-x solring-rank-x"><span>${pts[0].date.slice(0, 7)}</span><span>EDHREC #${current}</span></div>`
+    + `</div>`;
+}
+
+// Fill the commander-tier expansion's EDHREC slot: commander popularity + rank, its
+// bracket spread, rank-over-time, and the deck's stock-o-meter (how netdecked vs brewed).
+// Idempotent — clears the slot first. Renders nothing when empty. Data Moxfield's EDHREC
+// page never shows.
 export function renderEdhrecEnrichment(slot, data) {
   slot.replaceChildren();
   const kids = [];
   const pop = data && data.popularity;
   if (pop && pop.deckCount) {
-    kids.push(el('div', { class: 'solring-pop-chip', text: `~${Number(pop.deckCount).toLocaleString('en-US')} decks on EDHREC` }));
+    const rankPart = pop.rank ? ` · EDHREC #${pop.rank}` : '';
+    kids.push(el('div', { class: 'solring-pop-chip', text: `~${Number(pop.deckCount).toLocaleString('en-US')} decks${rankPart}` }));
   }
   if (pop && pop.brackets) {
-    // bracket spread as B1..B5 count chips (only non-zero)
-    const chips = [1, 2, 3, 4, 5]
-      .filter((b) => pop.brackets[b])
-      .map((b) => el('span', { class: 'solring-bracket-chip', text: `B${b} ×${Number(pop.brackets[b]).toLocaleString('en-US')}` }));
-    if (chips.length) kids.push(el('div', { class: 'solring-bracket-mix' }, chips));
+    const chartHtml = bracketSpreadChart(pop.brackets);
+    if (chartHtml) {
+      kids.push(el('div', { class: 'solring-pl-h2', text: 'Bracket spread' }));
+      kids.push(el('div', { class: 'solring-bracket-fig', html: chartHtml }));
+    }
+  }
+  if (pop && pop.rankHistory && pop.rankHistory.length > 1) {
+    const chartHtml = rankSparkline(pop.rankHistory);
+    if (chartHtml) {
+      kids.push(el('div', { class: 'solring-pl-h2', text: 'Rank over time' }));
+      kids.push(el('div', { class: 'solring-rank-fig', html: chartHtml }));
+    }
   }
   const s = data && data.stock;
   if (s && s.cards) {

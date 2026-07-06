@@ -6,6 +6,178 @@
     "4": 493,
     "5": 57
   },
+  "panels": {
+    "rank_over_time": {
+      "2024-07-01": {
+        "commander_count": 262,
+        "perc_of_decks_overall": 0.161,
+        "perc_of_decks_overall_ma": 0.16,
+        "rank": 129,
+        "rank_ma": 131
+      },
+      "2024-08-01": {
+        "commander_count": 360,
+        "perc_of_decks_overall": 0.159,
+        "perc_of_decks_overall_ma": 0.173,
+        "rank": 133,
+        "rank_ma": 124
+      },
+      "2024-09-01": {
+        "commander_count": 423,
+        "perc_of_decks_overall": 0.198,
+        "perc_of_decks_overall_ma": 0.18,
+        "rank": 109,
+        "rank_ma": 119
+      },
+      "2024-10-01": {
+        "commander_count": 446,
+        "perc_of_decks_overall": 0.184,
+        "perc_of_decks_overall_ma": 0.176,
+        "rank": 115,
+        "rank_ma": 128
+      },
+      "2024-11-01": {
+        "commander_count": 317,
+        "perc_of_decks_overall": 0.147,
+        "perc_of_decks_overall_ma": 0.161,
+        "rank": 159,
+        "rank_ma": 141
+      },
+      "2024-12-01": {
+        "commander_count": 319,
+        "perc_of_decks_overall": 0.151,
+        "perc_of_decks_overall_ma": 0.154,
+        "rank": 149,
+        "rank_ma": 144
+      },
+      "2025-01-01": {
+        "commander_count": 359,
+        "perc_of_decks_overall": 0.164,
+        "perc_of_decks_overall_ma": 0.155,
+        "rank": 125,
+        "rank_ma": 140
+      },
+      "2025-02-01": {
+        "commander_count": 519,
+        "perc_of_decks_overall": 0.151,
+        "perc_of_decks_overall_ma": 0.147,
+        "rank": 146,
+        "rank_ma": 150
+      },
+      "2025-03-01": {
+        "commander_count": 498,
+        "perc_of_decks_overall": 0.128,
+        "perc_of_decks_overall_ma": 0.133,
+        "rank": 179,
+        "rank_ma": 169
+      },
+      "2025-04-01": {
+        "commander_count": 431,
+        "perc_of_decks_overall": 0.121,
+        "perc_of_decks_overall_ma": 0.121,
+        "rank": 183,
+        "rank_ma": 191
+      },
+      "2025-05-01": {
+        "commander_count": 423,
+        "perc_of_decks_overall": 0.113,
+        "perc_of_decks_overall_ma": 0.118,
+        "rank": 211,
+        "rank_ma": 193
+      },
+      "2025-06-01": {
+        "commander_count": 411,
+        "perc_of_decks_overall": 0.12,
+        "perc_of_decks_overall_ma": 0.113,
+        "rank": 186,
+        "rank_ma": 204
+      },
+      "2025-07-01": {
+        "commander_count": 390,
+        "perc_of_decks_overall": 0.107,
+        "perc_of_decks_overall_ma": 0.109,
+        "rank": 216,
+        "rank_ma": 215
+      },
+      "2025-08-01": {
+        "commander_count": 379,
+        "perc_of_decks_overall": 0.099,
+        "perc_of_decks_overall_ma": 0.103,
+        "rank": 244,
+        "rank_ma": 231
+      },
+      "2025-09-01": {
+        "commander_count": 360,
+        "perc_of_decks_overall": 0.103,
+        "perc_of_decks_overall_ma": 0.104,
+        "rank": 233,
+        "rank_ma": 230
+      },
+      "2025-10-01": {
+        "commander_count": 418,
+        "perc_of_decks_overall": 0.11,
+        "perc_of_decks_overall_ma": 0.104,
+        "rank": 213,
+        "rank_ma": 230
+      },
+      "2025-11-01": {
+        "commander_count": 386,
+        "perc_of_decks_overall": 0.099,
+        "perc_of_decks_overall_ma": 0.102,
+        "rank": 243,
+        "rank_ma": 235
+      },
+      "2025-12-01": {
+        "commander_count": 391,
+        "perc_of_decks_overall": 0.096,
+        "perc_of_decks_overall_ma": 0.095,
+        "rank": 250,
+        "rank_ma": 253
+      },
+      "2026-01-01": {
+        "commander_count": 449,
+        "perc_of_decks_overall": 0.09,
+        "perc_of_decks_overall_ma": 0.093,
+        "rank": 265,
+        "rank_ma": 260
+      },
+      "2026-02-01": {
+        "commander_count": 489,
+        "perc_of_decks_overall": 0.093,
+        "perc_of_decks_overall_ma": 0.089,
+        "rank": 264,
+        "rank_ma": 281
+      },
+      "2026-03-01": {
+        "commander_count": 440,
+        "perc_of_decks_overall": 0.083,
+        "perc_of_decks_overall_ma": 0.089,
+        "rank": 313,
+        "rank_ma": 285
+      },
+      "2026-04-01": {
+        "commander_count": 520,
+        "perc_of_decks_overall": 0.091,
+        "perc_of_decks_overall_ma": 0.089,
+        "rank": 277,
+        "rank_ma": 285
+      },
+      "2026-05-01": {
+        "commander_count": 629,
+        "perc_of_decks_overall": 0.093,
+        "perc_of_decks_overall_ma": 0.101,
+        "rank": 266,
+        "rank_ma": 249
+      },
+      "2026-06-01": {
+        "commander_count": 26,
+        "perc_of_decks_overall": 0.118,
+        "perc_of_decks_overall_ma": 0.105,
+        "rank": 204,
+        "rank_ma": 235
+      }
+    }
+  },
   "container": {
     "title": "Ojer Axonil, Deepest Might (Commander)",
     "json_dict": {

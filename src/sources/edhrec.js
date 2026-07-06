@@ -79,7 +79,21 @@ export function stockMeter(inclusion, deckCardNames, commanders = []) {
   return { cards: cards.length, stockScore: Math.round(sum / cards.length), brew: offMeta.length, offMeta };
 }
 
-// Commander popularity: total deck count (≈ max potential_decks) + bracket distribution.
+// EDHREC's monthly rank series (json.panels.rank_over_time) is a date-keyed object, e.g.
+// { "2026-01-01": { rank: 204, ... }, ... }, not an array. Sort its dates ascending and
+// pull just {date, rank} — the rest of each entry (commander_count, moving averages) is
+// noise for our purposes.
+function rankHistoryOf(json) {
+  const rot = json && json.panels && json.panels.rank_over_time;
+  if (!rot || typeof rot !== 'object') return [];
+  return Object.keys(rot)
+    .filter((date) => rot[date] && Number.isFinite(rot[date].rank))
+    .sort()
+    .map((date) => ({ date, rank: rot[date].rank }));
+}
+
+// Commander popularity: total deck count (≈ max potential_decks), bracket distribution,
+// and EDHREC rank (current + history, "lower = more popular").
 export function commanderPopularity(json) {
   let deckCount = 0;
   for (const list of cardlistsOf(json)) {
@@ -88,8 +102,10 @@ export function commanderPopularity(json) {
     }
   }
   const brackets = (json && json.bracket_counts) || null;
-  if (!deckCount && !brackets) return null;
-  return { deckCount, brackets };
+  const rankHistory = rankHistoryOf(json);
+  const rank = rankHistory.length ? rankHistory[rankHistory.length - 1].rank : null;
+  if (!deckCount && !brackets && !rankHistory.length) return null;
+  return { deckCount, brackets, rank, rankHistory };
 }
 
 // GET the commander page JSON. Simple request only (no headers). Returns null on any
