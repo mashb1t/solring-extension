@@ -408,14 +408,17 @@
   font-variant-numeric: tabular-nums; color: var(--solring-text-2);
   white-space: nowrap;
 }
-/* Column-label key row atop each type group (Text view has no table header). A flex row
-   mirroring a card row's trailing layout so the abbreviations sit over their number
-   columns; reuses the value-cell width classes. Adds a row, never widens a column. */
-.solring-collegend-row { display: flex; align-items: baseline; list-style: none; padding: 0.1rem 0 0.15rem; margin: 0; border: 0; }
-.solring-collegend-grow { flex: 1 1 auto; min-width: 0; }
+/* Column-label key, overlaid on each type group's header row (Text view has no table
+   header). Absolutely anchored to the header's right edge (offset by the trailing
+   collection/menu columns) so each abbreviation sits over its number column below. */
+.solring-collegend-host { position: relative; }
+.solring-collegend {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 0;
+  pointer-events: none;
+}
 .solring-collabel {
-  font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;
-  color: var(--solring-text-2); font-variant-numeric: normal;
+  font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  color: var(--solring-text-2); font-variant-numeric: normal; opacity: 0.8;
 }
 /* Mark for standout cards (thresholds + colors configurable in the options page):
    power above N× the deck average, saltiness at/above the threshold. Applied to the

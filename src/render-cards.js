@@ -106,10 +106,11 @@ export function annotate(fields, prefs, options = {}) {
 }
 
 // Text view has no table header, so the power/salt/synergy columns are unlabeled numbers.
-// Add a small visible key row atop each type group's card list: a flex-grow spacer, the
-// enabled columns' abbreviations reusing the value-cell width classes so they line up with
-// the numbers below, and a trailing spacer measured from a real row (Moxfield's collection/
-// menu columns sit to the right of ours). Adds a row, never widens a column.
+// Label them on each type group's HEADER row (the "Creatures (28) – €337" line, which spans
+// the full content width): a right-anchored key overlaid where its number columns sit. The
+// labels reuse the value-cell width classes and a trailing offset measured from a real row
+// (Moxfield's collection/menu columns sit to the right of ours), so each label lands over
+// its column. Absolutely positioned → adds nothing to the row's flow and no column widens.
 function injectColumnLegend(prefs) {
   const abbr = [];
   if (prefs.power) abbr.push(['solring-power-cell', 'Pw', 'Power contribution']);
@@ -123,24 +124,26 @@ function injectColumnLegend(prefs) {
   const lastCell = valueCells[valueCells.length - 1];
   const trailW = Math.max(0, Math.round(sampleRow.getBoundingClientRect().right - lastCell.getBoundingClientRect().right));
   // Pin each label to the exact width of its column's cell in the sample row (the value
-  // cells are content-width, not a fixed column, so this is the best achievable alignment
-  // without widening them — which the zero-width-growth rule forbids).
+  // cells are content-width, so this tracks the columns as closely as possible without
+  // widening them — which the zero-width-growth rule forbids).
   const widthOf = (cls) => { const c = sampleRow.querySelector(`.${cls}`); return c ? Math.round(c.getBoundingClientRect().width) : 0; };
   const lists = new Set();
   document.querySelectorAll(ROW_SEL).forEach((link) => { const ul = link.closest('li') && link.closest('li').parentElement; if (ul) lists.add(ul); });
   for (const ul of lists) {
-    if (ul.querySelector(':scope > .solring-collegend-row')) continue;
+    // The group header row = the ul child that carries the title/price. Detect card rows by
+    // ROW_SEL (a /cards/ link); the header's own title link is a table-deck-row-link too but
+    // without a /cards/ href, so the bare class can't distinguish it.
+    const header = [...ul.children].find((c) => !c.querySelector(ROW_SEL));
+    if (!header || header.querySelector(':scope > .solring-collegend')) continue;
     const cells = abbr.map(([cls, t, title]) => { const w = widthOf(cls); return el('span', { class: `${cls} solring-collabel`, text: t, title, style: w ? `flex:0 0 ${w}px; min-width:0` : '' }); });
-    ul.insertBefore(el('li', { class: 'solring-collegend-row' }, [
-      el('span', { class: 'solring-collegend-grow' }),
-      ...cells,
-      el('span', { class: 'solring-collegend-trail', style: `flex:0 0 ${trailW}px` }),
-    ]), ul.firstElementChild);
+    header.classList.add('solring-collegend-host');
+    header.append(el('span', { class: 'solring-collegend', style: `right:${trailW}px`, attrs: { 'aria-hidden': 'true' } }, cells));
   }
 }
 
 export function clearAnnotations(root = document) {
-  root.querySelectorAll('.solring-collegend-row, .solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell')
+  root.querySelectorAll('.solring-collegend, .solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell')
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
+  root.querySelectorAll('.solring-collegend-host').forEach((n) => n.classList.remove('solring-collegend-host'));
 }
