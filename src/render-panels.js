@@ -282,7 +282,7 @@ function bracketSpreadChart(brackets) {
     + `<path d="${area}" class="solring-mc-fill"/>`
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
-  const xl = pts.map((p) => `<span>B${p.b} ${p.count.toLocaleString('en-US')}</span>`).join('');
+  const xl = pts.map((p) => `<span>B${p.b} (${p.count.toLocaleString('en-US')})</span>`).join('');
   return `<div class="solring-mc-wrap solring-bracket-chart">`
     + `<div class="solring-mc-plot">${svg}</div>`
     + `<div class="solring-mc-x">${xl}</div>`
@@ -328,19 +328,24 @@ export function renderEdhrecEnrichment(slot, data) {
     const rankPart = pop.rank ? ` · EDHREC #${pop.rank}` : '';
     kids.push(el('div', { class: 'solring-pop-chip', text: `~${Number(pop.deckCount).toLocaleString('en-US')} decks${rankPart}` }));
   }
-  if (pop && pop.brackets) {
-    const chartHtml = bracketSpreadChart(pop.brackets);
-    if (chartHtml) {
-      kids.push(el('div', { class: 'solring-pl-h2', text: 'Bracket spread' }));
-      kids.push(el('div', { class: 'solring-bracket-fig', html: chartHtml }));
+  // Bracket spread + rank-over-time sit side by side (2-col; stacks on a narrow panel).
+  const brChart = pop && pop.brackets ? bracketSpreadChart(pop.brackets) : '';
+  const rkChart = pop && pop.rankHistory && pop.rankHistory.length > 1 ? rankSparkline(pop.rankHistory) : '';
+  if (brChart || rkChart) {
+    const charts = el('div', { class: 'solring-edhrec-charts' });
+    if (brChart) {
+      charts.append(el('div', { class: 'solring-edhrec-col' }, [
+        el('div', { class: 'solring-pl-h2', text: 'Bracket spread' }),
+        el('div', { class: 'solring-bracket-fig', html: brChart }),
+      ]));
     }
-  }
-  if (pop && pop.rankHistory && pop.rankHistory.length > 1) {
-    const chartHtml = rankSparkline(pop.rankHistory);
-    if (chartHtml) {
-      kids.push(el('div', { class: 'solring-pl-h2', text: 'Rank over time' }));
-      kids.push(el('div', { class: 'solring-rank-fig', html: chartHtml }));
+    if (rkChart) {
+      charts.append(el('div', { class: 'solring-edhrec-col' }, [
+        el('div', { class: 'solring-pl-h2', text: 'Rank over time' }),
+        el('div', { class: 'solring-rank-fig', html: rkChart }),
+      ]));
     }
+    kids.push(charts);
   }
   const s = data && data.stock;
   if (s && s.cards) {
