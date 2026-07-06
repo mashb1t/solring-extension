@@ -112,6 +112,34 @@ function cardStats(details, id, idToCard) {
   };
 }
 
+// The deck's biggest threats: top cards by power contribution (powerTotal). The payload
+// has no per-card "quality" decomposition, so this is the honest "which cards make the
+// deck threatening" list — analogous to the Saltiness panel's per-card salt sources.
+export function topThreats(cards, cap = 8) {
+  return Object.values(cards || {})
+    .filter((c) => c && typeof c.powerTotal === 'number' && c.powerTotal > 0)
+    .map((c) => ({ name: c.name, score: c.powerTotal }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, cap);
+}
+
+// Salt personality (details.salt.personality): CommanderSalt's one-line "flavor" read of
+// the deck's salt — a headline archetype ("Punisher"), an intensity, and a hint sentence.
+function saltPersonality(dt) {
+  const p = g(dt, 'salt', 'personality');
+  if (!p || !p.headline) return null;
+  return { headline: p.headline, intensity: p.intensity || null, flavor: p.flavor || null, hint: p.headlineHint || null };
+}
+
+// Anti-pattern score cap (details.powerLevel.ratings.antiPatternPenalty): whether the
+// score was capped, at what value, and how severe. Explains a power number that sits
+// below what the pillars alone would suggest. Only surfaced when actually applied.
+function antiPatternPenalty(dt) {
+  const ap = g(dt, 'powerLevel', 'ratings', 'antiPatternPenalty');
+  if (!ap || !ap.applied) return null;
+  return { cap: finiteNumber(ap.cap), severity: finiteNumber(ap.severity) };
+}
+
 /** A deck is a stub (private / non-Commander / illegal / not yet analyzed). */
 export function isStub(p) {
   return !p || p.name == null || (p._cardCount || 0) === 0;
@@ -140,6 +168,7 @@ function extractCards(p) {
     const stats = g(c, 'categories', 'stats') || {};
     const tags = Object.keys(stats).filter((k) => stats[k]).map(prettifyTag);
     out[c.name.toLowerCase().trim()] = {
+      name: c.name, // display name (the map is keyed by the lowercased name; keep the original for top-threats)
       salt: parseFloat(c.salt) || 0,
       tags,
       total: g(c, 'categories', 'total') || 0,
@@ -346,6 +375,11 @@ function powerFingerprint(dt) {
   const timing = pr.timing || {};
   const comp = pr.composition || {};
   const rampCount = (ramp.rockCount || 0) + (ramp.dorkCount || 0) + (ramp.ritualCount || 0) + (ramp.treasureCount || 0) + (ramp.landRampCount || 0);
+  const ca = pr.cardAdvantage || {};
+  const rd = pr.resourceDenial || {};
+  const gy = pr.graveyard || {};
+  const gyPayoffs = (gy.graveyardPayoffCount || 0);
+  const gyCounts = [gy.selfMillCount ? `${gy.selfMillCount} self-mill` : null, gy.reanimationCount ? `${gy.reanimationCount} reanimation` : null, gyPayoffs ? `${gyPayoffs} payoff${gyPayoffs === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') || null;
   return {
     tutors: Object.keys(g(pl, 'scoring', 'tutors', 'list') || {}).length,
     tutorDensity: tutors.density || null,
@@ -358,6 +392,10 @@ function powerFingerprint(dt) {
     reactiveDensity: timing.reactiveDensity || null,
     creatures: finiteNumber(comp.creatureCount),
     permanentRatio: finiteNumber(comp.permanentRatio),
+    // Extra profile-shape reads surfaced as fingerprint chips (all optional).
+    cardAdvantage: (ca.draw || ca.recursion) ? { draw: ca.draw || null, recursion: ca.recursion || null } : null,
+    resourceDenial: (rd.stax || rd.taxes || rd.discard) ? { stax: rd.stax || null, taxes: rd.taxes || null, discard: rd.discard || null } : null,
+    graveyard: (gy.engagement || gyCounts) ? { engagement: gy.engagement || null, counts: gyCounts } : null,
   };
 }
 // Manabase quality. CommanderSalt's headline number is `percentages.overall`, the curve
@@ -449,6 +487,7 @@ export function extractDeck(p) {
   const dt = p.details || {};
   const idToName = buildIdToName(p.cards);
   const idToCard = buildIdToCard(p.cards); // id to { name, image } for hover previews
+  const cards = extractCards(p);
   return {
     combos,
     saltSources: saltSources(dt),
@@ -477,9 +516,13 @@ export function extractDeck(p) {
     fringeCEDH: !!g(p, 'details', 'powerLevel', 'ratings', 'fringeCEDH'),
     salt: p.saltRating,
     threat: p.threatRating,
+    threatTop: topThreats(cards), // biggest cards by power contribution (Threat expansion)
     interaction: g(p, 'details', 'powerLevel', 'scoring', 'interaction', 'score'),
     wincons: p.comboRating,
     synergy: p.synergyRating,
+    synergyCentricity: g(dt, 'synergy', 'profile', 'commanderCentricity'), // detached / central chip
+    saltPersonality: saltPersonality(dt), // headline + intensity on the Saltiness tile
+    antiPatternPenalty: antiPatternPenalty(dt), // score-cap line in the Power expansion
     archetype: p.archetypeLabel,
     combosCount: combos.length, // # of deck combos (Commander Spellbook)
     combosScore: g(p, 'details', 'combos', 'score'),
