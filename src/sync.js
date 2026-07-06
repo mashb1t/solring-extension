@@ -190,13 +190,24 @@ function buildControls(btnClass) {
   return wrap;
 }
 
+// Cache the toolbar's Sort button (ensureControls runs on every list MutationObserver
+// tick; a full-document button scan per tick is wasteful). Reuse while still connected
+// and still the Sort button, else re-query. Excludes our own colmenu, as before.
+let sortBtnCache = null;
+function findSortButton() {
+  const ok = (b) => b && b.isConnected && /^\s*Sort\s*$/i.test((b.textContent || '').trim()) && !b.closest('.solring-colmenu');
+  if (ok(sortBtnCache)) return sortBtnCache;
+  sortBtnCache = [...document.querySelectorAll('button')].find(ok) || null;
+  return sortBtnCache;
+}
+
 function ensureControls() {
   raf = null;
   if (!active) return;
   // Only where a deck-list table is actually shown, never on image/grid browse pages
   // (/decks/public, /liked, /private, ...), which carry a Sort button but no deck table.
   if (!hasDeckListTable()) { document.querySelectorAll('.solring-sync').forEach((n) => n.remove()); controls = null; return; }
-  const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()) && !b.closest('.solring-colmenu'));
+  const sortBtn = findSortButton();
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-sync')) return;
   // Land before the Stats-columns menu when it's already in place, so the toolbar order
@@ -234,5 +245,6 @@ export function teardownSync() {
   runId += 1; // invalidate any in-flight run so it abandons silently
   running = false; // free the lock so a fresh scan on the next page isn't blocked by a stuck await
   controls = null;
+  sortBtnCache = null; // drop the cached toolbar button (new page has its own)
   document.querySelectorAll('.solring-sync').forEach((n) => n.remove());
 }

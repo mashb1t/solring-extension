@@ -864,11 +864,22 @@ function buildColumnMenu(sortClassName) {
 // Inject the menu into the deck-list toolbar (next to Moxfield's native Sort), once
 // per toolbar, re-injected by annotate when React rebuilds the toolbar. The button
 // copies Sort's exact class list so it stays visually identical.
+// Cache the toolbar's Sort button: this runs on every list MutationObserver tick, and a
+// full-document querySelectorAll('button') per tick is wasteful. Reuse the cached node
+// while it's still connected and still the Sort button; re-query only when it's gone.
+let sortBtnCache = null;
+function findSortButton() {
+  if (sortBtnCache && sortBtnCache.isConnected
+    && /^\s*Sort\s*$/i.test((sortBtnCache.textContent || '').trim())) return sortBtnCache;
+  sortBtnCache = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim())) || null;
+  return sortBtnCache;
+}
+
 function ensureToolbarMenu() {
   // Only where a deck-list table is actually shown, not on image/grid browse pages
   // (/decks/public, /liked) which have a Sort button but no table to add columns to.
   if (!hasDeckListTable()) { document.querySelectorAll('.solring-colmenu').forEach((n) => n.remove()); return; }
-  const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()));
+  const sortBtn = findSortButton();
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-colmenu')) return;
   toolbar.insertBefore(buildColumnMenu(sortBtn.className), sortBtn);
@@ -1036,4 +1047,5 @@ export function teardownDeckList() {
   checkedCache = new Set();
   nativeSortClause = null; // new page, re-capture its own caption clause on next override
   resultsCaptionEl = null;
+  sortBtnCache = null; // drop the cached toolbar button (new page has its own)
 }
