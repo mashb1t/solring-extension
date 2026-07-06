@@ -226,8 +226,10 @@ function renderBody(body, f) {
 
   // Row 1: the headline tiles. Power subline shows the precise 0-10 rating and the
   // deck's raw total power score (scoring.total), what per-card contributions sum to.
+  // Precise 0-10 rating at 2 decimals (the tile value shows 1). Never the raw
+  // 12-digit float that powerLevelRating carries.
   const powerSub = typeof f.power === 'number'
-    ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
+    ? `${num(f.power, 2)}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
   // cEDH classification chip next to the power total: 'fringe cEDH' when borderline,
