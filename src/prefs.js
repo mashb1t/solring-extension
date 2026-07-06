@@ -4,11 +4,16 @@
 
 const CARD_KEY = 'prefs:cardData';
 const SORT_KEY = 'prefs:sort';
+const CARD_SORT_KEY = 'prefs:cardSortView'; // deck-view card sort (power/salt/synergy)
 const OPTIONS_KEY = 'prefs:options';
 const LIST_COLUMNS_KEY = 'prefs:listColumns';
 const LIST_ORDER_KEY = 'prefs:listColumnOrder';
 const HIDDEN_NATIVE_KEY = 'prefs:hiddenNativeCols';
 const WIDE_KEY = 'prefs:wide';
+
+// Deck-view card sort: which per-card metric orders the cards within each type group, and
+// direction. key null = leave Moxfield's own order. key ∈ 'power' | 'salt' | 'synergy'.
+const CARD_SORT_DEFAULT = { key: null, dir: 'desc' };
 
 // Per-card toggles (Customize View, Include Extra Data). On by default: power and
 // saltiness, the at-a-glance numbers. Off by default (opt-in): synergy and tags, to
@@ -73,6 +78,18 @@ export function setCardPrefs(patch) {
   return enqueue(async () => {
     const next = { ...(await getCardPrefs()), ...patch };
     await chrome.storage.local.set({ [CARD_KEY]: next });
+    return next;
+  });
+}
+
+export async function getCardSortView() {
+  const obj = await chrome.storage.local.get(CARD_SORT_KEY);
+  return { ...CARD_SORT_DEFAULT, ...(obj[CARD_SORT_KEY] || {}) };
+}
+export function setCardSortView(patch) {
+  return enqueue(async () => {
+    const next = { ...(await getCardSortView()), ...patch };
+    await chrome.storage.local.set({ [CARD_SORT_KEY]: next });
     return next;
   });
 }
@@ -162,7 +179,7 @@ async function getPrefRaw(key, fallback) {
 export function onPrefChange(cb) {
   const listener = (changes, area) => {
     if (area !== 'local') return;
-    if (CARD_KEY in changes) cb('card');
+    if (CARD_KEY in changes || CARD_SORT_KEY in changes) cb('card'); // card sort re-runs the annotate pass
     if (SORT_KEY in changes) cb('sort');
     if (OPTIONS_KEY in changes) cb('options');
     if (LIST_COLUMNS_KEY in changes || LIST_ORDER_KEY in changes || HIDDEN_NATIVE_KEY in changes) cb('listColumns');

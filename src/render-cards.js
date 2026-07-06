@@ -7,8 +7,17 @@
 import { el, isDark } from './dom.js';
 import { flagChips, tagChips } from './components.js';
 import { powerMark, saltMark, deckAvgPower, synergyCutoff, synergyMark } from './ratings.js';
+import { setCardSortView } from './prefs.js';
 
 const ROW_SEL = 'a.table-deck-row-link[href^="/cards/"]';
+
+// Per-card sort metrics for the deck-view card sort (clickable column labels). Each maps a
+// card's extracted fields to a sortable number (null → sorts last). Keyed by sort key.
+const SORT_METRIC = {
+  power: (c) => (typeof c.powerTotal === 'number' ? c.powerTotal : null),
+  salt: (c) => (typeof c.salt === 'number' ? c.salt : null),
+  synergy: (c) => (c && c.combos && typeof c.combos.score === 'number' ? c.combos.score : null),
+};
 
 /** Normalize a card name for matching (lowercase, collapse spaces, drop DFC back). */
 export function normName(s) {
@@ -27,9 +36,10 @@ export function isTextView() {
 
 /** Annotate every matched text row. Removes prior annotations first (idempotent).
     `options` (prefs:options) supplies the mark thresholds, defaults apply if absent. */
-export function annotate(fields, prefs, options = {}) {
+export function annotate(fields, prefs, options = {}, cardSort = null) {
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
+  cardSortState = cardSort || { key: null, dir: 'desc' }; // keep the click-cycle state in sync with the persisted pref
   const dark = isDark();
 
   // Marks (ratings.js): salt at/above the salt threshold, power above N× the deck
@@ -102,7 +112,37 @@ export function annotate(fields, prefs, options = {}) {
     }
   });
 
-  injectColumnLegend(prefs);
+  injectColumnLegend(prefs, cardSort);
+  applyCardSort(cardSort, fields);
+}
+
+// Sort card rows within each type group by the chosen per-card metric, using CSS `order`
+// on the flex-column list — we set only the visual order, never move DOM nodes. That's why
+// this is safe: reordering Moxfield's React-managed nodes corrupts its virtual DOM (breaks
+// its own sort and flickers), but a style change doesn't. Neutral (no key) clears `order`,
+// so the untouched DOM shows Moxfield's native order — no snapshot needed. Cards without a
+// value sort last. The header row keeps order 0 (unset), so it stays above the cards.
+function applyCardSort(cardSort, fields) {
+  const key = cardSort && cardSort.key;
+  const getVal = key && SORT_METRIC[key];
+  const sign = cardSort && cardSort.dir === 'asc' ? 1 : -1;
+  const has = (x) => typeof x === 'number' && Number.isFinite(x);
+  const lists = new Set();
+  document.querySelectorAll(ROW_SEL).forEach((link) => { const ul = link.closest('li') && link.closest('li').parentElement; if (ul) lists.add(ul); });
+  for (const ul of lists) {
+    const rows = [...ul.children].filter((c) => c.querySelector(ROW_SEL));
+    if (!rows.length) continue;
+    if (!getVal) { rows.forEach((r) => { r.style.order = ''; }); continue; } // neutral → native order
+    const ranked = rows
+      .map((r) => { const link = r.querySelector(ROW_SEL); const card = link && fields.cards[rowName(link)]; return { r, v: card ? getVal(card) : null }; })
+      .sort((a, b) => {
+        if (has(a.v) && has(b.v)) return (a.v - b.v) * sign;
+        if (has(a.v)) return -1;
+        if (has(b.v)) return 1;
+        return 0;
+      });
+    ranked.forEach(({ r }, i) => { r.style.order = String(i + 1); }); // +1 so the header (order 0) stays first
+  }
 }
 
 // Text view has no table header, so the power/salt/synergy columns are unlabeled numbers.
@@ -111,11 +151,11 @@ export function annotate(fields, prefs, options = {}) {
 // labels reuse the value-cell width classes and a trailing offset measured from a real row
 // (Moxfield's collection/menu columns sit to the right of ours), so each label lands over
 // its column. Absolutely positioned → adds nothing to the row's flow and no column widens.
-function injectColumnLegend(prefs) {
+function injectColumnLegend(prefs, cardSort) {
   const abbr = [];
-  if (prefs.power) abbr.push(['solring-power-cell', 'Pwr', 'Power contribution']);
-  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Slt', 'Saltiness']);
-  if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score']);
+  if (prefs.power) abbr.push(['solring-power-cell', 'Pwr', 'Power contribution', 'power']);
+  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Slt', 'Saltiness', 'salt']);
+  if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score', 'synergy']);
   if (!abbr.length) return;
   const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
   const sampleRow = sampleCell && sampleCell.closest('li');
@@ -143,14 +183,45 @@ function injectColumnLegend(prefs) {
     // header — nothing to label.
     const cells = abbr
       .filter(([cls]) => ul.querySelector(`.${cls}`))
-      .map(([cls, t, title]) => {
+      .map(([cls, t, title, sortKey]) => {
         const info = colInfo(cls);
-        return el('span', { class: 'solring-collabel', text: t, title, style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none' });
+        const active = cardSort && cardSort.key === sortKey;
+        const arrow = active ? (cardSort.dir === 'asc' ? ' ▴' : ' ▾') : '';
+        const label = el('span', {
+          class: `solring-collabel solring-collabel-btn${active ? ' solring-collabel-on' : ''}`,
+          text: t + arrow,
+          title: `${title} — click to sort`,
+          attrs: { role: 'button', tabindex: '0' },
+          style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none',
+        });
+        const toggle = (e) => { e.preventDefault(); e.stopPropagation(); cycleCardSort(sortKey); };
+        label.addEventListener('click', toggle);
+        label.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') toggle(ev); });
+        return label;
       });
     if (!cells.length) continue; // no annotated values in this group
     header.classList.add('solring-collegend-host');
-    header.append(el('span', { class: 'solring-collegend', attrs: { 'aria-hidden': 'true' } }, cells));
+    // No aria-hidden: the labels are focusable sort buttons, so they must stay exposed to
+    // assistive tech (hiding a focusable descendant is an a11y violation).
+    header.append(el('span', { class: 'solring-collegend' }, cells));
   }
+}
+
+// The active card sort, mirrored from the persisted pref on each annotate. cycleCardSort
+// reads/updates it synchronously so rapid clicks cycle correctly instead of racing on a
+// stale value captured when the legend was last rendered.
+let cardSortState = { key: null, dir: 'desc' };
+
+// Click a column label to cycle its sort: none → descending → ascending → none. Persists
+// to prefs, which fires onPrefChange('card') → the deck re-annotates and re-sorts.
+function cycleCardSort(key) {
+  const cur = cardSortState;
+  let next;
+  if (cur.key !== key) next = { key, dir: 'desc' };
+  else if (cur.dir === 'desc') next = { key, dir: 'asc' };
+  else next = { key: null, dir: 'desc' };
+  cardSortState = next; // optimistic sync-update so the next click sees the new state immediately
+  setCardSortView(next);
 }
 
 export function clearAnnotations(root = document) {
@@ -158,4 +229,7 @@ export function clearAnnotations(root = document) {
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
   root.querySelectorAll('.solring-collegend-host').forEach((n) => n.classList.remove('solring-collegend-host'));
+  // Drop any card-sort CSS order so a bailed-out pass (e.g. non-text view) can't leave rows
+  // visually reordered; applyCardSort re-sets it when a sort is active.
+  root.querySelectorAll(`li:has(${ROW_SEL})`).forEach((n) => { n.style.order = ''; });
 }
