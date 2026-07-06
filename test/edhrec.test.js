@@ -39,6 +39,21 @@ test('inclusionByName: DFC keyed by front face', () => {
   ] } } });
   assert.equal(inc['front face'], 50);
 });
+test('inclusionByName: keeps the higher pct when a card appears in multiple lists', () => {
+  const inc = inclusionByName({ container: { json_dict: { cardlists: [
+    { header: 'Top Cards', cardviews: [{ name: 'Dupe Card', inclusion: 30, potential_decks: 100 }] },
+    { header: 'Creatures', cardviews: [{ name: 'Dupe Card', inclusion: 70, potential_decks: 100 }] },
+  ] } } });
+  assert.equal(inc['dupe card'], 70); // max wins, not first/last
+});
+test('inclusionByName: excludes the "New Cards" list', () => {
+  const inc = inclusionByName({ container: { json_dict: { cardlists: [
+    { header: 'New Cards', cardviews: [{ name: 'Brand New', inclusion: 90, potential_decks: 100 }] },
+    { header: 'Top Cards', cardviews: [{ name: 'Old Staple', inclusion: 50, potential_decks: 100 }] },
+  ] } } });
+  assert.equal('brand new' in inc, false);
+  assert.equal(inc['old staple'], 50);
+});
 
 test('stockMeter: mean inclusion%, brew = absent, basics excluded', () => {
   const inc = { 'ruby medallion': 72, 'guttersnipe': 64 };
