@@ -3,6 +3,7 @@
 // vars so they follow Moxfield light/dark. Hidden by default.
 
 import { el } from './dom.js';
+import { num } from './format.js';
 import { prettifyStat, BRACKET_FLAG_LABELS, humanizeId, humanizeValueMaybe } from './labels.js';
 import { cardRefs } from './render-card-modal.js';
 
@@ -29,12 +30,20 @@ function barRow(label, valueText, pct) {
 // Power-relevant shape metrics. Null values are dropped.
 function fingerprintRow(fp) {
   if (!fp) return null;
+  const ca = fp.cardAdvantage;
+  const rd = fp.resourceDenial;
+  const gy = fp.graveyard;
   const tiles = [
     ['Tutors', fp.tutors, [fp.tutorDensity, fp.tutorQuality != null ? `${fp.tutorQuality.toFixed(1)} avg quality` : null].filter(Boolean).join(' · ') || null],
     ['Ramp', fp.ramp, fp.rampDensity || 'rocks + dorks + …'],
     ['Curve', fp.avgMv != null ? fp.avgMv.toFixed(2) : null, fp.curveShape || 'avg MV'],
     ['Instant-speed', fp.instantRatio != null ? `${Math.round(fp.instantRatio * 100)}%` : null, fp.reactiveDensity ? `${fp.reactiveDensity} reactive` : 'at instant speed'],
     ['Creatures', fp.creatures, fp.permanentRatio != null ? `${Math.round(fp.permanentRatio * 100)}% permanents` : null],
+    // Extra profile reads (Tasks 2.2/2.3/2.4). Values are short enum words; keep them
+    // as-is (already readable) and drop the whole tile when the field is absent.
+    ['Card advantage', ca && ca.draw ? `draw ${ca.draw}` : null, ca && ca.recursion ? `recursion ${ca.recursion}` : null],
+    ['Denial', rd && rd.stax ? `stax ${rd.stax}` : null, rd ? [rd.taxes ? `taxes ${rd.taxes}` : null, rd.discard ? `discard ${rd.discard}` : null].filter(Boolean).join(' · ') || null : null],
+    ['Graveyard', gy && gy.engagement ? gy.engagement : null, gy ? gy.counts : null],
   ].filter(([, v]) => v != null);
   if (!tiles.length) return null;
   return el('div', { class: 'solring-mb-stats' }, tiles.map(([k, v, s]) => el('div', { class: 'solring-mb-stat' }, [
@@ -153,6 +162,18 @@ export function buildPowerPanel(p, profile, meta) {
   const fpRow = fingerprintRow(meta && meta.fingerprint);
   const fp = fpRow ? el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]) : null;
   const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows]);
+  // Score cap (Task 2.6): when anti-patterns capped the power score, say so and by how
+  // much — answers "why is my power lower than the pillars suggest?". Sits above the flags.
+  const cap = meta && meta.antiPatternPenalty;
+  if (cap && cap.cap != null) {
+    sec.append(el('div', { class: 'solring-sig-group' }, [
+      el('div', { class: 'solring-pl-h', text: 'Score cap' }),
+      el('div', { class: 'solring-sig-item' }, [
+        el('span', { class: 'solring-sig-id', text: `Anti-pattern penalty caps the score at ${num(cap.cap)}` }),
+        cap.severity != null ? el('span', { class: 'solring-sig-sev', text: `severity ${cap.severity}` }) : null,
+      ]),
+    ]));
+  }
   // Score drivers: what nudged the final number off the pillar baselines. Laid out as
   // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
   // anti-patterns, and improvement suggestions.
@@ -183,7 +204,10 @@ function group(title, desc, rows) {
 
 // Synergy: two complementary lenses on the synergy web. Anchors carry the most score,
 // Hubs are referenced by the most other entries (connective tissue). Either may be empty.
-export function buildSynergyPanel(anchors, hubs) {
+// `centricity` (commanderCentricity, Task 2.5) rides as a chip on its own row above the
+// groups, left-aligned with the bar-row labels (it sits at the section's content edge,
+// same as the grid, not floating in the header).
+export function buildSynergyPanel(anchors, hubs, centricity) {
   const groups = [];
   if (anchors && anchors.length) {
     groups.push(group('Anchors', 'Cards carrying the biggest share of synergy score',
@@ -194,7 +218,44 @@ export function buildSynergyPanel(anchors, hubs) {
     groups.push(group('Hubs', 'Cards referenced most by other entries',
       hubs.map((h) => barRow(cardRefs([h], { chip: false })[0], String(h.connections), ((h.connections || 0) / max) * 100))));
   }
-  return el('div', { class: 'solring-panel-section solring-syn-grid', attrs: { hidden: '' } }, groups);
+  const grid = el('div', { class: 'solring-syn-grid' }, groups);
+  const children = [];
+  if (centricity) {
+    children.push(el('div', { class: 'solring-syn-centricity' }, [
+      el('span', {
+        class: 'solring-flag',
+        title: 'How much the deck leans on its commander (detached = keeps working if it is answered; central = folds without it).',
+        text: `commander: ${humanizeId(centricity).toLowerCase()}`,
+      }),
+    ]));
+  }
+  children.push(grid);
+  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
+}
+
+// Threat expansion (Task 2.8): the deck's biggest cards by power contribution, plus a
+// derived average-quality caption. Deliberately does NOT repeat the tile's "N total".
+export function buildThreatPanel(top, avgQuality) {
+  const rows = (top || []);
+  const max = Math.max(...rows.map((t) => t.score), 1);
+  const children = rows.map((t) => barRow(t.name, num(t.score), (t.score / max) * 100));
+  if (avgQuality != null) children.push(el('div', { class: 'solring-pl-desc', text: `ø ${num(avgQuality)} quality per card` }));
+  return section('Top threats', children);
+}
+
+// Commander-tier expansion (Task 2.9): a T1–T5 ladder with the current tier marked. No
+// power/score-cap or casual-spike data here (those live in the Power expansion). This is
+// the mount point for the Phase 4/5 commander enrichment (EDHREC rank, tournament record).
+export function buildCommanderTierPanel(tier) {
+  if (tier == null) return null;
+  const steps = [1, 2, 3, 4, 5].map((n) => el('span', {
+    class: `solring-tier-step${n === tier ? ' solring-tier-step-on' : ''}`,
+    text: `T${n}`,
+  }));
+  return section('Commander tier', [
+    el('div', { class: 'solring-tier-ladder' }, steps),
+    el('div', { class: 'solring-pl-desc', text: 'CommanderSalt commander tier' }),
+  ]);
 }
 
 // On-curve castability per turn: this deck's `actual` (solid, filled) against a typical

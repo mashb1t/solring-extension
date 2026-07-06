@@ -18,7 +18,7 @@ import { installCommanderSaltLink } from './links-menu.js';
 import { installCardModal } from './render-card-modal.js';
 import { installCardSidebar } from './render-card-sidebar.js';
 import { buildCombosSection } from './render-combos.js';
-import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel } from './render-panels.js';
+import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel, buildThreatPanel, buildCommanderTierPanel } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -264,7 +264,13 @@ function renderBody(body, f) {
     : '—';
   const winconsTile = tile('Wincons', gradeChip(csRatingGrade(f.wincons, 'comboRating')), winconsSub);
   const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
-  const saltTile = gradeTile('Saltiness', 'salt', 'saltRating');
+  // Saltiness (Task 2.1): keep the grade + "N total", append the personality headline +
+  // intensity, and hang the full hint sentence off the tile as a tooltip.
+  const saltSub = typeof f.salt === 'number'
+    ? `${num(f.salt)} total${f.saltPersonality ? ` · ${f.saltPersonality.headline}${f.saltPersonality.intensity ? ` · ${f.saltPersonality.intensity}` : ''}` : ''}`
+    : '—';
+  const saltTile = tile('Saltiness', gradeChip(csRatingGrade(f.salt, 'saltRating')), saltSub);
+  if (f.saltPersonality && f.saltPersonality.hint) saltTile.title = f.saltPersonality.hint;
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
     [threatTile, interactionTile, winconsTile, synergyTile, saltTile]);
 
@@ -275,14 +281,24 @@ function renderBody(body, f) {
   const hasWincon = hasCombos || !!(wp && ((wp.paths && wp.paths.length) || (wp.combos && wp.combos.count)));
   if (hasWincon) makeExpandable(winconsTile, buildCombosSection(f.combos, wp), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint }), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint, antiPatternPenalty: f.antiPatternPenalty }), body);
+  // Threat expansion (2.8): top cards by power contribution + avg quality per card.
+  if (f.threatTop && f.threatTop.length) {
+    const avgQuality = typeof f.threat === 'number' && f.cards ? f.threat / Math.max(1, Object.keys(f.cards).length) : null;
+    makeExpandable(threatTile, buildThreatPanel(f.threatTop, avgQuality), body);
+  }
+  // Commander-tier expansion (2.9): the tier ladder (Phase 4/5 enrichment mount point).
+  if (f.commanderTier != null) {
+    const tierPanel = buildCommanderTierPanel(f.commanderTier);
+    if (tierPanel) makeExpandable(tierTile, tierPanel, body);
+  }
   const bp = f.bracketProfile || {};
   const hasBracket = (f.bracketCategories && f.bracketCategories.length)
     || [bp.rationale, bp.soften, bp.harden, bp.ruleZero].some((l) => l && l.length);
   if (hasBracket) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories, f.bracketProfile), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
   if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);
-  if ((f.synergyAnchors && f.synergyAnchors.length) || (f.synergyHubs && f.synergyHubs.length)) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors, f.synergyHubs), body);
+  if ((f.synergyAnchors && f.synergyAnchors.length) || (f.synergyHubs && f.synergyHubs.length) || f.synergyCentricity) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors, f.synergyHubs, f.synergyCentricity), body);
   if (f.interactionParts && f.interactionParts.length) makeExpandable(interactionTile, buildInteractionPanel(f.interactionParts), body);
 }
 
