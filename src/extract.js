@@ -123,7 +123,8 @@ export function isStub(p) {
 function countDeckCombos(comboList, c) {
   const ids = [c.id, c.containerId, c.frontFaceId].filter(Boolean);
   return comboList.filter((combo) => Array.isArray(combo.cards) && combo.cards.some(
-    (x) => ids.some((id) => x === id || x.startsWith(`${id}_`) || id.startsWith(`${x}_`)),
+    (x) => typeof x === 'string'
+      && ids.some((id) => x === id || x.startsWith(`${id}_`) || id.startsWith(`${x}_`)),
   )).length;
 }
 

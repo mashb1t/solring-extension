@@ -159,3 +159,10 @@ test('isStub detects unanalyzable payloads', () => {
   assert.equal(isStub({ name: 'x', _cardCount: 0 }), true);
   assert.equal(isStub({}), true);
 });
+
+test('countDeckCombos tolerates non-string combo card ids', () => {
+  // A malformed API combo (null / numeric entries in cards[]) must not crash extraction.
+  const p = structuredClone(deck);
+  p.details.combos.list[0].cards = [null, 123, 'pyrohemia'];
+  assert.doesNotThrow(() => extractDeck(p));
+});
