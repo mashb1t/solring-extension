@@ -55,15 +55,21 @@ test('inclusionByName: excludes the "New Cards" list', () => {
   assert.equal(inc['old staple'], 50);
 });
 
-test('stockMeter: mean inclusion%, brew = absent, basics excluded', () => {
+test('stockMeter: mean inclusion%, offMeta = absent cards, basics + commander excluded', () => {
   const inc = { 'ruby medallion': 72, 'guttersnipe': 64 };
-  const s = stockMeter(inc, ['Ruby Medallion', 'Guttersnipe', 'My Spicy Brew', 'Mountain']);
-  assert.equal(s.cards, 3);              // Mountain (basic) excluded
-  assert.equal(s.brew, 1);               // "My Spicy Brew" absent
+  const s = stockMeter(inc, ['Ruby Medallion', 'Guttersnipe', 'My Spicy Brew', 'Mountain', 'Ojer Axonil, Deepest Might // Temple of Power'], ['Ojer Axonil, Deepest Might // Temple of Power']);
+  assert.equal(s.cards, 3);                        // Mountain (basic) + the commander excluded
+  assert.deepEqual(s.offMeta, ['My Spicy Brew']);  // the one absent, non-commander, non-basic card
+  assert.equal(s.brew, 1);
   assert.equal(s.stockScore, Math.round((72 + 64 + 0) / 3)); // 45
 });
-test('stockMeter: null when only basics', () => {
+test('stockMeter: offMeta shows the front face, deduped', () => {
+  const s = stockMeter({}, ['Brew // Back', 'Brew // Back'], []);
+  assert.deepEqual(s.offMeta, ['Brew']);
+});
+test('stockMeter: null when only basics/commanders remain', () => {
   assert.equal(stockMeter({}, ['Mountain', 'Island']), null);
+  assert.equal(stockMeter({}, ['Solo Cmdr'], ['Solo Cmdr']), null);
 });
 
 test('commanderPopularity: deckCount from max potential_decks + bracket_counts', () => {

@@ -81,10 +81,10 @@ async function edhrecEnrichment(md5) {
   });
   if (!entry || !entry.data) return { miss: true };
   const inclusion = inclusionByName(entry.data);
-  const deckNames = Object.keys(deck.data.cards || {});
+  const deckCardNames = Object.values(deck.data.cards || {}).map((c) => c.name).filter(Boolean);
   return {
     popularity: commanderPopularity(entry.data),
-    stock: stockMeter(inclusion, deckNames),
+    stock: stockMeter(inclusion, deckCardNames, commanders),
     inclusion,
     fetchedAt: entry.fetchedAt,
   };

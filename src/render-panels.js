@@ -286,6 +286,14 @@ export function renderEdhrecEnrichment(slot, data) {
     const row = barRow(`${s.stockScore}% stock · ${s.brew} off-meta`, `${s.stockScore}%`, s.stockScore);
     row.title = `Mean EDHREC inclusion across ${s.cards} non-land cards. ${s.brew} appear in no EDHREC list for this commander (your spice).`;
     kids.push(row);
+    if (s.offMeta && s.offMeta.length) {
+      const CAP = 12;
+      const shown = s.offMeta.slice(0, CAP);
+      const cont = el('div', { class: 'solring-offmeta-chips' });
+      cardRefs(shown, { chip: true }).forEach((chip) => cont.append(chip));
+      if (s.offMeta.length > CAP) cont.append(el('span', { class: 'solring-pl-desc', text: `+${s.offMeta.length - CAP} more` }));
+      kids.push(el('div', { class: 'solring-pl-desc', text: 'Off-meta (your spice)' }), cont);
+    }
   }
   if (!kids.length) return;
   slot.append(el('div', { class: 'solring-pl-desc', text: 'Community data · EDHREC' }), ...kids);

@@ -54,20 +54,29 @@ export function inclusionByName(json) {
   return out;
 }
 
-// Deck "stock-o-meter": over the deck's non-basic cards, mean EDHREC inclusion% (a card
-// absent from every list counts as 0 — off the commander's radar), plus how many are
-// off-radar ("brew"). High stockScore = a netdecked list; low = spicy. Moxfield never
-// surfaces this. `inclusion` = inclusionByName(json).
-export function stockMeter(inclusion, deckNames) {
-  const names = (deckNames || []).map(frontFace).filter((n) => n && !BASICS.has(n));
-  if (!names.length) return null;
-  let sum = 0; let brew = 0;
-  for (const n of names) {
-    const pct = inclusion[n] || 0;
-    sum += pct;
-    if (pct === 0) brew += 1;
+// Deck "stock-o-meter": over the deck's non-basic, non-commander cards, mean EDHREC
+// inclusion% (a card absent from every list counts as 0 — off the commander's radar), the
+// off-radar card names ("your spice"), and their count. Commanders are excluded because
+// they never appear in their own EDHREC card lists (they aren't "spice you added").
+// `deckCardNames` are display names; `commanders` are full commander names.
+export function stockMeter(inclusion, deckCardNames, commanders = []) {
+  const commanderKeys = new Set((commanders || []).map(frontFace));
+  const seen = new Set();
+  const cards = []; // { display, key }
+  for (const raw of (deckCardNames || [])) {
+    const key = frontFace(raw);
+    if (!key || BASICS.has(key) || commanderKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    cards.push({ display: String(raw).split(' // ')[0], key });
   }
-  return { cards: names.length, stockScore: Math.round(sum / names.length), brew };
+  if (!cards.length) return null;
+  let sum = 0; const offMeta = [];
+  for (const { display, key } of cards) {
+    const pct = inclusion[key] || 0;
+    sum += pct;
+    if (pct === 0) offMeta.push(display);
+  }
+  return { cards: cards.length, stockScore: Math.round(sum / cards.length), brew: offMeta.length, offMeta };
 }
 
 // Commander popularity: total deck count (≈ max potential_decks) + bracket distribution.
