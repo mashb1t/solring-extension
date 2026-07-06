@@ -305,7 +305,7 @@ function bracketSpreadChart(brackets) {
     + `<path d="${area}" class="solring-mc-fill"/>`
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
-  const xl = pts.map((p) => `<span>B${p.b} (${p.count.toLocaleString('en-US')})</span>`).join('');
+  const xl = pts.map((p) => `<span>B${p.b}</span>`).join(''); // counts live in the hover readout now
   const wrap = el('div', {
     class: 'solring-mc-wrap solring-bracket-chart',
     html: `<div class="solring-mc-plot">${svg}</div><div class="solring-mc-x">${xl}</div>`,
@@ -401,7 +401,7 @@ export function renderEdhrecEnrichment(slot, data) {
 // panel width. Strokes stay crisp via non-scaling-stroke.
 function manaCurveChart(curve) {
   const pts = (curve || []).filter((p) => Number.isFinite(p.turn));
-  if (!pts.length) return '';
+  if (!pts.length) return null;
   const W = 220; const H = 110; const pad = 2; // pad keeps strokes from clipping at the edges
   const turns = pts.map((p) => p.turn);
   const tMin = Math.min(...turns); const tMax = Math.max(...turns);
@@ -422,11 +422,19 @@ function manaCurveChart(curve) {
     + '</svg>';
   const xl = [];
   for (let t = Math.ceil(tMin); t <= tMax; t += 1) xl.push(`<span>${t}</span>`);
-  return `<div class="solring-mc-wrap">`
-    + `<div class="solring-mc-y"><span>100</span><span>50</span><span>0</span></div>`
-    + `<div class="solring-mc-plot">${svg}</div>`
-    + `<div class="solring-mc-x">${xl.join('')}</div>`
-    + `</div>`;
+  const wrap = el('div', {
+    class: 'solring-mc-wrap',
+    html: `<div class="solring-mc-y"><span>100</span><span>50</span><span>0</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div>`
+      + `<div class="solring-mc-x">${xl.join('')}</div>`,
+  });
+  const pctv = (v) => `${Math.round(clamp(v) * 100)}%`;
+  wireChartHover(wrap, pts.map((p) => ({
+    fx: X(p.turn) / W,
+    fy: Y(p.actual) / H,
+    label: `T${p.turn}: ${pctv(p.actual)}${Number.isFinite(p.baseline) ? ` (typ ${pctv(p.baseline)})` : ''}`,
+  })));
+  return wrap;
 }
 
 // Mana source breakdown: card count per source category as label/bar/value rows
@@ -474,12 +482,16 @@ function colorReqProdChart(perColor) {
   }).join('');
 }
 
-// One titled chart cell in the manabase content row.
-function diagramCell(title, svgHtml, caption) {
-  if (!svgHtml) return null;
+// One titled chart cell in the manabase content row. `chart` is either a DOM node (a wired
+// interactive chart, e.g. manaCurveChart) or an HTML string (e.g. the colour req/prod bars).
+function diagramCell(title, chart, caption) {
+  if (!chart) return null;
+  const fig = chart.nodeType
+    ? el('div', { class: 'solring-mb-fig' }, [chart])
+    : el('div', { class: 'solring-mb-fig', html: chart });
   return el('div', { class: 'solring-mb-cell solring-mb-cell-chart' }, [
     el('div', { class: 'solring-pl-h', text: title }),
-    el('div', { class: 'solring-mb-fig', html: svgHtml }),
+    fig,
     caption ? el('div', { class: 'solring-pl-desc', text: caption }) : null,
   ]);
 }
@@ -603,10 +615,16 @@ export function buildManabasePanel(m) {
   // Column 2: the on-curve castability chart.
   const cells = [];
   if (barsCol.length) cells.push(el('div', { class: 'solring-mb-col-bars' }, barsCol));
-  const curveHtml = m.curve && m.curve.length
-    ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
-    : '';
-  if (curveHtml) cells.push(diagramCell('On-curve castability', curveHtml, null));
+  const curveChart = m.curve && m.curve.length ? manaCurveChart(m.curve) : null;
+  if (curveChart) {
+    // Curve node (interactive, wired hover) + its legend as siblings in the fig, matching
+    // diagramCell's structure so the chart/tables height-sync (syncChartHeights) still works.
+    const legend = el('div', { class: 'solring-mc-legend', html: '<span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span>' });
+    cells.push(el('div', { class: 'solring-mb-cell solring-mb-cell-chart' }, [
+      el('div', { class: 'solring-pl-h', text: 'On-curve castability' }),
+      el('div', { class: 'solring-mb-fig' }, [curveChart, legend]),
+    ]));
+  }
   if (cells.length) children.push(el('div', { class: 'solring-mb-grid' }, cells));
 
   const table = profileTable(m.strengths, m.risks, m.improve);
