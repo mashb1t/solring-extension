@@ -219,18 +219,18 @@ export function buildSynergyPanel(anchors, hubs, centricity) {
       hubs.map((h) => barRow(cardRefs([h], { chip: false })[0], String(h.connections), ((h.connections || 0) / max) * 100))));
   }
   const grid = el('div', { class: 'solring-syn-grid' }, groups);
-  const children = [];
-  if (centricity) {
-    children.push(el('div', { class: 'solring-syn-centricity' }, [
-      el('span', {
-        class: 'solring-flag',
-        title: 'How much the deck leans on its commander (detached = keeps working if it is answered; central = folds without it).',
-        text: `commander: ${humanizeId(centricity).toLowerCase()}`,
-      }),
-    ]));
-  }
-  children.push(grid);
-  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, children);
+  // Section header with the label + the commander-centricity chip on the same line, so the
+  // chip is anchored to a titled header (not floating above the bars) and the whole section
+  // reads like the others (Salt sources, Top threats, …).
+  const head = el('div', { class: 'solring-syn-head' }, [
+    el('div', { class: 'solring-pl-h', text: 'Synergy web' }),
+    centricity ? el('span', {
+      class: 'solring-flag',
+      title: 'How much the deck leans on its commander (detached = keeps working if it is answered; central = folds without it).',
+      text: `commander: ${humanizeId(centricity).toLowerCase()}`,
+    }) : null,
+  ]);
+  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, grid]);
 }
 
 // Threat expansion (Task 2.8): the deck's biggest cards by power contribution, plus a
