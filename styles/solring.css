@@ -148,10 +148,12 @@
    stacks on small viewports without a fixed media query); grid gap spaces both axes, so
    the groups need no margins of their own. */
 .solring-syn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 0.7rem 1.5rem; align-items: start; }
-/* Synergy section header: the "Synergy web" label with the commander-centricity chip on
-   the same baseline, so the chip is anchored to a titled header rather than floating. */
-.solring-syn-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.55rem; }
-.solring-syn-head .solring-pl-h { margin-bottom: 0; }
+/* Synergy expansion header: label + value chip on one line. The label occupies the same
+   fixed-width column (9rem) as the bar-row labels below, so it forms a real column and the
+   chip begins where the bars begin. Matches .solring-pl-row's grid. */
+.solring-syn-head { display: grid; grid-template-columns: 9rem 1fr; align-items: baseline; gap: 0.5rem; margin-bottom: 0.55rem; }
+.solring-syn-head .solring-pl-h { margin-bottom: 0; white-space: nowrap; }
+.solring-syn-head .solring-flag { justify-self: start; }
 /* Commander-tier ladder: T1–T5 steps, the current tier filled with the accent. */
 .solring-tier-ladder { display: inline-flex; gap: 0.25rem; margin-bottom: 0.4rem; }
 .solring-tier-step {

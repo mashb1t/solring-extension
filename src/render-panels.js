@@ -219,15 +219,15 @@ export function buildSynergyPanel(anchors, hubs, centricity) {
       hubs.map((h) => barRow(cardRefs([h], { chip: false })[0], String(h.connections), ((h.connections || 0) / max) * 100))));
   }
   const grid = el('div', { class: 'solring-syn-grid' }, groups);
-  // Section header with the label + the commander-centricity chip on the same line, so the
-  // chip is anchored to a titled header (not floating above the bars) and the whole section
-  // reads like the others (Salt sources, Top threats, …).
+  // Label + commander-dependency chip on one line, above the Anchors/Hubs bars. The label
+  // sits in a fixed-width column matching the bar-row label column, so it aligns with the
+  // card-name labels below and the chip starts where the bars start.
   const head = el('div', { class: 'solring-syn-head' }, [
-    el('div', { class: 'solring-pl-h', text: 'Synergy web' }),
+    el('div', { class: 'solring-pl-h', text: 'Commander reliance' }),
     centricity ? el('span', {
       class: 'solring-flag',
-      title: 'How much the deck leans on its commander (detached = keeps working if it is answered; central = folds without it).',
-      text: `commander: ${humanizeId(centricity).toLowerCase()}`,
+      title: 'How much the deck relies on the commander — a spectrum from detached (works without it) to central (can\'t win without it).',
+      text: humanizeId(centricity).toLowerCase(),
     }) : null,
   ]);
   return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, grid]);
