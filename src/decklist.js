@@ -354,10 +354,26 @@ function buildHeaderCells() {
 // restores Moxfield's native order. Persisted to prefs:sort, then onPrefChange('sort') re-applies.
 function toggleSort(key) {
   let next;
-  if (sortState.key !== key) next = { key, dir: 'desc' };
-  else if (sortState.dir === 'desc') next = { key, dir: 'asc' };
-  else { next = { key: null, dir: 'desc' }; pendingNativeRestore = true; } // 3rd click restores the page default once
+  if (sortState.key !== key) {
+    // Entering a sort from the neutral state: the DOM is currently in Moxfield's own order
+    // (whatever its Sort control is set to), so snapshot it now — that's what "clear" must
+    // restore. The page-load snapshot goes stale if the user changed Moxfield's sort since.
+    if (!sortState.key) snapshotNativeOrder();
+    next = { key, dir: 'desc' };
+  } else if (sortState.dir === 'desc') next = { key, dir: 'asc' };
+  else { next = { key: null, dir: 'desc' }; pendingNativeRestore = true; } // 3rd click restores Moxfield's order once
   setSortPref(next);
+}
+
+// Snapshot each deck table's current row order into nativeIdx (overwrite), so a later
+// "clear" restores Moxfield's order as it is *now* — not a stale page-load capture.
+function snapshotNativeOrder() {
+  for (const tbl of document.querySelectorAll('table.table')) {
+    const tbody = tbl.querySelector(':scope > tbody');
+    if (!tbody) continue;
+    let i = 0;
+    for (const tr of tbody.children) if (tr.tagName === 'TR' && rowMap.get(tr)) nativeIdx.set(tr, i++);
+  }
 }
 
 // Moxfield's own "caret-down" icon (FontAwesome, inline SVG) so our sort indicator
