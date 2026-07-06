@@ -257,7 +257,6 @@ export function buildCommanderTierPanel(tier) {
   }));
   return section('Commander tier', [
     el('div', { class: 'solring-tier-ladder' }, steps),
-    el('div', { class: 'solring-pl-desc', text: 'CommanderSalt commander tier' }),
     // Filled asynchronously by renderEdhrecEnrichment when EDHREC data arrives (Phase 4).
     el('div', { class: 'solring-edhrec-slot' }),
   ]);
@@ -363,7 +362,7 @@ export function renderEdhrecEnrichment(slot, data) {
     }
   }
   if (!kids.length) return;
-  slot.append(el('div', { class: 'solring-pl-desc', text: 'Community data · EDHREC' }), ...kids);
+  slot.append(...kids);
 }
 
 // On-curve castability per turn: this deck's `actual` (solid, filled) against a typical
