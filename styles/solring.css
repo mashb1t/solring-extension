@@ -170,7 +170,15 @@
 .solring-bracket-fig, .solring-rank-fig { margin: .25rem 0 .5rem; }
 /* Bracket-spread and rank-sparkline have no y-axis column (single series, no baseline),
    so unlike .solring-mc-wrap they're single-column: plot stacked over its x-axis row. */
-.solring-bracket-chart, .solring-rank-chart { display: block; }
+/* Compound selector so this beats `.solring-mc-wrap { display: grid }` (defined later in
+   this file at equal specificity) — otherwise the plot lands in the grid's auto column and
+   shrink-wraps to the SVG's 300px intrinsic width instead of filling the panel. */
+.solring-mc-wrap.solring-bracket-chart, .solring-mc-wrap.solring-rank-chart { display: block; }
+/* Cap the plot height: at full panel width, `.solring-mc { height: auto }` would inherit
+   the 220×90 viewBox ratio and render ~560px tall. preserveAspectRatio="none" lets us pin a
+   compact pixel height and just stretch the drawing (non-scaling-stroke keeps lines crisp). */
+.solring-bracket-chart .solring-mc { height: 84px; }
+.solring-rank-chart .solring-mc { height: 60px; }
 .solring-bracket-chart .solring-mc-x, .solring-rank-x { grid-column: auto; display: flex; justify-content: space-between; margin-top: .15rem; }
 .solring-bracket-chart .solring-mc-x span { font-size: .68rem; color: var(--solring-text-2); }
 .solring-rank-x span { font-size: .68rem; color: var(--solring-text-2); }
