@@ -277,10 +277,15 @@ function wireChartHover(wrap, hoverPts) {
     const fx = (e.clientX - r.left) / r.width;
     let best = hoverPts[0];
     for (const p of hoverPts) if (Math.abs(p.fx - fx) < Math.abs(best.fx - fx)) best = p;
-    const pct = (n) => `${(n * 100).toFixed(2)}%`;
-    dot.style.left = pct(best.fx); dot.style.top = pct(best.fy);
-    tip.style.left = pct(best.fx); tip.textContent = best.label;
+    dot.style.left = `${(best.fx * 100).toFixed(2)}%`;
+    dot.style.top = `${(best.fy * 100).toFixed(2)}%`;
+    tip.textContent = best.label;
     dot.hidden = false; tip.hidden = false;
+    // Clamp the tooltip's centre so it never spills past the plot edges (where an ancestor
+    // clips it). Measured in px after unhiding so offsetWidth is real. transform:-50% still
+    // centres it, now on the clamped point.
+    const half = tip.offsetWidth / 2;
+    tip.style.left = `${Math.min(Math.max(best.fx * r.width, half), r.width - half)}px`;
   });
   plot.addEventListener('mouseleave', () => { dot.hidden = true; tip.hidden = true; });
 }
@@ -306,9 +311,11 @@ function bracketSpreadChart(brackets) {
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
   const xl = pts.map((p) => `<span>B${p.b}</span>`).join(''); // counts live in the hover readout now
+  // y-axis: 0 (bottom) to the largest bracket count (top).
   const wrap = el('div', {
     class: 'solring-mc-wrap solring-bracket-chart',
-    html: `<div class="solring-mc-plot">${svg}</div><div class="solring-mc-x">${xl}</div>`,
+    html: `<div class="solring-mc-y"><span>${max.toLocaleString('en-US')}</span><span>0</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div><div class="solring-mc-x">${xl}</div>`,
   });
   wireChartHover(wrap, pts.map((p) => ({ fx: X(p.b) / W, fy: Y(p.count) / H, label: `B${p.b}: ${p.count.toLocaleString('en-US')}` })));
   return wrap;
