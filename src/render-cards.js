@@ -17,6 +17,7 @@ const SORT_METRIC = {
   power: (c) => (typeof c.powerTotal === 'number' ? c.powerTotal : null),
   salt: (c) => (typeof c.salt === 'number' ? c.salt : null),
   synergy: (c) => (c && c.combos && typeof c.combos.score === 'number' ? c.combos.score : null),
+  edhrec: (c) => (typeof c.inclusion === 'number' ? c.inclusion : null),
 };
 
 /** Normalize a card name for matching (lowercase, collapse spaces, drop DFC back). */
@@ -40,6 +41,17 @@ export function annotate(fields, prefs, options = {}, cardSort = null) {
   clearAnnotations();
   if (!fields || !fields.cards || !isTextView()) return;
   cardSortState = cardSort || { key: null, dir: 'desc' }; // keep the click-cycle state in sync with the persisted pref
+
+  // Fold the async-loaded EDHREC inclusion map onto each card so the badge AND the sort
+  // metric read one field. Keyed by the same normalized front-face name as the map.
+  if (fields.edhrecInclusion) {
+    for (const [key, card] of Object.entries(fields.cards)) {
+      if (card.inclusion == null) {
+        const pct = fields.edhrecInclusion[normName(key)];
+        if (typeof pct === 'number') card.inclusion = pct;
+      }
+    }
+  }
   const dark = isDark();
 
   // Marks (ratings.js): salt at/above the salt threshold, power above N× the deck
@@ -107,15 +119,12 @@ export function annotate(fields, prefs, options = {}, cardSort = null) {
     // EDHREC inclusion %: how commonly this card is run in the commander's decks. Only when
     // the toggle is on AND enrichment has loaded (fields.edhrecInclusion, set async). Muted;
     // absent-from-EDHREC cards simply get no badge.
-    if (prefs.edhrec && fields.edhrecInclusion) {
-      const pct = fields.edhrecInclusion[rowName(link)];
-      if (typeof pct === 'number') {
-        place(el('span', {
-          class: 'solring-edhrec-cell text-end solring-card-anno',
-          text: `${pct}%`,
-          title: `In ${pct}% of this commander's EDHREC decks`,
-        }));
-      }
+    if (prefs.edhrec && typeof card.inclusion === 'number') {
+      place(el('span', {
+        class: 'solring-edhrec-cell text-end solring-card-anno',
+        text: `${card.inclusion}%`,
+        title: `In ${card.inclusion}% of this commander's EDHREC decks`,
+      }));
     }
 
     // 2) Tags + bracket flags: one full-width sub-line (flags first, then tags),
@@ -170,6 +179,7 @@ function injectColumnLegend(prefs, cardSort) {
   if (prefs.power) abbr.push(['solring-power-cell', 'Pwr', 'Power contribution', 'power']);
   if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Slt', 'Saltiness', 'salt']);
   if (prefs.synergy) abbr.push(['solring-syn-cell', 'Syn', 'Synergy score', 'synergy']);
+  if (prefs.edhrec) abbr.push(['solring-edhrec-cell', 'EDH', 'EDHREC inclusion %', 'edhrec']);
   if (!abbr.length) return;
   const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
   const sampleRow = sampleCell && sampleCell.closest('li');
