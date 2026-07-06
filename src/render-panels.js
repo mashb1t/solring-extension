@@ -238,7 +238,10 @@ export function buildSynergyPanel(anchors, hubs, centricity) {
 export function buildThreatPanel(top, avgQuality) {
   const rows = (top || []);
   const max = Math.max(...rows.map((t) => t.score), 1);
-  const children = rows.map((t) => barRow(t.name, num(t.score), (t.score / max) * 100));
+  // Route the card name through cardRefs so it hovers to a preview and opens the card on
+  // click, like every other card label; threat cards are in the deck so their art resolves
+  // from the on-page rows.
+  const children = rows.map((t) => barRow(cardRefs([t.name], { chip: false })[0], num(t.score), (t.score / max) * 100));
   if (avgQuality != null) children.push(el('div', { class: 'solring-pl-desc', text: `ø ${num(avgQuality)} quality per card` }));
   return section('Top threats', children);
 }
