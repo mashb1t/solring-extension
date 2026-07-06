@@ -262,13 +262,37 @@ export function buildCommanderTierPanel(tier) {
   ]);
 }
 
+// Hover readout for the tier charts: a marker dot + a tooltip that snap to the nearest data
+// point and show its value. `hoverPts` carry fractional coords (fx/fy in 0..1 of the plot
+// box) + a label; fractions map correctly under preserveAspectRatio="none" at any size.
+function wireChartHover(wrap, hoverPts) {
+  const plot = wrap.querySelector('.solring-mc-plot');
+  if (!plot || !hoverPts.length) return;
+  const dot = el('span', { class: 'solring-chart-dot', attrs: { hidden: '' } });
+  const tip = el('span', { class: 'solring-chart-tip', attrs: { hidden: '' } });
+  plot.append(dot, tip);
+  plot.addEventListener('mousemove', (e) => {
+    const r = plot.getBoundingClientRect();
+    if (!r.width) return;
+    const fx = (e.clientX - r.left) / r.width;
+    let best = hoverPts[0];
+    for (const p of hoverPts) if (Math.abs(p.fx - fx) < Math.abs(best.fx - fx)) best = p;
+    const pct = (n) => `${(n * 100).toFixed(2)}%`;
+    dot.style.left = pct(best.fx); dot.style.top = pct(best.fy);
+    tip.style.left = pct(best.fx); tip.textContent = best.label;
+    dot.hidden = false; tip.hidden = false;
+  });
+  plot.addEventListener('mouseleave', () => { dot.hidden = true; tip.hidden = true; });
+}
+
 // Bracket-spread graph: x = bracket 1..5, y = count normalized to the largest bracket.
 // Single series (no baseline to compare against), so just one area + one line, same SVG
 // idiom as manaCurveChart. Counts are labeled in HTML beneath the plot (never inside the
 // SVG — see manaCurveChart's comment on why <text> doesn't survive preserveAspectRatio).
+// Returns a wired DOM node (or null when empty).
 function bracketSpreadChart(brackets) {
   const pts = [1, 2, 3, 4, 5].map((b) => ({ b, count: Number(brackets[b]) || 0 }));
-  if (!pts.some((p) => p.count > 0)) return '';
+  if (!pts.some((p) => p.count > 0)) return null;
   const W = 220; const H = 90; const pad = 2;
   const max = Math.max(...pts.map((p) => p.count), 1);
   const X = (b) => pad + ((b - 1) / 4) * (W - 2 * pad);
@@ -282,10 +306,12 @@ function bracketSpreadChart(brackets) {
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
   const xl = pts.map((p) => `<span>B${p.b} (${p.count.toLocaleString('en-US')})</span>`).join('');
-  return `<div class="solring-mc-wrap solring-bracket-chart">`
-    + `<div class="solring-mc-plot">${svg}</div>`
-    + `<div class="solring-mc-x">${xl}</div>`
-    + `</div>`;
+  const wrap = el('div', {
+    class: 'solring-mc-wrap solring-bracket-chart',
+    html: `<div class="solring-mc-plot">${svg}</div><div class="solring-mc-x">${xl}</div>`,
+  });
+  wireChartHover(wrap, pts.map((p) => ({ fx: X(p.b) / W, fy: Y(p.count) / H, label: `B${p.b}: ${p.count.toLocaleString('en-US')}` })));
+  return wrap;
 }
 
 // Rank-over-time sparkline. EDHREC rank is "lower = more popular", so the y-axis is
@@ -294,7 +320,7 @@ function bracketSpreadChart(brackets) {
 // (HTML, not SVG text, for the same reason as manaCurveChart).
 function rankSparkline(rankHistory) {
   const pts = (rankHistory || []).filter((p) => Number.isFinite(p.rank));
-  if (pts.length < 2) return '';
+  if (pts.length < 2) return null;
   const W = 220; const H = 60; const pad = 2;
   const ranks = pts.map((p) => p.rank);
   const rMin = Math.min(...ranks); const rMax = Math.max(...ranks);
@@ -309,10 +335,13 @@ function rankSparkline(rankHistory) {
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
   const current = pts[pts.length - 1].rank;
-  return `<div class="solring-mc-wrap solring-rank-chart">`
-    + `<div class="solring-mc-plot">${svg}</div>`
-    + `<div class="solring-mc-x solring-rank-x"><span>${pts[0].date.slice(0, 7)}</span><span>EDHREC #${current}</span></div>`
-    + `</div>`;
+  const wrap = el('div', {
+    class: 'solring-mc-wrap solring-rank-chart',
+    html: `<div class="solring-mc-plot">${svg}</div>`
+      + `<div class="solring-mc-x solring-rank-x"><span>${pts[0].date.slice(0, 7)}</span><span>EDHREC #${current}</span></div>`,
+  });
+  wireChartHover(wrap, pts.map((p, i) => ({ fx: X(i) / W, fy: Y(p.rank) / H, label: `${p.date.slice(0, 7)}: #${p.rank}` })));
+  return wrap;
 }
 
 // Fill the commander-tier expansion's EDHREC slot: commander popularity + rank, its
@@ -328,20 +357,20 @@ export function renderEdhrecEnrichment(slot, data) {
     kids.push(el('div', { class: 'solring-pop-chip', text: `~${Number(pop.deckCount).toLocaleString('en-US')} decks${rankPart}` }));
   }
   // Bracket spread + rank-over-time sit side by side (2-col; stacks on a narrow panel).
-  const brChart = pop && pop.brackets ? bracketSpreadChart(pop.brackets) : '';
-  const rkChart = pop && pop.rankHistory && pop.rankHistory.length > 1 ? rankSparkline(pop.rankHistory) : '';
+  const brChart = pop && pop.brackets ? bracketSpreadChart(pop.brackets) : null;
+  const rkChart = pop && pop.rankHistory && pop.rankHistory.length > 1 ? rankSparkline(pop.rankHistory) : null;
   if (brChart || rkChart) {
     const charts = el('div', { class: 'solring-edhrec-charts' });
     if (brChart) {
       charts.append(el('div', { class: 'solring-edhrec-col' }, [
         el('div', { class: 'solring-pl-h2', text: 'Bracket spread' }),
-        el('div', { class: 'solring-bracket-fig', html: brChart }),
+        el('div', { class: 'solring-bracket-fig' }, [brChart]),
       ]));
     }
     if (rkChart) {
       charts.append(el('div', { class: 'solring-edhrec-col' }, [
         el('div', { class: 'solring-pl-h2', text: 'Rank over time' }),
-        el('div', { class: 'solring-rank-fig', html: rkChart }),
+        el('div', { class: 'solring-rank-fig' }, [rkChart]),
       ]));
     }
     kids.push(charts);
