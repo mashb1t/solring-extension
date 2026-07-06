@@ -18,7 +18,7 @@ const CARD_SORT_DEFAULT = { key: null, dir: 'desc' };
 // Per-card toggles (Customize View, Include Extra Data). On by default: power and
 // saltiness, the at-a-glance numbers. Off by default (opt-in): synergy and tags, to
 // keep the default rows compact.
-const CARD_DEFAULT = { power: true, saltValue: true, synergy: false, tags: false };
+const CARD_DEFAULT = { power: true, saltValue: true, synergy: false, tags: false, edhrec: false };
 const SORT_DEFAULT = { key: null, dir: 'desc' };
 
 // One serialization queue for every read-modify-write setter. chrome.storage.local

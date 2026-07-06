@@ -104,6 +104,20 @@ export function annotate(fields, prefs, options = {}, cardSort = null) {
       }));
     }
 
+    // EDHREC inclusion %: how commonly this card is run in the commander's decks. Only when
+    // the toggle is on AND enrichment has loaded (fields.edhrecInclusion, set async). Muted;
+    // absent-from-EDHREC cards simply get no badge.
+    if (prefs.edhrec && fields.edhrecInclusion) {
+      const pct = fields.edhrecInclusion[rowName(link)];
+      if (typeof pct === 'number') {
+        place(el('span', {
+          class: 'solring-edhrec-cell text-end solring-card-anno',
+          text: `${pct}%`,
+          title: `In ${pct}% of this commander's EDHREC decks`,
+        }));
+      }
+    }
+
     // 2) Tags + bracket flags: one full-width sub-line (flags first, then tags),
     // spanning name-column to row end.
     if (prefs.tags && hasTagLine) {
@@ -225,7 +239,7 @@ function cycleCardSort(key) {
 }
 
 export function clearAnnotations(root = document) {
-  root.querySelectorAll('.solring-collegend, .solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell')
+  root.querySelectorAll('.solring-collegend, .solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell, .solring-edhrec-cell')
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
   root.querySelectorAll('.solring-collegend-host').forEach((n) => n.classList.remove('solring-collegend-host'));

@@ -414,6 +414,7 @@
   font-variant-numeric: tabular-nums; color: var(--solring-text-2);
   white-space: nowrap;
 }
+.solring-edhrec-cell { opacity: .6; font-variant-numeric: tabular-nums; min-width: 2.6em; }
 /* Column-label key, overlaid on each type group's header row (Text view has no table
    header). Absolutely anchored to the header's right edge (offset by the trailing
    collection/menu columns) so each abbreviation sits over its number column below. */
