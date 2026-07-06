@@ -101,10 +101,46 @@ export function annotate(fields, prefs, options = {}) {
       li.append(span(el('div', { class: `solring-tags${dark ? ' solring-dark' : ''}` }, chipNodes)));
     }
   });
+
+  injectColumnLegend(prefs);
+}
+
+// Text view has no table header, so the power/salt/synergy columns are unlabeled numbers.
+// Add a small visible key row atop each type group's card list: a flex-grow spacer, the
+// enabled columns' abbreviations reusing the value-cell width classes so they line up with
+// the numbers below, and a trailing spacer measured from a real row (Moxfield's collection/
+// menu columns sit to the right of ours). Adds a row, never widens a column.
+function injectColumnLegend(prefs) {
+  const abbr = [];
+  if (prefs.power) abbr.push(['solring-power-cell', 'Pw', 'Power contribution']);
+  if (prefs.saltValue) abbr.push(['solring-salt-cell', 'Sa', 'Saltiness']);
+  if (prefs.synergies) abbr.push(['solring-syn-cell', 'Sy', 'Synergy score']);
+  if (!abbr.length) return;
+  const sampleCell = document.querySelector('.solring-power-cell, .solring-salt-cell, .solring-syn-cell');
+  const sampleRow = sampleCell && sampleCell.closest('li');
+  if (!sampleRow) return; // no annotated rows (no matches) → nothing to label
+  const valueCells = [...sampleRow.querySelectorAll('.solring-power-cell, .solring-salt-cell, .solring-syn-cell')];
+  const lastCell = valueCells[valueCells.length - 1];
+  const trailW = Math.max(0, Math.round(sampleRow.getBoundingClientRect().right - lastCell.getBoundingClientRect().right));
+  // Pin each label to the exact width of its column's cell in the sample row (the value
+  // cells are content-width, not a fixed column, so this is the best achievable alignment
+  // without widening them — which the zero-width-growth rule forbids).
+  const widthOf = (cls) => { const c = sampleRow.querySelector(`.${cls}`); return c ? Math.round(c.getBoundingClientRect().width) : 0; };
+  const lists = new Set();
+  document.querySelectorAll(ROW_SEL).forEach((link) => { const ul = link.closest('li') && link.closest('li').parentElement; if (ul) lists.add(ul); });
+  for (const ul of lists) {
+    if (ul.querySelector(':scope > .solring-collegend-row')) continue;
+    const cells = abbr.map(([cls, t, title]) => { const w = widthOf(cls); return el('span', { class: `${cls} solring-collabel`, text: t, title, style: w ? `flex:0 0 ${w}px; min-width:0` : '' }); });
+    ul.insertBefore(el('li', { class: 'solring-collegend-row' }, [
+      el('span', { class: 'solring-collegend-grow' }),
+      ...cells,
+      el('span', { class: 'solring-collegend-trail', style: `flex:0 0 ${trailW}px` }),
+    ]), ul.firstElementChild);
+  }
 }
 
 export function clearAnnotations(root = document) {
-  root.querySelectorAll('.solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell')
+  root.querySelectorAll('.solring-collegend-row, .solring-card-anno, .solring-card-detail, .solring-tags, .solring-salt-cell, .solring-power-cell, .solring-syn-cell')
     .forEach((n) => n.remove());
   root.querySelectorAll('.solring-row').forEach((n) => n.classList.remove('solring-row'));
 }
