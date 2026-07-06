@@ -24,6 +24,7 @@ import {
 } from './prefs.js';
 import { el, guard, installOutsideClose } from './dom.js';
 import { num } from './format.js';
+import { humanizeLabel } from './labels.js';
 import { gradeChip, bracketValue } from './components.js';
 
 const HIT_PAGE_CAP = 20; // safety bound on search pagination
@@ -262,7 +263,7 @@ const COLUMNS = [
   { key: 'wincons', label: 'Win', title: 'Wincons grade', hit: false, cell: (v) => gradeNode(v.wincons, 'comboRating') },
   { key: 'combos', label: 'Cmb', title: 'Combos in deck', hit: false, cell: (v) => (v.combosCount != null ? textNode(String(v.combosCount)) : null) },
   { key: 'synergy', label: 'Syn', title: 'Synergy grade', hit: true, cell: (v) => gradeNode(v.synergy, 'synergyRating') },
-  { key: 'archetype', label: 'Archetype', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(v.archetype) : null) },
+  { key: 'archetype', label: 'Archetype', title: 'Archetype', hit: true, cell: (v) => (v.archetype ? textNode(humanizeLabel(v.archetype)) : null) },
   // Per-row actions (CS link + Analysis), built from the entry, not the view. See
   // buildActionsCell. `action:true` flags the special render path.
   { key: 'actions', label: '', title: 'Solring actions', hit: true, action: true, cell: () => null },

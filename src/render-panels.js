@@ -3,7 +3,7 @@
 // vars so they follow Moxfield light/dark. Hidden by default.
 
 import { el } from './dom.js';
-import { prettifyStat, BRACKET_FLAG_LABELS } from './labels.js';
+import { prettifyStat, BRACKET_FLAG_LABELS, humanizeId, humanizeValueMaybe } from './labels.js';
 import { cardRefs } from './render-card-modal.js';
 
 function section(title, children) {
@@ -46,18 +46,15 @@ function fingerprintRow(fp) {
 
 const titleWord = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s);
 
-// camelCase scorer id → readable words ("pipCoverageHigh" → "Pip coverage high").
-const humanizeId = (id) => {
-  const s = String(id).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+// humanizeId now lives in labels.js (shared with the deck-list archetype column).
 
 // A labeled list of raw { id, data, direction? } scorer signals: humanized id (+ ↑/↓)
-// over its data pairs (keys humanized, values verbatim). Null when empty.
+// over its data pairs (keys humanized, camelCase/enum values humanized too so a raw
+// "winconInconsistency" reads as "wincon inconsistency"). Null when empty.
 function signalGroup(title, entries) {
   if (!(entries || []).length) return null;
   const items = entries.map(({ id, data, direction }) => {
-    const pairs = Object.entries(data || {}).map(([k, v]) => `${humanizeId(k).toLowerCase()}: ${v}`).join(' · ');
+    const pairs = Object.entries(data || {}).map(([k, v]) => `${humanizeId(k).toLowerCase()}: ${humanizeValueMaybe(v)}`).join(' · ');
     const arrow = direction === 'up' ? ' ↑' : direction === 'down' ? ' ↓' : '';
     return el('div', { class: 'solring-sig-item' }, [
       el('span', { class: 'solring-sig-id', text: humanizeId(id) + arrow }),
