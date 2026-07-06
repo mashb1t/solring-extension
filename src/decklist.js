@@ -172,6 +172,17 @@ export function isCached(md5) {
   return fullByMd5.has(md5);
 }
 
+/** Unique per-deck { md5, title, row, view } items for the power-spread surface: the
+    merged view (hit + any cached full payload) plus the row's deck-link title. */
+export function getViewItems() {
+  return getEntries().map((e) => ({
+    md5: e.md5,
+    title: ((e.row.querySelector('a[href^="/decks/"]') || {}).textContent || '').trim(),
+    row: e.row,
+    view: mergeView(e.hit, fullByMd5.get(e.md5) || null),
+  }));
+}
+
 /** True when a deck-list TABLE (deck-row links in the main column) is on the page, the
     surface our toolbar controls (Stats / Columns) attach to. False on image/grid browse
     pages (/decks/public, /liked, /private), which carry a Sort button but no table. */

@@ -12,6 +12,7 @@ import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
 import { getEntries, isCached, hasDeckListTable, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
 import { getSync, setSync } from './cache.js';
+import { togglePowerSpread } from './power-spread.js';
 
 const THROTTLE_MS = 400; // base breathing room between requests so we don't hammer the API
 const THROTTLE_MAX_MS = 30000; // backoff ceiling
@@ -154,6 +155,7 @@ const ANALYZE_ACTIONS = [
       if (window.confirm(`Analyze all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
     },
   },
+  { label: 'Power spread', title: 'Show a power distribution of the listed decks (which fit the same table)', go: () => togglePowerSpread() },
 ];
 
 function closeAnalyzeMenu(scope) {
