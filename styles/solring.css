@@ -571,6 +571,15 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
 .solring-grip { cursor: grab; opacity: 0.5; font-size: 0.9em; line-height: 1; }
 .solring-colmenu-row { user-select: none; }
 .solring-colmenu-row.solring-dragging { opacity: 0.45; }
+/* Deck-list overflow containment: with our extra metric columns the table can grow
+   wider than the content column and push the whole page into a horizontal scroll (the
+   Updated column ends up clipped off-screen). Toggled by reconcileColumns on the table's
+   wrapper: bound it to the column width and let the table scroll inside its own box.
+   overflow-x:auto only shows a scrollbar when the columns actually overflow, and with no
+   max-height the box grows to the table's height, so no vertical scrollbar appears. */
+.solring-col-host { min-width: 0; } /* let the flex content column shrink beside the sidebar */
+.solring-has-cols { overflow-x: auto; max-width: 100%; }
+
 /* Hide a Moxfield native column. The element-qualified selector (th/td) outranks
    Bootstrap's single-class .d-*-table-cell !important utilities, which otherwise win
    on source order (their CSS loads after ours) and keep the column visible. */

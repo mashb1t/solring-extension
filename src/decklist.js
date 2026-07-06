@@ -658,9 +658,19 @@ function reconcileColumns() {
       && !!tbl.closest('.flex-grow-1');
     if (!isDeckList) {
       tbl.querySelectorAll('.solring-col').forEach((n) => n.remove());
+      if (tbl.parentElement) tbl.parentElement.classList.remove('solring-has-cols');
       continue;
     }
     decorated.add(tbl);
+    // Contain overflow so the extra columns don't push the whole page into a horizontal
+    // scroll. Two coupled parts: (1) the content column (.flex-grow-1) has min-width:auto,
+    // so beside the profile sidebar its wide-table min-content forces the flex row past
+    // the viewport — we give it min-width:0 so it can shrink; (2) once it shrinks, the
+    // table would overflow, so its wrapper gets overflow-x:auto to scroll the table inside
+    // its own box. Both are inert (no scrollbar) when the table already fits.
+    if (tbl.parentElement) tbl.parentElement.classList.add('solring-has-cols');
+    const host = tbl.closest('.flex-grow-1');
+    if (host) host.classList.add('solring-col-host');
     const bodyRows = [...tbl.querySelectorAll('tbody tr')];
     const ours = bodyRows.filter((tr) => rowMap.get(tr));
     if (!ours.length) { // no joined rows yet, strip any stale header cells
@@ -1017,6 +1027,8 @@ export function teardownDeckList() {
   if (listObserver) { listObserver.disconnect(); listObserver = null; }
   document.querySelectorAll('.solring-col, .solring-colmenu').forEach((n) => n.remove());
   document.querySelectorAll('.solring-hide-native').forEach((n) => n.classList.remove('solring-hide-native'));
+  document.querySelectorAll('.solring-has-cols').forEach((n) => n.classList.remove('solring-has-cols'));
+  document.querySelectorAll('.solring-col-host').forEach((n) => n.classList.remove('solring-col-host'));
   rowEntries = [];
   rowMap = new WeakMap();
   hitMap = new Map();
