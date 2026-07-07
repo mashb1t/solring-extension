@@ -229,7 +229,7 @@ export function buildSynergyPanel(anchors, hubs, centricity) {
     el('div', { class: 'solring-pl-h', text: 'Commander reliance' }),
     centricity ? el('span', {
       class: 'solring-flag',
-      title: 'How much the deck relies on the commander — a spectrum from detached (works without it) to central (can\'t win without it).',
+      title: 'How much the deck relies on the commander - a spectrum from detached (works without it) to central (can\'t win without it).',
       text: humanizeId(centricity).toLowerCase(),
     }) : null,
   ]);
@@ -433,7 +433,7 @@ export function renderEdhrecEnrichment(slot, data) {
   if (s && s.cards) {
     kids.push(el('div', { class: 'solring-pl-h2', text: 'Stock-o-meter' }));
     const row = barRow(`${s.stockScore}% stock · ${s.brew} off-meta`, `${s.stockScore}%`, s.stockScore);
-    row.title = `Mean EDHREC inclusion across ${s.cards} cards (excludes basics and your commander). ${s.brew} appear in no EDHREC list for this commander — your spice.`;
+    row.title = `Mean EDHREC inclusion across ${s.cards} cards (excludes basics and your commander). ${s.brew} appear in no EDHREC list for this commander.`;
     kids.push(row);
     if (s.offMeta && s.offMeta.length) {
       const CAP = 12;
@@ -449,7 +449,7 @@ export function renderEdhrecEnrichment(slot, data) {
         });
         cont.append(more);
       }
-      kids.push(el('div', { class: 'solring-pl-desc', text: 'Off-meta (your spice)' }), cont);
+      kids.push(el('div', { class: 'solring-pl-desc', text: 'Off-meta' }), cont);
     }
   }
   // Suggested cuts (EDHREC recs tool). Deck cards ranked by cut-worthiness — clickable card
@@ -459,7 +459,7 @@ export function renderEdhrecEnrichment(slot, data) {
     kids.push(el('div', { class: 'solring-pl-h2', text: 'Suggested cuts' }));
     const cont = el('div', { class: 'solring-offmeta-chips' });
     cardRefs(cuts.map((c) => c.name), { chip: true }).forEach((chip) => cont.append(chip));
-    kids.push(el('div', { class: 'solring-pl-desc', text: 'EDHREC’s least-kept cards for this commander — popularity, not deck-fit' }), cont);
+    kids.push(el('div', { class: 'solring-pl-desc', text: 'EDHREC’s least-kept cards for this commander - popularity, not deck-fit' }), cont);
   }
   if (!kids.length) return;
   slot.append(...kids);

@@ -211,7 +211,7 @@ function nearMissCard(combo) {
     // has no deck-row link, resolve it to Moxfield's card view on click (Scryfall fallback).
     const scry = p.missing ? `https://scryfall.com/search?q=${encodeURIComponent(`!"${p.name}"`)}` : undefined;
     const ref = cardRefs([{ name: p.name, image: p.image, href: scry, resolve: p.missing }], { chip: false })[0];
-    if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Not in deck · add to complete the combo — click to open the card'; }
+    if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Not in deck · add to complete the combo - click to open the card'; }
     pieces.append(ref);
   });
   const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);

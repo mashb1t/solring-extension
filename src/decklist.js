@@ -205,7 +205,7 @@ async function loadAllHits(username) {
     cursor = res.cursor || null;
     pages += 1;
   } while (cursor && pages < HIT_PAGE_CAP);
-  if (cursor) console.warn('[solring] deck-list: hit pagination capped at', pages, 'pages — some decks unscored');
+  if (cursor) console.warn('[solring] deck-list: hit pagination capped at', pages, 'pages - some decks unscored');
   return map;
 }
 

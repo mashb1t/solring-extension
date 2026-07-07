@@ -56,7 +56,7 @@ export function inclusionByName(json) {
 
 // Deck "stock-o-meter": over the deck's non-basic, non-commander cards, mean EDHREC
 // inclusion% (a card absent from every list counts as 0 — off the commander's radar), the
-// off-radar card names ("your spice"), and their count. Commanders are excluded because
+// off-radar card names, and their count. Commanders are excluded because
 // they never appear in their own EDHREC card lists (they aren't "spice you added").
 // `deckCardNames` are display names; `commanders` are full commander names.
 export function stockMeter(inclusion, deckCardNames, commanders = []) {

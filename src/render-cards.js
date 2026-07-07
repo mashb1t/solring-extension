@@ -218,7 +218,7 @@ function injectColumnLegend(prefs, cardSort) {
         const label = el('span', {
           class: `solring-collabel solring-collabel-btn${active ? ' solring-collabel-on' : ''}`,
           text: t + arrow,
-          title: `${title} — click to sort`,
+          title: `${title} - click to sort`,
           attrs: { role: 'button', tabindex: '0' },
           style: info ? `right:${info.right}px; width:${info.width}px` : 'display:none',
         });

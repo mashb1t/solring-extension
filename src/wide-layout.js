@@ -49,7 +49,7 @@ function wideIcon() {
 
 function syncBtn(a) {
   a.setAttribute('aria-pressed', String(wide));
-  a.setAttribute('title', wide ? 'Layout: wide (full width) — click for normal' : 'Layout: normal — click for wide');
+  a.setAttribute('title', wide ? 'Layout: wide (full width) - click for normal' : 'Layout: normal — click for wide');
   a.classList.toggle('solring-wide-on', wide);
 }
 
