@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setEntry, evictOldestCache, isFresh, SCHEMA_VERSION } from '../src/cache.js';
+import { setEntry, evictOldestCache, isFresh, SCHEMA_VERSION, recordPowerPoint, getPowerHistory, POWER_HISTORY_CAP } from '../src/cache.js';
 
 // Minimal in-memory chrome.storage.local with a byte quota (JSON length as a proxy).
 // set() rejects with a quota error once the store would exceed the cap, like Chrome.
@@ -89,4 +89,39 @@ test('isFreshTtl ignores schema version, gates on age only', async () => {
   assert.equal(isFreshTtl({ v: 1, fetchedAt: now }, 1000), true);         // stale schema, fresh age
   assert.equal(isFreshTtl({ v: 999, fetchedAt: now - 5000 }, 1000), false); // too old
   assert.equal(isFreshTtl(null, 1000), false);
+});
+
+test('recordPowerPoint appends one point per distinct analysis (dedup by analyzedAt)', async () => {
+  const { store, chrome } = makeChrome(1e6);
+  global.chrome = chrome;
+  await recordPowerPoint('m1', { analyzedAt: 1000, power: 6.1, bracketRealistic: 3 });
+  await recordPowerPoint('m1', { analyzedAt: 1000, power: 6.1, bracketRealistic: 3 }); // same analysis → no dup
+  let hist = await getPowerHistory('m1');
+  assert.equal(hist.length, 1);
+  assert.deepEqual(hist[0], { at: 1000, power: 6.1, bracket: 3 });
+  await recordPowerPoint('m1', { analyzedAt: 2000, power: 6.8, bracketRealistic: 4 }); // re-analysis → new point
+  hist = await getPowerHistory('m1');
+  assert.equal(hist.length, 2);
+  assert.deepEqual(hist.map((p) => p.power), [6.1, 6.8]);
+});
+
+test('recordPowerPoint sorts ascending by analyzedAt and caps length', async () => {
+  const { chrome } = makeChrome(1e7);
+  global.chrome = chrome;
+  // insert out of order + more than the cap
+  for (let i = POWER_HISTORY_CAP + 20; i >= 1; i -= 1) {
+    await recordPowerPoint('m2', { analyzedAt: i * 10, power: 5, bracketRealistic: 3 });
+  }
+  const hist = await getPowerHistory('m2');
+  assert.equal(hist.length, POWER_HISTORY_CAP);            // capped
+  for (let i = 1; i < hist.length; i += 1) assert.ok(hist[i - 1].at < hist[i].at); // ascending
+});
+
+test('recordPowerPoint ignores entries with no analyzedAt or no power', async () => {
+  const { chrome } = makeChrome(1e6);
+  global.chrome = chrome;
+  await recordPowerPoint('m3', { power: 6 });                       // no analyzedAt
+  await recordPowerPoint('m3', { analyzedAt: 100 });                // no power
+  await recordPowerPoint('', { analyzedAt: 100, power: 6 });        // no md5
+  assert.equal((await getPowerHistory('m3')).length, 0);
 });

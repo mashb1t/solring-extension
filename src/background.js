@@ -5,7 +5,7 @@
 
 import { getDeckById, searchByAuthor, importByUrl } from './api.js';
 import { extractDeck, extractHit, isStub } from './extract.js';
-import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS } from './cache.js';
+import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS, recordPowerPoint } from './cache.js';
 import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
 
 async function fetchAndCacheDeck(md5) {
@@ -24,7 +24,7 @@ async function fetchAndCacheDeck(md5) {
 // returned with {stale:true}. Schema-stale entries (older SCHEMA_VERSION) are likewise
 // not fresh, so a field added to extractDeck backfills on the next allow-fetch read.
 // Defaults preserve the old cache-or-GET behavior.
-async function getDeck({ md5, allowFetch = true, maxAgeMs = 0 }) {
+async function getDeckInner({ md5, allowFetch = true, maxAgeMs = 0 }) {
   const key = `deck:${md5}`;
   const entry = await getEntry(key);
   const fresh = entry && entry.v === SCHEMA_VERSION && (!maxAgeMs || Date.now() - entry.fetchedAt < maxAgeMs);
@@ -32,6 +32,14 @@ async function getDeck({ md5, allowFetch = true, maxAgeMs = 0 }) {
   if (allowFetch) return fetchAndCacheDeck(md5); // cold miss or stale, so GET and cache
   if (entry) return { fields: entry.data, cached: true, stale: true, fetchedAt: entry.fetchedAt };
   return { miss: true };
+}
+
+async function getDeck(msg) {
+  const res = await getDeckInner(msg);
+  // Record the deck's power/bracket in its local history (deduped per analysis) and hand
+  // the series back so the Power tile can chart it. Failure never breaks the read.
+  if (res && res.fields) res.history = await recordPowerPoint(msg.md5, res.fields).catch(() => []);
+  return res;
 }
 
 async function getUserDecks({ username, cursor }) {
@@ -53,7 +61,8 @@ async function importDeck({ canonicalUrl, md5, oldDeckId }) {
   const fields = extractDeck(raw);
   let fetchedAt;
   if (md5) ({ fetchedAt } = await setEntry(`deck:${md5}`, fields));
-  return { fields, fetchedAt };
+  const history = md5 ? await recordPowerPoint(md5, fields).catch(() => []) : [];
+  return { fields, fetchedAt, history };
 }
 
 // EDHREC enrichment for a deck: read the commander + card names from the CACHED deck

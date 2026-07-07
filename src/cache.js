@@ -121,3 +121,30 @@ export async function setSync(username, patch) {
   const cur = await getSync(username);
   await setPref(`sync:${username.toLowerCase()}`, { ...cur, ...patch });
 }
+
+// ---- per-deck power history (forward-only) ----
+// A local time series of a deck's power/bracket, one point per distinct CommanderSalt
+// analysis (keyed by analyzedAt / ingestDate, so repeat views of the same analysis don't
+// duplicate a point). Cannot backfill — history only accrues from when the user first views
+// a deck onward. Kept OUT of isCacheKey so it survives cache eviction / "Clear cache" (it is
+// user history, not a re-fetchable analysis). Capped so a long-lived deck can't grow unbounded.
+export const POWER_HISTORY_CAP = 60;
+
+export async function getPowerHistory(md5) {
+  const obj = await chrome.storage.local.get(`hist:${md5}`);
+  const v = obj[`hist:${md5}`];
+  return Array.isArray(v) ? v : [];
+}
+
+// Append { at, power, bracket } for this analysis if not already recorded. Returns the
+// (possibly unchanged) history, sorted ascending by `at`.
+export async function recordPowerPoint(md5, fields) {
+  const at = fields && fields.analyzedAt;
+  const power = fields && typeof fields.power === 'number' && Number.isFinite(fields.power) ? fields.power : null;
+  const list = await getPowerHistory(md5);
+  if (!md5 || !at || power == null || list.some((p) => p.at === at)) return list;
+  const bracket = fields.bracketRealistic != null ? fields.bracketRealistic : null;
+  const next = [...list, { at, power, bracket }].sort((a, b) => a.at - b.at).slice(-POWER_HISTORY_CAP);
+  await chrome.storage.local.set({ [`hist:${md5}`]: next });
+  return next;
+}
