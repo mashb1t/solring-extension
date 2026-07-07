@@ -452,6 +452,15 @@ export function renderEdhrecEnrichment(slot, data) {
       kids.push(el('div', { class: 'solring-pl-desc', text: 'Off-meta (your spice)' }), cont);
     }
   }
+  // Suggested cuts (EDHREC recs tool). Deck cards ranked by cut-worthiness — clickable card
+  // refs since they're in the deck. Hedge in the caption: low popularity ≠ wrong for you.
+  const cuts = (data && data.cuts) || [];
+  if (cuts.length) {
+    kids.push(el('div', { class: 'solring-pl-h2', text: 'Suggested cuts' }));
+    const cont = el('div', { class: 'solring-offmeta-chips' });
+    cardRefs(cuts.map((c) => c.name), { chip: true }).forEach((chip) => cont.append(chip));
+    kids.push(el('div', { class: 'solring-pl-desc', text: 'EDHREC’s least-kept cards for this commander — popularity, not deck-fit' }), cont);
+  }
   if (!kids.length) return;
   slot.append(...kids);
 }

@@ -7,6 +7,7 @@ import { getDeckById, searchByAuthor, importByUrl } from './api.js';
 import { extractDeck, extractHit, isStub } from './extract.js';
 import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS, SBOOK_TTL_MS, recordPowerPoint } from './cache.js';
 import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
+import { fetchRecs, cutRecs } from './sources/edhrec-recs.js';
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
 import { md5Hex } from './md5.js';
 
@@ -96,9 +97,29 @@ async function edhrecEnrichment(md5) {
   return {
     popularity: commanderPopularity(entry.data),
     stock: stockMeter(inclusion, deckCardNames, commanders),
+    cuts: await edhrecCuts(commanders, deckCardNames),
     inclusion,
     fetchedAt: entry.fetchedAt,
   };
+}
+
+// EDHREC "recs" cut recommendations for the deck (deck-specific POST). Cached by a hash of the
+// sorted non-commander card list so an edit invalidates it (deck md5 is URL-based, stable
+// across edits); TTL-bounded like the commander page. Fail-silent → [] on any failure.
+async function edhrecCuts(commanders, deckCardNames) {
+  const front = (n) => String(n).split(' // ')[0].toLowerCase().trim();
+  const cmdFront = new Set((commanders || []).map(front));
+  const cards = (deckCardNames || []).filter((n) => !cmdFront.has(front(n)));
+  if (!cards.length) return [];
+  const key = `edhrec:recs:${md5Hex([...cards].sort().join('|'))}`;
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
+    const json = await fetchRecs(commanders, cards);
+    if (!json) return null;
+    return setEntry(key, json);
+  });
+  return entry && entry.data ? cutRecs(entry.data) : [];
 }
 
 // Commander Spellbook "one card away": POST the cached deck to find-my-combos and return the
