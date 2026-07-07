@@ -3,7 +3,7 @@
 // vars so they follow Moxfield light/dark. Hidden by default.
 
 import { el } from './dom.js';
-import { num } from './format.js';
+import { num, exact } from './format.js';
 import { prettifyStat, BRACKET_FLAG_LABELS, humanizeId, humanizeValueMaybe } from './labels.js';
 import { cardRefs } from './render-card-modal.js';
 
@@ -363,9 +363,6 @@ function rankSparkline(rankHistory) {
 const pad2 = (n) => String(n).padStart(2, '0');
 function histDay(at) { const d = new Date(at); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
 function histStamp(at) { const d = new Date(at); return `${histDay(at)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
-// The exact power score, trailing zeros trimmed (up to 4 dp — CommanderSalt's real
-// granularity), so the hover/axis are traceable rather than rounded to 1 decimal.
-const exactScore = (n) => String(Number(n.toFixed(4)));
 
 // Power over time (Phase 6, forward-only local history): this deck's power rating across
 // analyses. y-axis auto-scaled min..max so small shifts are visible (power lives in a narrow
@@ -388,13 +385,13 @@ function powerHistoryChart(history) {
     + '</svg>';
   const wrap = el('div', {
     class: 'solring-mc-wrap solring-power-hist',
-    html: `<div class="solring-mc-y"><span>${exactScore(hi)}</span><span>${exactScore(lo)}</span></div>`
+    html: `<div class="solring-mc-y"><span>${exact(hi)}</span><span>${exact(lo)}</span></div>`
       + `<div class="solring-mc-plot">${svg}</div>`
       + `<div class="solring-mc-x"><span>${histDay(pts[0].at)}</span><span>${histDay(pts[pts.length - 1].at)}</span></div>`,
   });
   wireChartHover(wrap, pts.map((p, i) => ({
     fx: X(i) / W, fy: Y(p.power) / H,
-    label: `${histStamp(p.at)}: ${exactScore(p.power)}${p.bracket != null ? ` · B${p.bracket}` : ''}`,
+    label: `${histStamp(p.at)}: ${exact(p.power)}${p.bracket != null ? ` · B${p.bracket}` : ''}`,
   })));
   return wrap;
 }

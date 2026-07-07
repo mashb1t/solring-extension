@@ -9,7 +9,7 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
 import { getDeck, importDeck, getEnrichment } from './messaging.js';
 import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
-import { relTime, num } from './format.js';
+import { relTime, num, exact } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
 import { getCardPrefs, getOptions, onPrefChange, getCardSortView } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
@@ -230,7 +230,7 @@ function renderBody(body, f) {
   // Precise 0-10 rating at 2 decimals (the tile value shows 1). Never the raw
   // 12-digit float that powerLevelRating carries.
   const powerSub = typeof f.power === 'number'
-    ? `${num(f.power, 2)}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
+    ? `${exact(f.power)}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
   // Tagged so loadEdhrecEnrichment (resolves later, async) can find this tile and set its
