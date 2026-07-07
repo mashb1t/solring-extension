@@ -552,7 +552,7 @@
 /* Synergy anchor chip → full-card preview of the card's exact deck print on hover.
    The popover is body-level + position:fixed so the panel's overflow can't clip it. */
 .solring-syn-chip[data-img] { cursor: help; }
-.solring-syn-chip[data-href] { cursor: pointer; }
+.solring-syn-chip[data-href], .solring-syn-chip[data-resolve] { cursor: pointer; }
 .solring-syn-chip[data-href]:hover { color: var(--solring-accent); }
 .solring-syn-chip[data-href]:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 /* Inline card-name reference (bracket cards, combo pieces) — not a pill; hover previews

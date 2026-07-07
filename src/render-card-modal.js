@@ -150,8 +150,8 @@ function installCardHover() {
   const open = (chip) => {
     hide();
     // A card not in the deck (a near-miss combo's missing piece) has no on-page link to
-    // click; resolve its name to Moxfield's card view and open it in-page. Scryfall is the
-    // fallback if resolution fails.
+    // click; resolve its name to Moxfield's card view and open it in a new tab. Scryfall is
+    // the fallback if resolution fails.
     if (chip.dataset.resolve) { openMoxCard(chip.dataset.resolve, chip.dataset.fallback); return; }
     const href = chip.dataset.href;
     if (!href) return;
@@ -176,14 +176,16 @@ function installCardHover() {
   }, true);
 }
 
-// Open Moxfield's own card view for a card NOT in the deck (a near-miss combo's missing
-// piece) — it has no on-page deck-row link to click. Resolve the name to Moxfield's card
-// id via its public search API, then navigate client-side (pushState + popstate, no reload)
-// like an in-app link. The deck-backed modal is pure React state with no URL, so it can't
-// be reproduced externally — this opens the full card page. Falls back to `fallback`
-// (Scryfall, new tab) if the lookup fails. Session-cached by name.
+// Open Moxfield's card view for a card NOT in the deck (a near-miss combo's missing piece)
+// in a new tab, so the user keeps their deck. Resolve the name to Moxfield's card id via its
+// public search API. The tab is opened synchronously (about:blank) to keep the click's user
+// gesture, then redirected once the async lookup resolves — otherwise a popup blocker would
+// stop the post-await window.open. Falls back to `fallback` (Scryfall) if the lookup fails.
+// Session-cached by name.
 const moxCardPath = new Map();
 async function openMoxCard(name, fallback) {
+  const win = window.open('about:blank', '_blank');
+  if (win) win.opener = null; // sever the opener (about:blank is same-origin, so this works)
   let path = moxCardPath.get(normName(name));
   if (!path) {
     try {
@@ -197,8 +199,9 @@ async function openMoxCard(name, fallback) {
       }
     } catch { /* fall through to fallback */ }
   }
-  if (path) { history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate', { state: {} })); return; }
-  if (fallback) window.open(fallback, '_blank', 'noopener');
+  const url = path ? `https://moxfield.com${path}` : fallback;
+  if (win) { if (url) win.location.href = url; else win.close(); }
+  else if (url) window.open(url, '_blank', 'noopener'); // popup was blocked; try a direct open
 }
 
 // Map decklist rows to normalized name to { img, href }. A card's id in its
