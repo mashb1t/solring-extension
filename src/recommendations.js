@@ -147,6 +147,9 @@ function buildCutCard(template, cut, ctx) {
   for (const child of [...card.children]) {
     if (!child.querySelector('img') && !child.classList.contains('decklist-card-phantomsearch')) child.remove();
   }
+  // The clone template is a native "add" card that annotateAdds may have already stamped with a
+  // score badge — drop any inherited badge before adding this cut's own.
+  cell.querySelectorAll('.solring-score-badge').forEach((b) => b.remove());
   // Overlay the score (top-left) and the grey minus (top-right) on the card art. The image
   // block is position:relative, so both position against it and sit above the art via z-index.
   const visual = card.querySelector('.img-card-visual') || card;

@@ -714,11 +714,16 @@ html.solring-wide .container { max-width: unset !important; }
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
 
 /* ---- EDHREC "cuts" tab on the recommendations page ---- */
-/* Inline in the "We found N recommendations" header row, left of the view-mode pill. */
-.solring-cuts-tabs { display: inline-flex; gap: 0.4rem; margin: 0; vertical-align: middle; align-items: center; }
+/* A segmented pill matching Moxfield's view-mode pill (same height/rounding/grey), inline in
+   the header row and sitting on one line before that pill. */
+.solring-cuts-tabs {
+  display: inline-flex; align-items: center; gap: 2px; vertical-align: middle;
+  height: 38px; padding: 3px; border-radius: 20px; background: rgb(216, 216, 216); margin: 0;
+}
+.solring-cuts-tabs + .ms-4 { display: inline-block; vertical-align: middle; } /* keep the view pill on the same line */
 .solring-cuts-tab {
-  border: 0; background: transparent; padding: 0.2rem 0.75rem; border-radius: 999px;
-  font-weight: 600; cursor: pointer; color: inherit; opacity: 0.7; font-size: 0.85rem; line-height: 1.4;
+  border: 0; background: transparent; padding: 0 0.9rem; height: 100%; border-radius: 20px;
+  font-weight: 600; cursor: pointer; color: #333; opacity: 0.85; font-size: 0.85rem; line-height: 1;
 }
 .solring-cuts-tab:hover { opacity: 1; }
 .solring-cuts-tab.active { background: var(--solring-accent, #8b5cf6); color: #fff; opacity: 1; }
@@ -728,12 +733,13 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-cuts-status { padding: 1rem 0; opacity: 0.75; }
 .solring-cut-cell { position: relative; }
 .solring-cut-busy { opacity: 0.5; pointer-events: none; }
-/* Grey circular minus button, overlaid top-right of the card art (above the image). */
+/* Grey minus button overlaid top-right of the card art, sized like Moxfield's "+" add button
+   (31×26, small rounded rect), above the image via z-index. */
 .solring-cut-minus {
-  position: absolute; top: 4px; right: 4px; z-index: 4;
+  position: absolute; top: 4px; right: 4px; z-index: 4; box-sizing: border-box;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; padding: 0; line-height: 1; font-size: 1.1rem; font-weight: 700;
-  border-radius: 50%; border: 1px solid rgba(0,0,0,0.2);
+  height: 26px; min-width: 31px; padding: 3.5px 7px; line-height: 1; font-size: 1rem; font-weight: 700;
+  border-radius: 3.5px; border: 1px solid rgba(0,0,0,0.2);
   background: #6c757d; color: #fff; cursor: pointer;
 }
 .solring-cut-minus:hover { background: #5c636a; }
