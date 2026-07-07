@@ -30,7 +30,7 @@ let installed = false;
 
 export function teardownRecommendations() {
   installed = false;
-  document.querySelectorAll('.solring-cuts-tabs, .solring-cuts-view, .solring-cuts-toast, .solring-score-badge').forEach((n) => n.remove());
+  document.querySelectorAll('.solring-cuts-tabs, .solring-cuts-view, .solring-autosave, .solring-score-badge').forEach((n) => n.remove());
   document.querySelectorAll('[data-solring-recohidden]').forEach((n) => { n.style.display = ''; n.removeAttribute('data-solring-recohidden'); });
 }
 
@@ -303,11 +303,11 @@ function wireRemove(btn, cut, ctx, cell) {
         cut.quantity = next;
         const count = cell.querySelector('.solring-cut-count');
         if (next > 1) { if (count) count.textContent = `×${next}`; } else if (count) count.remove();
-        toast(`Removed one ${cut.name} (${next} left)`);
+        toast('Successfully removed one from main deck!');
         cell.classList.remove('solring-cut-busy'); btn.disabled = false;
       } else {
         await removeCard(ctx.editId, 'mainboard', cut.cardId);
-        toast(`Removed: ${cut.name}`);
+        toast('Successfully removed one from main deck!');
         cell.remove();
         bumpCount(-1);
       }
@@ -325,13 +325,23 @@ function bumpCount(delta) {
   if (mm) t.textContent = t.textContent.replace(/·\s*\d+/, `· ${Math.max(0, Number(mm[1]) + delta)}`);
 }
 
-let toastTimer = null;
+// Toast styled like Moxfield's own autosave notification (reuses the .autosave-notification
+// class → fixed bottom-center, blue, z-index). That class rests at opacity:0, so we control the
+// fade ourselves; errors get a red background + ⚠️.
+let toastTimer = null, toastHide = null;
 function toast(msg, isError) {
-  let box = document.querySelector('.solring-cuts-toast');
-  if (!box) { box = el('div', { class: 'solring-cuts-toast' }); document.body.appendChild(box); }
-  box.textContent = msg;
-  box.classList.toggle('solring-cuts-toast-error', !!isError);
-  box.classList.add('solring-cuts-toast-show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => box.classList.remove('solring-cuts-toast-show'), 4000);
+  let box = document.querySelector('.solring-autosave');
+  if (!box) {
+    box = el('div', { class: 'autosave-notification solring-autosave' });
+    box.style.transition = 'opacity .2s'; box.style.opacity = '0';
+    document.body.appendChild(box);
+  }
+  const inner = el('span');
+  inner.append(el('span', { class: 'me-2', text: isError ? '⚠️' : '👍' }));
+  inner.append(msg);
+  box.replaceChildren(inner);
+  box.style.background = isError ? '#b00020' : '';
+  requestAnimationFrame(() => { box.style.opacity = '1'; });
+  clearTimeout(toastTimer); clearTimeout(toastHide);
+  toastTimer = setTimeout(() => { box.style.opacity = '0'; toastHide = setTimeout(() => box.remove(), 300); }, 2600);
 }
