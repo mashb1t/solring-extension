@@ -268,6 +268,7 @@ function renderBody(body, f) {
     ? `${num(f.wincons)} total${f.combosCount != null ? ` · ${f.combosCount} combo${f.combosCount === 1 ? '' : 's'}` : ''}`
     : '—';
   const winconsTile = tile('Wincons', gradeChip(csRatingGrade(f.wincons, 'comboRating')), winconsSub);
+  winconsTile.classList.add('solring-wincons-tile'); // marker: the async spellbook loader appends the "one card away" count to its subline
   const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
   // Saltiness (Task 2.1): keep the grade + "N total", append the personality headline +
   // intensity, and hang the full hint sentence off the tile as a tooltip.
@@ -406,7 +407,7 @@ export async function mount({ waitFor }) {
     if (slot && slot.isConnected) renderSpellbookNearMiss(slot, data);
     // Surface the "one card away" count next to the deck's combo count in the Wincons tile.
     const n = ((data.nearMiss || []).length);
-    const sub = winconsTile.querySelector('.solring-tile-sub');
+    const sub = body.querySelector('.solring-wincons-tile .solring-tile-sub');
     if (n && sub && !sub.dataset.nearmiss) { sub.dataset.nearmiss = '1'; sub.textContent += ` · ${n} one away`; }
   }
 
