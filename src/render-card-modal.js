@@ -148,29 +148,57 @@ function installCardHover() {
   // the live on-page link so React Router handles it (modal overlay), falling back
   // to a plain navigation if the row was unmounted.
   const open = (chip) => {
+    hide();
+    // A card not in the deck (a near-miss combo's missing piece) has no on-page link to
+    // click; resolve its name to Moxfield's card view and open it in-page. Scryfall is the
+    // fallback if resolution fails.
+    if (chip.dataset.resolve) { openMoxCard(chip.dataset.resolve, chip.dataset.fallback); return; }
     const href = chip.dataset.href;
     if (!href) return;
-    hide();
-    // Absolute URL (a card not in the deck, e.g. a near-miss combo's missing piece linked
-    // to Scryfall) opens in a new tab so the user keeps their deck. Relative hrefs are
-    // Moxfield deck-row links: click the live one so React Router opens the card overlay.
     if (/^https?:/i.test(href)) { window.open(href, '_blank', 'noopener'); return; }
+    // Relative hrefs are Moxfield deck-row links: click the live one so React opens the overlay.
     const live = document.querySelector(`a.table-deck-row-link[href="${href}"]`) || document.querySelector(`a[href="${href}"]`);
     if (live) live.click(); else location.assign(href);
   };
+  const CHIP_SEL = '.solring-syn-chip[data-href], .solring-syn-chip[data-resolve]';
   document.addEventListener('click', (e) => {
-    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
+    const chip = e.target.closest && e.target.closest(CHIP_SEL);
     if (!chip) return;
     e.preventDefault();
     open(chip);
   }, true);
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
+    const chip = e.target.closest && e.target.closest(CHIP_SEL);
     if (!chip) return;
     e.preventDefault();
     open(chip);
   }, true);
+}
+
+// Open Moxfield's own card view for a card NOT in the deck (a near-miss combo's missing
+// piece) — it has no on-page deck-row link to click. Resolve the name to Moxfield's card
+// id via its public search API, then navigate client-side (pushState + popstate, no reload)
+// like an in-app link. The deck-backed modal is pure React state with no URL, so it can't
+// be reproduced externally — this opens the full card page. Falls back to `fallback`
+// (Scryfall, new tab) if the lookup fails. Session-cached by name.
+const moxCardPath = new Map();
+async function openMoxCard(name, fallback) {
+  let path = moxCardPath.get(normName(name));
+  if (!path) {
+    try {
+      const r = await fetch(`https://api2.moxfield.com/v2/cards/search?q=${encodeURIComponent(name)}`, { headers: { accept: 'application/json' } });
+      if (r.ok) {
+        const data = ((await r.json()) || {}).data || [];
+        const key = name.toLowerCase();
+        // Exact match, tolerating that Moxfield names DFCs "front // back" but combos use the front face.
+        const card = data.find((c) => c && c.name && (c.name.toLowerCase() === key || c.name.toLowerCase().split(' // ')[0] === key)) || data[0];
+        if (card && card.id) { path = `/cards/${card.id}`; moxCardPath.set(normName(name), path); }
+      }
+    } catch { /* fall through to fallback */ }
+  }
+  if (path) { history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate', { state: {} })); return; }
+  if (fallback) window.open(fallback, '_blank', 'noopener');
 }
 
 // Map decklist rows to normalized name to { img, href }. A card's id in its
@@ -203,7 +231,8 @@ export function cardRefs(items, opts = {}) {
   return (items || []).map((it) => {
     const name = typeof it === 'string' ? it : it.name;
     const image = typeof it === 'string' ? null : it.image;
-    const href = typeof it === 'string' ? null : it.href; // explicit external link (card not in deck)
+    const href = typeof it === 'string' ? null : it.href; // external fallback link (card not in deck)
+    const resolve = typeof it === 'string' ? false : it.resolve; // open Moxfield's card view by name
     const hit = prints[normName(name)];
     const deckImg = hit && hit.img; // deck's selected art, else the supplied print
     const primary = deckImg || image;
@@ -212,9 +241,11 @@ export function cardRefs(items, opts = {}) {
     // Keep the supplied (CommanderSalt) print as a fallback for when the synthesized
     // deck-print URL 404s (double-faced cards use a different, face-keyed URL).
     if (deckImg && image && image !== deckImg) attrs['data-img-cs'] = image;
-    // Deck-row link (opens Moxfield's card overlay) when the card is on the page; else the
-    // supplied external link if any (a missing combo piece → Scryfall).
+    // Deck-row link (opens Moxfield's card overlay) when the card is on the page; else, if
+    // asked to resolve, open Moxfield's card view by name (with an external fallback); else
+    // just the external link if one was supplied.
     if (hit && hit.href) { attrs['data-href'] = hit.href; attrs.role = 'link'; attrs.tabindex = '0'; }
+    else if (resolve) { attrs['data-resolve'] = name; if (href) attrs['data-fallback'] = href; attrs.role = 'link'; attrs.tabindex = '0'; }
     else if (href) { attrs['data-href'] = href; attrs.role = 'link'; attrs.tabindex = '0'; }
     return el('span', { class: cls, text: name, attrs });
   });
