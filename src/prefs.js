@@ -40,6 +40,7 @@ export const LIST_COLUMNS_DEFAULT = {
   power: true,
   bracket: true,
   tier: false,
+  edhrecRank: false,
   manabase: false,
   threat: false,
   salt: true,

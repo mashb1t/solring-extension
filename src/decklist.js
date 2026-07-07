@@ -265,6 +265,9 @@ const gradeNode = (value, field) => (typeof value === 'number' && Number.isFinit
 // Order here is the left-to-right order of the injected columns.
 const COLUMNS = [
   { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
+  // Commander EDHREC rank — same value as the Tier cell's hover. Filled async per row
+  // (fillRankCell) since the rank is fetched, not in the view; only for analyzed decks.
+  { key: 'edhrecRank', label: 'EDH#', title: 'Commander EDHREC rank', hit: false, cell: (v) => (v.commanderTier != null ? el('span', { class: 'solring-num', text: '…' }) : null) },
   { key: 'power', label: 'Pow', title: 'Power level (0–10)', hit: true, cell: (v) => numNode(v.power) },
   { key: 'bracket', label: 'Brkt', title: 'Realistic bracket', hit: true, cell: (v) => (v.bracketRealistic != null ? bracketValue(v) : null) },
   { key: 'manabase', label: 'Mana', title: 'Manabase (% vs benchmark)', hit: false, cell: (v) => (v.manabaseOverall != null ? textNode(`${Math.round(v.manabaseOverall)}%`) : null) },
@@ -299,7 +302,21 @@ function enabledColumns() {
     const c = byKey.get(k);
     if (c && listColumns[k] && !seen.has(k)) { out.push(c); seen.add(k); }
   }
-  for (const c of COLUMNS) if (listColumns[c.key] && !seen.has(c.key)) out.push(c);
+  // Enabled columns not in the saved order (e.g. a newly shipped key like edhrecRank) slot
+  // in at their natural COLUMNS position — right after their nearest already-placed
+  // predecessor — instead of all piling up at the end. Keeps a new column where it belongs
+  // (edhrecRank after tier) even for users who've customised their column order.
+  for (let i = 0; i < COLUMNS.length; i += 1) {
+    const c = COLUMNS[i];
+    if (!listColumns[c.key] || seen.has(c.key)) continue;
+    let insertAt = out.length;
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const idx = out.indexOf(byKey.get(COLUMNS[j].key));
+      if (idx >= 0) { insertAt = idx + 1; break; }
+    }
+    out.splice(insertAt, 0, c);
+    seen.add(c.key);
+  }
   colCacheSig = sig;
   colCache = out;
   return out;
@@ -628,24 +645,47 @@ const CELL_TITLE = {
   wincons: (v) => scoreTitle(v.wincons, 'win conditions'),
 };
 
-// EDHREC commander-rank tooltip on the Tier cell, fetched lazily on first hover (a list can
-// hold dozens of decks — fetching every one up front would burst EDHREC for a tooltip most
-// rows never get). Cached per md5 (number = rank, null = fetched-but-none) so re-renders and
-// re-hovers apply it synchronously. The commander page is itself cached by slug in the worker.
+// A deck's commander EDHREC rank, cached per md5 (number = rank, null = fetched-but-none) so
+// re-renders apply it synchronously; rankPending de-dupes concurrent fetches (e.g. the Tier
+// hover and the EDH# column asking at once). The commander page is itself cached by slug in
+// the worker, so only the first deck of each commander actually hits EDHREC.
 const tierRankByMd5 = new Map();
+const rankPending = new Map();
+function fetchRank(md5) {
+  if (tierRankByMd5.has(md5)) return Promise.resolve(tierRankByMd5.get(md5));
+  if (rankPending.has(md5)) return rankPending.get(md5);
+  const p = getEnrichment('edhrec', md5).then((data) => {
+    const rank = data && data.popularity && typeof data.popularity.rank === 'number' ? data.popularity.rank : null;
+    tierRankByMd5.set(md5, rank);
+    rankPending.delete(md5);
+    return rank;
+  }).catch(() => { rankPending.delete(md5); return null; });
+  rankPending.set(md5, p);
+  return p;
+}
+
+// EDHREC commander-rank tooltip on the Tier cell, fetched LAZILY on first hover — the Tier
+// column ships without EDH# on, so fetching every row up front would burst EDHREC for a
+// tooltip most rows never get.
 function wireTierRankTitle(td, md5) {
   const cached = tierRankByMd5.get(md5);
   if (typeof cached === 'number') { td.title = `EDHREC #${cached}`; td.classList.add('solring-col-help'); return; }
   if (tierRankByMd5.has(md5)) return; // fetched, no rank available
   const onEnter = () => {
     td.removeEventListener('mouseenter', onEnter);
-    getEnrichment('edhrec', md5).then((data) => {
-      const rank = data && data.popularity ? data.popularity.rank : null;
-      tierRankByMd5.set(md5, typeof rank === 'number' ? rank : null);
-      if (typeof rank === 'number' && td.isConnected) { td.title = `EDHREC #${rank}`; td.classList.add('solring-col-help'); }
-    }).catch(() => {});
+    fetchRank(md5).then((r) => { if (typeof r === 'number' && td.isConnected) { td.title = `EDHREC #${r}`; td.classList.add('solring-col-help'); } });
   };
   td.addEventListener('mouseenter', onEnter);
+}
+
+// Fill the EDH# column cell with "#<rank>" (or "—" when the commander has no EDHREC rank).
+// Eager: the column only renders when the user has opted the EDH# column on, so fetching
+// the rank for each analyzed row is what they asked for. Cached/de-duped via fetchRank.
+function fillRankCell(node, md5) {
+  const cached = tierRankByMd5.get(md5);
+  if (typeof cached === 'number') { node.textContent = `#${cached}`; return; }
+  if (tierRankByMd5.has(md5)) { node.textContent = '—'; return; }
+  fetchRank(md5).then((r) => { if (node.isConnected) node.textContent = typeof r === 'number' ? `#${r}` : '—'; });
 }
 
 // Build/rebuild one row's metric cells from its current view, inserted before the
@@ -671,6 +711,7 @@ function renderRowCells(entry, idx) {
       // hover shows the raw total, help cursor signals the cell carries it
       if (inner && titleFn) { const t = titleFn(view); if (t) { td.title = t; td.classList.add('solring-col-help'); } }
       else if (inner && c.key === 'tier') wireTierRankTitle(td, entry.md5); // hover → commander EDHREC rank
+      else if (inner && c.key === 'edhrecRank') fillRankCell(inner, entry.md5); // EDH# column value
       else if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
         td.title = 'Analyze this deck';
@@ -770,7 +811,7 @@ function reconcileColumns() {
 // ---- the "Stats columns" toggle menu (our own dropdown in the list toolbar) ---
 
 const COLUMN_NAMES = {
-  tier: 'Commander tier', power: 'Power', bracket: 'Bracket', manabase: 'Manabase', threat: 'Threat', salt: 'Saltiness',
+  tier: 'Commander tier', edhrecRank: 'EDHREC rank', power: 'Power', bracket: 'Bracket', manabase: 'Manabase', threat: 'Threat', salt: 'Saltiness',
   interaction: 'Interaction', wincons: 'Wincons', synergy: 'Synergy', combos: 'Combos', archetype: 'Archetype',
   actions: 'CS link + analysis',
 };
