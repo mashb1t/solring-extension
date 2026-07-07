@@ -270,13 +270,12 @@ function renderBody(body, f) {
   const winconsTile = tile('Wincons', gradeChip(csRatingGrade(f.wincons, 'comboRating')), winconsSub);
   winconsTile.classList.add('solring-wincons-tile'); // marker: the async spellbook loader appends the "one card away" count to its subline
   const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
-  // Saltiness (Task 2.1): keep the grade + "N total", append the personality headline +
-  // intensity, and hang the full hint sentence off the tile as a tooltip.
+  // Saltiness (Task 2.1): grade + "N total", plus the intensity word. The personality flavor
+  // (headline "Spicy Noodle" + its hint sentence) is dropped — intensity alone is the useful bit.
   const saltSub = typeof f.salt === 'number'
-    ? `${num(f.salt)} total${f.saltPersonality ? ` · ${f.saltPersonality.headline}${f.saltPersonality.intensity ? ` · ${f.saltPersonality.intensity}` : ''}` : ''}`
+    ? `${num(f.salt)} total${f.saltPersonality && f.saltPersonality.intensity ? ` · ${f.saltPersonality.intensity}` : ''}`
     : '—';
   const saltTile = tile('Saltiness', gradeChip(csRatingGrade(f.salt, 'saltRating')), saltSub);
-  if (f.saltPersonality && f.saltPersonality.hint) saltTile.title = f.saltPersonality.hint;
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
     [threatTile, interactionTile, winconsTile, synergyTile, saltTile]);
 
