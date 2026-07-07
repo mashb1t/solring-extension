@@ -712,3 +712,42 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-wide-toggle.solring-wide-on { color: var(--solring-accent); }
 
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
+
+/* ---- EDHREC "cuts" tab on the recommendations page ---- */
+.solring-cuts-tabs { display: flex; gap: 0.5rem; margin: 0 0 1rem; }
+.solring-cuts-tab {
+  border: 0; background: transparent; padding: 0.35rem 0.9rem; border-radius: 999px;
+  font-weight: 600; cursor: pointer; color: inherit; opacity: 0.7;
+}
+.solring-cuts-tab:hover { opacity: 1; }
+.solring-cuts-tab.active { background: var(--solring-accent, #8b5cf6); color: #fff; opacity: 1; }
+.solring-cuts-head { margin-bottom: 1rem; }
+.solring-cuts-title { font-size: 1.1rem; font-weight: 700; }
+.solring-cuts-hedge { font-size: 0.85rem; opacity: 0.7; max-width: 60ch; }
+.solring-cuts-status { padding: 1rem 0; opacity: 0.75; }
+.solring-cut-cell { position: relative; }
+.solring-cut-busy { opacity: 0.5; pointer-events: none; }
+/* Grey circular minus button, sized/placed like Moxfield's "+" add button overlay. */
+.solring-cut-minus {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0; line-height: 1; font-size: 1.1rem; font-weight: 700;
+  border-radius: 50%; border: 1px solid rgba(0,0,0,0.2);
+  background: #6c757d; color: #fff; cursor: pointer;
+}
+.solring-cut-minus:hover { background: #5c636a; }
+.solring-cut-minus:disabled { opacity: 0.6; cursor: default; }
+/* EDHREC score badge, top-left corner of the card art. */
+.solring-score-badge {
+  position: absolute; top: 4px; left: 4px; z-index: 3;
+  background: rgba(0,0,0,0.72); color: #fff; font-weight: 700; font-size: 0.72rem;
+  padding: 0.15rem 0.4rem; border-radius: 0.35rem; font-variant-numeric: tabular-nums;
+}
+/* Toast */
+.solring-cuts-toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+  background: #1f2430; color: #fff; padding: 0.6rem 1rem; border-radius: 0.5rem; z-index: 99999;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  max-width: min(90vw, 460px); font-size: 0.9rem;
+}
+.solring-cuts-toast-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.solring-cuts-toast-error { background: #7f1d1d; }
