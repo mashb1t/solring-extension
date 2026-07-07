@@ -127,8 +127,8 @@ function renderCuts(view, template, gridClass, cuts, ctx) {
 }
 
 // Clone a live Moxfield recommendation card for identical styling; keep its image + name, drop
-// the price/buy footer and Options (their data is the template card's), put a grey minus button
-// in the card's action overlay, and add the EDHREC score badge.
+// the price/buy footer and Options, repurpose Moxfield's own "+" add button into a grey "−"
+// remove button (so it looks/positions exactly like the native control), and add the score badge.
 function buildCutCard(template, cut, ctx) {
   const cell = template.cloneNode(true);
   cell.classList.add('solring-cut-cell');
@@ -140,9 +140,21 @@ function buildCutCard(template, cut, ctx) {
   const img = card.querySelector('img');
   if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
-  // Drop Moxfield's add-to-board overlay (the "+ / N in sideboard" badge) entirely.
+  // Repurpose Moxfield's own "+" add button into a grey "−": keep its classes (design, size,
+  // position, z-index), swap the primary→secondary color variant and the glyph, and drop the
+  // "N in sideboard" badge. cloneNode already stripped Moxfield's React click handler.
   const overlay = card.querySelector('.decklist-card-button');
-  if (overlay) overlay.remove();
+  const plus = overlay && overlay.querySelector('.decklist-card-button-btn');
+  if (overlay && plus) {
+    overlay.replaceChildren(plus.closest('.d-inline-flex') || plus); // keep only the button
+    plus.classList.remove('btn-outline-primary', 'btn-primary');
+    plus.classList.add('btn-outline-secondary', 'solring-cut-minus');
+    plus.replaceChildren(document.createTextNode('−'));
+    plus.setAttribute('title', `Remove ${cut.name} from the deck`);
+    wireRemove(plus, cut, ctx, cell);
+  } else if (overlay) {
+    overlay.remove();
+  }
   // Keep only the card's name + image block; drop the cloned price/buy footer and Options.
   for (const child of [...card.children]) {
     if (!child.querySelector('img') && !child.classList.contains('decklist-card-phantomsearch')) child.remove();
@@ -150,16 +162,12 @@ function buildCutCard(template, cut, ctx) {
   // The clone template is a native "add" card that annotateAdds may have already stamped with a
   // score badge — drop any inherited badge before adding this cut's own.
   cell.querySelectorAll('.solring-score-badge').forEach((b) => b.remove());
-  // Overlay the score (top-left) and the grey minus (top-right) on the card art. The image
-  // block is position:relative, so both position against it and sit above the art via z-index.
   const visual = card.querySelector('.img-card-visual') || card;
   visual.appendChild(scoreBadge(cut.score));
-  visual.appendChild(minusButton(cut, ctx, cell));
   return cell;
 }
 
-function minusButton(cut, ctx, cell) {
-  const btn = el('button', { class: 'btn btn-sm solring-cut-minus', attrs: { type: 'button', title: `Remove ${cut.name} from the deck` }, text: '−' });
+function wireRemove(btn, cut, ctx, cell) {
   btn.addEventListener('click', async (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!hasToken()) { toast('Interact with Moxfield once (so it authenticates), then retry.', true); return; }
@@ -174,7 +182,6 @@ function minusButton(cut, ctx, cell) {
       toast(`Couldn’t remove “${cut.name}” (${(err && err.message) || 'error'}).`, true);
     }
   });
-  return btn;
 }
 
 function bumpCount(delta) {
