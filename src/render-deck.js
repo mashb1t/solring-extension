@@ -376,10 +376,13 @@ export async function mount({ waitFor }) {
     if (!body.isConnected) return;
     const slot = body.querySelector('.solring-edhrec-slot');
     if (slot && slot.isConnected) renderEdhrecEnrichment(slot, data);
-    // Commander-tier tile subline: EDHREC #<rank>, only once the enrichment resolves (the
-    // tile itself rendered before this fetch settled, so it started with no subline).
-    const rank = data.popularity && data.popularity.rank;
-    if (rank) {
+    // Commander-tier tile subline: "EDHREC #<rank> · ~<N> decks", only once the enrichment
+    // resolves (the tile rendered before this fetch settled, so it started with no subline).
+    const pop = data.popularity || {};
+    const subParts = [];
+    if (pop.rank) subParts.push(`EDHREC #${pop.rank}`);
+    if (pop.deckCount) subParts.push(`~${Number(pop.deckCount).toLocaleString('en-US')} decks`);
+    if (subParts.length) {
       const tierTile = body.querySelector('[data-solring-tile="tier"]');
       if (tierTile && tierTile.isConnected) {
         let sub = tierTile.querySelector('.solring-tile-sub');
@@ -387,7 +390,7 @@ export async function mount({ waitFor }) {
           sub = el('div', { class: 'solring-tile-sub' });
           tierTile.append(sub);
         }
-        sub.textContent = `EDHREC #${rank}`;
+        sub.textContent = subParts.join(' · ');
       }
     }
   }

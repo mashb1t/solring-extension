@@ -404,9 +404,11 @@ export function renderEdhrecEnrichment(slot, data) {
   slot.replaceChildren();
   const kids = [];
   const pop = data && data.popularity;
-  if (pop && pop.deckCount) {
-    const rankPart = pop.rank ? ` · EDHREC #${pop.rank}` : '';
-    kids.push(el('div', { class: 'solring-pop-chip', text: `~${Number(pop.deckCount).toLocaleString('en-US')} decks${rankPart}` }));
+  if (pop && (pop.rank || pop.deckCount)) {
+    const parts = [];
+    if (pop.rank) parts.push(`EDHREC #${pop.rank}`);
+    if (pop.deckCount) parts.push(`~${Number(pop.deckCount).toLocaleString('en-US')} decks`);
+    kids.push(el('div', { class: 'solring-pop-chip', text: parts.join(' · ') }));
   }
   // Bracket spread + rank-over-time sit side by side (2-col; stacks on a narrow panel).
   const brChart = pop && pop.brackets ? bracketSpreadChart(pop.brackets) : null;
