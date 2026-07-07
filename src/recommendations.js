@@ -80,6 +80,27 @@ export async function installRecommendations({ waitFor }) {
   tabCut.addEventListener('click', () => show(true));
 }
 
+// Open Moxfield's native card modal for a deck card by clicking its link in the "Deck Preview"
+// panel (whose links open the modal in-page, no URL change). The panel renders its links only
+// when expanded, so expand it first, then click once the link appears. Returns true if it took
+// over the click (so the caller preventDefaults); false if no preview panel exists (navigate).
+function openCardPreview(cardId) {
+  const dp = document.querySelector('.deck-preview');
+  if (!dp) return false;
+  const sel = `a[href^="/cards/${cardId}-"], a[href="/cards/${cardId}"]`;
+  const now = dp.querySelector(sel);
+  if (now) { now.click(); return true; }
+  const bar = dp.querySelector('a');
+  if (bar && !dp.classList.contains('expanded')) bar.click(); // expand so the card links render
+  let tries = 0;
+  const timer = setInterval(() => {
+    const link = dp.querySelector(sel);
+    if (link) { clearInterval(timer); link.click(); }
+    else if (++tries > 25) clearInterval(timer);
+  }, 100);
+  return true;
+}
+
 function mkTab(label, active) {
   return el('button', { class: `solring-cuts-tab${active ? ' active' : ''}`, attrs: { type: 'button' }, text: label });
 }
@@ -136,7 +157,12 @@ function buildCutCard(template, cut, ctx) {
   const ph = card.querySelector('.decklist-card-phantomsearch');
   if (ph) ph.textContent = cut.name;
   const a = card.querySelector('a[href^="/cards/"]');
-  if (a) a.setAttribute('href', `/cards/${cut.cardId}`);
+  if (a) {
+    a.setAttribute('href', `/cards/${cut.cardId}`);
+    // Open Moxfield's native card modal in-page (via the Deck Preview) instead of navigating to
+    // the full card page. Falls through to the link's normal navigation if that isn't possible.
+    a.addEventListener('click', (e) => { if (openCardPreview(cut.cardId)) e.preventDefault(); });
+  }
   const img = card.querySelector('img');
   if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
@@ -178,7 +204,7 @@ function wireRemove(btn, cut, ctx, cell) {
     if (!hasToken()) { toast('Interact with Moxfield once (so it authenticates), then retry.', true); return; }
     cell.classList.add('solring-cut-busy'); btn.disabled = true;
     try {
-      await removeFromMain(ctx.publicId, ctx.editId, cut.entryId, cut.name);
+      await removeFromMain(ctx.publicId, ctx.editId, cut.cardId, cut.name);
       toast(`Removed: ${cut.name}`);
       cell.remove();
       bumpCount(-1);

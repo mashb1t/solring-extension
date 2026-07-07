@@ -65,12 +65,14 @@ async function write(url, opts) {
 const addCard = (editId, board, cardId) =>
   write(`${V2}/${editId}/cards/${board}`, { method: 'POST', body: JSON.stringify({ cardId, quantity: 1, usePrefPrinting: true }) });
 
-const removeEntry = (editId, board, entryId) =>
-  write(`${V2}/${editId}/cards/${board}/${entryId}`, { method: 'DELETE' });
+// Remove is keyed by the CARD id (like the add body), not the internal board-entry id: a DELETE
+// with the entry id 404s even for a present card.
+const removeCard = (editId, board, cardId) =>
+  write(`${V2}/${editId}/cards/${board}/${cardId}`, { method: 'DELETE' });
 
 // Remove a mainboard card. Verifies it's gone. Returns the fresh deck read.
-export async function removeFromMain(publicId, editId, entryId, cardName) {
-  await removeEntry(editId, 'mainboard', entryId);
+export async function removeFromMain(publicId, editId, cardId, cardName) {
+  await removeCard(editId, 'mainboard', cardId);
   const after = await readDeck(publicId);
   if (after.boards.mainboard[frontKey(cardName)]) throw new Error('remove-not-applied');
   return after;
@@ -78,9 +80,9 @@ export async function removeFromMain(publicId, editId, entryId, cardName) {
 
 // Move a mainboard card to `toBoard` (sideboard|maybeboard): add to target, then remove from
 // mainboard. Verifies the card is in the target and gone from mainboard. Returns the fresh read.
-export async function moveFromMain(publicId, editId, entryId, cardId, cardName, toBoard) {
+export async function moveFromMain(publicId, editId, cardId, cardName, toBoard) {
   await addCard(editId, toBoard, cardId);
-  await removeEntry(editId, 'mainboard', entryId);
+  await removeCard(editId, 'mainboard', cardId);
   const after = await readDeck(publicId);
   const k = frontKey(cardName);
   if (after.boards.mainboard[k]) throw new Error('move-source-remains');
