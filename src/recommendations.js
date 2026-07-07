@@ -179,29 +179,37 @@ function buildCutCard(template, cut, ctx) {
   if (a) {
     a.setAttribute('href', `/cards/${cut.cardId}`);
     // Open Moxfield's native card modal in-page (via the Deck Preview) instead of navigating to
-    // the full card page. Falls through to the link's normal navigation if that isn't possible.
-    a.addEventListener('click', (e) => { if (openCardPreview(cut.cardId)) e.preventDefault(); });
+    // the full card page. Ignore clicks that land on the minus control. Falls through to the
+    // link's normal navigation if the preview isn't available.
+    a.addEventListener('click', (e) => {
+      if (e.target.closest && e.target.closest('.decklist-card-button')) return;
+      if (openCardPreview(cut.cardId)) e.preventDefault();
+    });
   }
   const img = card.querySelector('img');
   if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
-  // Repurpose Moxfield's own "+" add button into a "−" remove button: keep its exact classes and
-  // inner structure (design, size, position, z-index), just swap the fa-plus glyph for fa-minus
-  // and drop the "N in sideboard" badge. cloneNode already stripped Moxfield's React handler.
+  // Normalize Moxfield's cloned action overlay to a single "−" remove button, whatever it cloned
+  // (a lone "+" add button, or a full "− [qty] +" stepper). Keep one Moxfield button for its exact
+  // styling/size, swap its glyph to fa-minus, drop the input / extra buttons. Show a "×N" count
+  // when the deck holds more than one copy.
   const overlay = card.querySelector('.decklist-card-button');
-  const plus = overlay && overlay.querySelector('.decklist-card-button-btn');
-  if (overlay && plus) {
-    overlay.replaceChildren(plus.closest('.d-inline-flex') || plus); // keep only the button
-    plus.classList.add('solring-cut-minus');
-    const svg = plus.querySelector('svg');
+  const btn = overlay && (overlay.querySelector('.decklist-card-button-btn') || overlay.querySelector('button'));
+  if (overlay && btn) {
+    const svg = btn.querySelector('svg');
     if (svg) {
       svg.setAttribute('data-icon', 'minus');
       svg.classList.remove('fa-plus'); svg.classList.add('fa-minus');
       const path = svg.querySelector('path');
       if (path) path.setAttribute('d', 'M0 256c0-17.7 14.3-32 32-32l384 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 288c-17.7 0-32-14.3-32-32z');
     }
-    plus.setAttribute('title', `Remove ${cut.name} from the deck`);
-    wireRemove(plus, cut, ctx, cell);
+    btn.classList.add('solring-cut-minus');
+    btn.classList.remove('fa-plus');
+    btn.setAttribute('title', `Remove ${cut.name} from the deck`);
+    wireRemove(btn, cut, ctx, cell);
+    const wrap = el('div', { class: 'd-inline-flex flex-row flex-nowrap gap-1 align-items-center' }, [btn]);
+    if (cut.quantity > 1) wrap.append(el('span', { class: 'solring-cut-count', text: `×${cut.quantity}` }));
+    overlay.replaceChildren(wrap); // discard the cloned input / second button
   } else if (overlay) {
     overlay.remove();
   }

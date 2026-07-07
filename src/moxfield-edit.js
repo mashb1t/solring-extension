@@ -15,7 +15,7 @@ export async function readDeck(publicId) {
     const out = {};
     for (const [entryId, c] of Object.entries((d.boards[b] && d.boards[b].cards) || {})) {
       const name = c.card && c.card.name;
-      if (name) out[frontKey(name)] = { entryId, cardId: c.card.id, name, image: cardImage(c.card) };
+      if (name) out[frontKey(name)] = { entryId, cardId: c.card.id, name, image: cardImage(c.card), quantity: c.quantity || 1 };
     }
     return out;
   };

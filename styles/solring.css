@@ -735,6 +735,12 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-cut-busy { opacity: 0.5; pointer-events: none; }
 /* The minus IS Moxfield's own add button with the glyph swapped to fa-minus — its classes carry
    all the styling/size/position, so no custom rules are needed here. */
+/* Copy count shown beside the minus when the deck holds more than one copy. */
+.solring-cut-count {
+  display: inline-flex; align-items: center; height: 26px; padding: 0 0.4rem;
+  background: rgba(0,0,0,0.72); color: #fff; font-weight: 700; font-size: 0.8rem;
+  border-radius: 0.3rem; font-variant-numeric: tabular-nums;
+}
 /* EDHREC score badge, top-left corner of the card art. Compact Bootstrap-badge padding. */
 .solring-score-badge {
   --bs-badge-padding-x: 0.25em; --bs-badge-padding-y: 0.25em;
