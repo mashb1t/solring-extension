@@ -429,10 +429,18 @@ export function renderEdhrecEnrichment(slot, data) {
     kids.push(row);
     if (s.offMeta && s.offMeta.length) {
       const CAP = 12;
-      const shown = s.offMeta.slice(0, CAP);
       const cont = el('div', { class: 'solring-offmeta-chips' });
-      cardRefs(shown, { chip: true }).forEach((chip) => cont.append(chip));
-      if (s.offMeta.length > CAP) cont.append(el('span', { class: 'solring-pl-desc', text: `+${s.offMeta.length - CAP} more` }));
+      const chips = cardRefs(s.offMeta, { chip: true });
+      chips.forEach((chip, i) => { if (i >= CAP) chip.classList.add('solring-syn-hidden'); cont.append(chip); });
+      if (chips.length > CAP) {
+        const more = el('button', { class: 'solring-syn-more', attrs: { type: 'button' }, text: `+${chips.length - CAP} more` });
+        more.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          cont.querySelectorAll('.solring-syn-hidden').forEach((c) => c.classList.remove('solring-syn-hidden'));
+          more.remove();
+        });
+        cont.append(more);
+      }
       kids.push(el('div', { class: 'solring-pl-desc', text: 'Off-meta (your spice)' }), cont);
     }
   }
