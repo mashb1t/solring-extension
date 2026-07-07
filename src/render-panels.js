@@ -320,7 +320,7 @@ function bracketSpreadChart(brackets) {
     html: `<div class="solring-mc-y"><span>${max.toLocaleString('en-US')}</span><span>0</span></div>`
       + `<div class="solring-mc-plot">${svg}</div><div class="solring-mc-x">${xl}</div>`,
   });
-  wireChartHover(wrap, pts.map((p) => ({ fx: X(p.b) / W, fy: Y(p.count) / H, label: `B${p.b}: ${p.count.toLocaleString('en-US')}` })));
+  wireChartHover(wrap, pts.map((p) => ({ fx: X(p.b) / W, fy: Y(p.count) / H, label: `Bracket ${p.b}: ${p.count.toLocaleString('en-US')}` })));
   return wrap;
 }
 
@@ -357,10 +357,20 @@ function rankSparkline(rankHistory) {
   return wrap;
 }
 
+// Local date-time helpers for the power-history chart. `stamp` = "YYYY-MM-DD HH:MM" (local),
+// for the hover so each point is traceable to when it was recorded; `day` = "YYYY-MM-DD" for
+// the compact x-axis endpoints. Local (not UTC) so the time matches the user's clock.
+const pad2 = (n) => String(n).padStart(2, '0');
+function histDay(at) { const d = new Date(at); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function histStamp(at) { const d = new Date(at); return `${histDay(at)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+// The exact power score, trailing zeros trimmed (up to 4 dp — CommanderSalt's real
+// granularity), so the hover/axis are traceable rather than rounded to 1 decimal.
+const exactScore = (n) => String(Number(n.toFixed(4)));
+
 // Power over time (Phase 6, forward-only local history): this deck's power rating across
 // analyses. y-axis auto-scaled min..max so small shifts are visible (power lives in a narrow
-// band); index-spaced x with the first/last analysis month. Hover shows each point's date +
-// power (+ bracket). Returns a wired node, or null with fewer than 2 points.
+// band); index-spaced x with the first/last analysis date. Hover shows the exact score +
+// date-time + bracket for traceability. Returns a wired node, or null with fewer than 2 points.
 function powerHistoryChart(history) {
   const pts = (history || []).filter((p) => p && Number.isFinite(p.power) && Number.isFinite(p.at));
   if (pts.length < 2) return null;
@@ -376,16 +386,15 @@ function powerHistoryChart(history) {
     + `<path d="${area}" class="solring-mc-fill"/>`
     + `<path d="${path}" class="solring-mc-line"/>`
     + '</svg>';
-  const month = (at) => new Date(at).toISOString().slice(0, 7);
   const wrap = el('div', {
     class: 'solring-mc-wrap solring-power-hist',
-    html: `<div class="solring-mc-y"><span>${hi.toFixed(1)}</span><span>${lo.toFixed(1)}</span></div>`
+    html: `<div class="solring-mc-y"><span>${exactScore(hi)}</span><span>${exactScore(lo)}</span></div>`
       + `<div class="solring-mc-plot">${svg}</div>`
-      + `<div class="solring-mc-x"><span>${month(pts[0].at)}</span><span>${month(pts[pts.length - 1].at)}</span></div>`,
+      + `<div class="solring-mc-x"><span>${histDay(pts[0].at)}</span><span>${histDay(pts[pts.length - 1].at)}</span></div>`,
   });
   wireChartHover(wrap, pts.map((p, i) => ({
     fx: X(i) / W, fy: Y(p.power) / H,
-    label: `${month(p.at)}: ${p.power.toFixed(1)}${p.bracket != null ? ` · B${p.bracket}` : ''}`,
+    label: `${histStamp(p.at)}: ${exactScore(p.power)}${p.bracket != null ? ` · B${p.bracket}` : ''}`,
   })));
   return wrap;
 }
@@ -475,10 +484,10 @@ function manaCurveChart(curve) {
     + `<path d="${path('actual')}" class="solring-mc-line"/>`
     + '</svg>';
   const xl = [];
-  for (let t = Math.ceil(tMin); t <= tMax; t += 1) xl.push(`<span>${t}</span>`);
+  for (let t = Math.ceil(tMin); t <= tMax; t += 1) xl.push(`<span>T${t}</span>`);
   const wrap = el('div', {
     class: 'solring-mc-wrap',
-    html: `<div class="solring-mc-y"><span>100</span><span>50</span><span>0</span></div>`
+    html: `<div class="solring-mc-y"><span>100%</span><span>50%</span><span>0%</span></div>`
       + `<div class="solring-mc-plot">${svg}</div>`
       + `<div class="solring-mc-x">${xl.join('')}</div>`,
   });
@@ -486,7 +495,7 @@ function manaCurveChart(curve) {
   wireChartHover(wrap, pts.map((p) => ({
     fx: X(p.turn) / W,
     fy: Y(p.actual) / H,
-    label: `T${p.turn}: ${pctv(p.actual)}${Number.isFinite(p.baseline) ? ` (typ ${pctv(p.baseline)})` : ''}`,
+    label: `Turn ${p.turn}: ${pctv(p.actual)}${Number.isFinite(p.baseline) ? ` (typical ${pctv(p.baseline)})` : ''}`,
   })));
   return wrap;
 }
@@ -673,7 +682,7 @@ export function buildManabasePanel(m) {
   if (curveChart) {
     // Curve node (interactive, wired hover) + its legend as siblings in the fig, matching
     // diagramCell's structure so the chart/tables height-sync (syncChartHeights) still works.
-    const legend = el('div', { class: 'solring-mc-legend', html: '<span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span>' });
+    const legend = el('div', { class: 'solring-mc-legend', html: '<span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Typical</span>' });
     cells.push(el('div', { class: 'solring-mb-cell solring-mb-cell-chart' }, [
       el('div', { class: 'solring-pl-h', text: 'On-curve castability' }),
       el('div', { class: 'solring-mb-fig' }, [curveChart, legend]),
