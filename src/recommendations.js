@@ -140,15 +140,18 @@ function buildCutCard(template, cut, ctx) {
   const img = card.querySelector('img');
   if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
-  // Grey minus button in Moxfield's action-overlay slot (replaces the "+ / N in sideboard" badge).
+  // Drop Moxfield's add-to-board overlay (the "+ / N in sideboard" badge) entirely.
   const overlay = card.querySelector('.decklist-card-button');
-  if (overlay) overlay.replaceChildren(minusButton(cut, ctx, cell));
+  if (overlay) overlay.remove();
   // Keep only the card's name + image block; drop the cloned price/buy footer and Options.
   for (const child of [...card.children]) {
     if (!child.querySelector('img') && !child.classList.contains('decklist-card-phantomsearch')) child.remove();
   }
+  // Overlay the score (top-left) and the grey minus (top-right) on the card art. The image
+  // block is position:relative, so both position against it and sit above the art via z-index.
   const visual = card.querySelector('.img-card-visual') || card;
   visual.appendChild(scoreBadge(cut.score));
+  visual.appendChild(minusButton(cut, ctx, cell));
   return cell;
 }
 

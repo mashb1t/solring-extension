@@ -728,8 +728,9 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-cuts-status { padding: 1rem 0; opacity: 0.75; }
 .solring-cut-cell { position: relative; }
 .solring-cut-busy { opacity: 0.5; pointer-events: none; }
-/* Grey circular minus button, sized/placed like Moxfield's "+" add button overlay. */
+/* Grey circular minus button, overlaid top-right of the card art (above the image). */
 .solring-cut-minus {
+  position: absolute; top: 4px; right: 4px; z-index: 4;
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; padding: 0; line-height: 1; font-size: 1.1rem; font-weight: 700;
   border-radius: 50%; border: 1px solid rgba(0,0,0,0.2);
