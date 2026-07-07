@@ -714,10 +714,11 @@ html.solring-wide .container { max-width: unset !important; }
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
 
 /* ---- EDHREC "cuts" tab on the recommendations page ---- */
-.solring-cuts-tabs { display: flex; gap: 0.5rem; margin: 0 0 1rem; }
+/* Inline in the "We found N recommendations" header row, left of the view-mode pill. */
+.solring-cuts-tabs { display: inline-flex; gap: 0.4rem; margin: 0; vertical-align: middle; align-items: center; }
 .solring-cuts-tab {
-  border: 0; background: transparent; padding: 0.35rem 0.9rem; border-radius: 999px;
-  font-weight: 600; cursor: pointer; color: inherit; opacity: 0.7;
+  border: 0; background: transparent; padding: 0.2rem 0.75rem; border-radius: 999px;
+  font-weight: 600; cursor: pointer; color: inherit; opacity: 0.7; font-size: 0.85rem; line-height: 1.4;
 }
 .solring-cuts-tab:hover { opacity: 1; }
 .solring-cuts-tab.active { background: var(--solring-accent, #8b5cf6); color: #fff; opacity: 1; }

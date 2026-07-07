@@ -48,7 +48,11 @@ export async function installRecommendations({ waitFor }) {
   const tabAdd = mkTab('Recommended', true);
   const tabCut = mkTab('Cuts', false);
   const tabs = el('div', { class: 'solring-cuts-tabs' }, [tabAdd, tabCut]);
-  grid.parentElement.insertBefore(tabs, grid);
+  // Place the tabs top-right, just before Moxfield's view-mode pill (.ms-4 in the
+  // "We found N recommendations" header row). Fall back to above the grid.
+  const pill = document.querySelector('.ms-auto .ms-4');
+  if (pill && pill.parentElement) pill.parentElement.insertBefore(tabs, pill);
+  else grid.parentElement.insertBefore(tabs, grid);
   grid.parentElement.insertBefore(cutsView, grid.nextSibling);
   registerDisposable(teardownRecommendations);
 
