@@ -18,6 +18,7 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { getDeck, getEnrichment } from './messaging.js';
 import { annotate } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
+import { installCardSidebar } from './render-card-sidebar.js';
 
 // The recommendations route carries a suffix that moxfield.parseDeckId (anchored on /decks/{id}$)
 // rejects, so match + extract the public id here.
@@ -98,6 +99,11 @@ async function annotatePreview(publicId) {
   const fields = res && res.fields;
   if (!fields || !fields.cards) return;
   try { const e = await getEnrichment('edhrec', md5); if (e && e.inclusion) fields.edhrecInclusion = e.inclusion; } catch { /* EDHREC% column stays blank */ }
+
+  // Card-detail panel (power / saltiness / tags / synergy) below the Deck Preview's card image —
+  // the preview uses the same aside.deckview-image-container the deck-view sidebar anchors on.
+  const opts0 = await getOptions().catch(() => ({}));
+  installCardSidebar(() => fields, () => opts0);
 
   let obs = null, timer = null;
   const apply = async () => {
