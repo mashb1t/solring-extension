@@ -140,16 +140,21 @@ function buildCutCard(template, cut, ctx) {
   const img = card.querySelector('img');
   if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
-  // Repurpose Moxfield's own "+" add button into a grey "−": keep its classes (design, size,
-  // position, z-index), swap the primary→secondary color variant and the glyph, and drop the
-  // "N in sideboard" badge. cloneNode already stripped Moxfield's React click handler.
+  // Repurpose Moxfield's own "+" add button into a "−" remove button: keep its exact classes and
+  // inner structure (design, size, position, z-index), just swap the fa-plus glyph for fa-minus
+  // and drop the "N in sideboard" badge. cloneNode already stripped Moxfield's React handler.
   const overlay = card.querySelector('.decklist-card-button');
   const plus = overlay && overlay.querySelector('.decklist-card-button-btn');
   if (overlay && plus) {
     overlay.replaceChildren(plus.closest('.d-inline-flex') || plus); // keep only the button
-    plus.classList.remove('btn-outline-primary', 'btn-primary');
-    plus.classList.add('btn-outline-secondary', 'solring-cut-minus');
-    plus.replaceChildren(document.createTextNode('−'));
+    plus.classList.add('solring-cut-minus');
+    const svg = plus.querySelector('svg');
+    if (svg) {
+      svg.setAttribute('data-icon', 'minus');
+      svg.classList.remove('fa-plus'); svg.classList.add('fa-minus');
+      const path = svg.querySelector('path');
+      if (path) path.setAttribute('d', 'M0 256c0-17.7 14.3-32 32-32l384 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 288c-17.7 0-32-14.3-32-32z');
+    }
     plus.setAttribute('title', `Remove ${cut.name} from the deck`);
     wireRemove(plus, cut, ctx, cell);
   } else if (overlay) {

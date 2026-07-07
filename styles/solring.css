@@ -733,9 +733,8 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-cuts-status { padding: 1rem 0; opacity: 0.75; }
 .solring-cut-cell { position: relative; }
 .solring-cut-busy { opacity: 0.5; pointer-events: none; }
-/* The minus reuses Moxfield's add-button classes (btn-outline-secondary + decklist-card-button-btn)
-   for identical design/size/position; only the "−" glyph weight is tweaked here. */
-.solring-cut-minus { font-weight: 700; font-size: 1rem; line-height: 1; }
+/* The minus IS Moxfield's own add button with the glyph swapped to fa-minus — its classes carry
+   all the styling/size/position, so no custom rules are needed here. */
 /* EDHREC score badge, top-left corner of the card art. Compact Bootstrap-badge padding. */
 .solring-score-badge {
   --bs-badge-padding-x: 0.25em; --bs-badge-padding-y: 0.25em;
