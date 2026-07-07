@@ -9,11 +9,15 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // carry an older `v` (or none) and are treated as stale: served for display continuity
 // but re-fetched on the next allow-fetch read (e.g. Analyze all), so new fields backfill
 // without a manual Clear cache or Analyze. History, by version:
-// 1 pre-manabase. 2 adds manabase. 3 adds per-card synergy count. 4 adds synergy score
+// 1 pre-manabase. 2 adds manabase. 3 adds per-card synergy count. 4 adds synergy
 // and scoreBias-ranked partners. 5 adds bracket/power profile (coaching, score drivers,
 // anti-patterns). 6 adds wincon profile. 7 adds inferred deck type. 8 adds fringeCEDH.
 // 9 bracket cards carry images. 10 adds power fingerprint, synergy anchors/hubs carry images.
-export const SCHEMA_VERSION = 10;
+// 11 adds salt personality, card-advantage/denial/graveyard fingerprint, commander
+// centricity, anti-pattern score cap, per-card name + top threats.
+// 12 adds top-level commanders[] (partner/background EDHREC slugs).
+// 13 drops non-front-face (DFC/MDFC/adventure back) entries from the per-card map.
+export const SCHEMA_VERSION = 13;
 
 const inFlight = new Map();
 
@@ -59,9 +63,19 @@ export function isFresh(entry, ttl = TTL_MS) {
   return !!entry && entry.v === SCHEMA_VERSION && Date.now() - entry.fetchedAt < ttl;
 }
 
-// Cached analyses only: deck:* and search:* entries (not prefs:* / sync:*).
+export const ENRICH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const SBOOK_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (combo data changes slowly)
+
+// Freshness for enrichment entries: TTL only, NO schema-version gate. Enrichment shape is
+// owned by its source module, not extractDeck, so a deck SCHEMA_VERSION bump must not
+// invalidate cached EDHREC data.
+export function isFreshTtl(entry, ttl) {
+  return !!entry && Date.now() - entry.fetchedAt < ttl;
+}
+
+// Cached analyses + enrichment: deck:* / search:* / edhrec:* (not prefs:* / sync:*).
 function isCacheKey(k) {
-  return k.startsWith('deck:') || k.startsWith('search:');
+  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:');
 }
 
 /** Total storage footprint of cached analyses → { bytes, count }. */
@@ -107,4 +121,36 @@ export async function getSync(username) {
 export async function setSync(username, patch) {
   const cur = await getSync(username);
   await setPref(`sync:${username.toLowerCase()}`, { ...cur, ...patch });
+}
+
+// ---- per-deck power history (forward-only) ----
+// A local time series of a deck's power/bracket. A point is recorded whenever power or
+// bracket CHANGES from the last point (so repeat views of an unchanged analysis don't
+// duplicate a point, but an edit-driven re-analysis does). Dedup keys on the values, NOT on
+// analyzedAt/ingestDate — CommanderSalt omits ingestDate on a fresh on-demand POST analysis,
+// which is exactly the edit-then-reanalyze case we most want to capture. The point's
+// timestamp is analyzedAt when present, else the current time. Cannot backfill — history
+// accrues from first view onward. Kept OUT of isCacheKey so it survives cache eviction /
+// "Clear cache" (user history, not a re-fetchable analysis). Capped to bound storage.
+export const POWER_HISTORY_CAP = 60;
+
+export async function getPowerHistory(md5) {
+  const obj = await chrome.storage.local.get(`hist:${md5}`);
+  const v = obj[`hist:${md5}`];
+  return Array.isArray(v) ? v : [];
+}
+
+// Append { at, power, bracket } when power/bracket changed since the last point. Returns the
+// (possibly unchanged) history, sorted ascending by `at`.
+export async function recordPowerPoint(md5, fields) {
+  const power = fields && typeof fields.power === 'number' && Number.isFinite(fields.power) ? fields.power : null;
+  const list = await getPowerHistory(md5);
+  if (!md5 || power == null) return list;
+  const bracket = fields.bracketRealistic != null ? fields.bracketRealistic : null;
+  const last = list[list.length - 1];
+  if (last && last.power === power && last.bracket === bracket) return list; // nothing changed
+  const at = Number.isFinite(fields.analyzedAt) ? fields.analyzedAt : Date.now();
+  const next = [...list, { at, power, bracket }].sort((a, b) => a.at - b.at).slice(-POWER_HISTORY_CAP);
+  await chrome.storage.local.set({ [`hist:${md5}`]: next });
+  return next;
 }

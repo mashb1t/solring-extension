@@ -5,7 +5,10 @@
 
 import { getDeckById, searchByAuthor, importByUrl } from './api.js';
 import { extractDeck, extractHit, isStub } from './extract.js';
-import { getEntry, setEntry, isFresh, dedupe, SCHEMA_VERSION } from './cache.js';
+import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS, SBOOK_TTL_MS, recordPowerPoint } from './cache.js';
+import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
+import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
+import { md5Hex } from './md5.js';
 
 async function fetchAndCacheDeck(md5) {
   const key = `deck:${md5}`;
@@ -23,7 +26,7 @@ async function fetchAndCacheDeck(md5) {
 // returned with {stale:true}. Schema-stale entries (older SCHEMA_VERSION) are likewise
 // not fresh, so a field added to extractDeck backfills on the next allow-fetch read.
 // Defaults preserve the old cache-or-GET behavior.
-async function getDeck({ md5, allowFetch = true, maxAgeMs = 0 }) {
+async function getDeckInner({ md5, allowFetch = true, maxAgeMs = 0 }) {
   const key = `deck:${md5}`;
   const entry = await getEntry(key);
   const fresh = entry && entry.v === SCHEMA_VERSION && (!maxAgeMs || Date.now() - entry.fetchedAt < maxAgeMs);
@@ -31,6 +34,14 @@ async function getDeck({ md5, allowFetch = true, maxAgeMs = 0 }) {
   if (allowFetch) return fetchAndCacheDeck(md5); // cold miss or stale, so GET and cache
   if (entry) return { fields: entry.data, cached: true, stale: true, fetchedAt: entry.fetchedAt };
   return { miss: true };
+}
+
+async function getDeck(msg) {
+  const res = await getDeckInner(msg);
+  // Record the deck's power/bracket in its local history (deduped per analysis) and hand
+  // the series back so the Power tile can chart it. Failure never breaks the read.
+  if (res && res.fields) res.history = await recordPowerPoint(msg.md5, res.fields).catch(() => []);
+  return res;
 }
 
 async function getUserDecks({ username, cursor }) {
@@ -52,10 +63,79 @@ async function importDeck({ canonicalUrl, md5, oldDeckId }) {
   const fields = extractDeck(raw);
   let fetchedAt;
   if (md5) ({ fetchedAt } = await setEntry(`deck:${md5}`, fields));
-  return { fields, fetchedAt };
+  const history = md5 ? await recordPowerPoint(md5, fields).catch(() => []) : [];
+  return { fields, fetchedAt, history };
 }
 
-const HANDLERS = { getDeck, getUserDecks, importDeck };
+// EDHREC enrichment for a deck: read the commander + card names from the CACHED deck
+// entry (no extra CS fetch), derive the EDHREC slug, cache the commander page JSON
+// commander-scoped (shared across every deck with that commander, TTL-only), and derive
+// popularity + stock meter + the inclusion map. All three come from one payload.
+async function edhrecEnrichment(md5) {
+  const deck = await getEntry(`deck:${md5}`);
+  if (!deck || !deck.data) return { miss: true };
+  const commanders = (deck.data.commanders && deck.data.commanders.length)
+    ? deck.data.commanders
+    : (deck.data.commander ? [deck.data.commander] : []);
+  const slug = commanderSlug(commanders);
+  if (!slug) return { miss: true };
+  // dedupe ONLY the commander-scoped JSON fetch/cache (shared across every deck with this
+  // commander). Deck-specific derivation (stock meter) is done OUTSIDE per caller, so a
+  // concurrent request for a different deck sharing the commander can't get this deck's stock.
+  const key = `edhrec:${slug}`;
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
+    const json = await fetchEdhrec(slug);
+    if (!json) return null;
+    return setEntry(key, json);
+  });
+  if (!entry || !entry.data) return { miss: true };
+  const inclusion = inclusionByName(entry.data);
+  const deckCardNames = Object.values(deck.data.cards || {}).map((c) => c.name).filter(Boolean);
+  return {
+    popularity: commanderPopularity(entry.data),
+    stock: stockMeter(inclusion, deckCardNames, commanders),
+    inclusion,
+    fetchedAt: entry.fetchedAt,
+  };
+}
+
+// Commander Spellbook "one card away": POST the cached deck to find-my-combos and return the
+// combos it's a single card short of. Cached by a hash of the (sorted) card list so an edit
+// invalidates it (the deck md5 is URL-based and stable across edits); 30-day TTL. The
+// near-miss diff is computed fresh per call from the cached results.
+async function spellbookEnrichment(md5) {
+  const deck = await getEntry(`deck:${md5}`);
+  if (!deck || !deck.data || !deck.data.cards) return { miss: true };
+  const commanderNames = (deck.data.commanders && deck.data.commanders.length)
+    ? deck.data.commanders
+    : (deck.data.commander ? [deck.data.commander] : []);
+  if (!commanderNames.length) return { miss: true };
+  const front = (n) => String(n).split(' // ')[0].toLowerCase().trim();
+  const cmdFront = new Set(commanderNames.map(front));
+  const names = Object.values(deck.data.cards).map((c) => c.name).filter(Boolean);
+  const commanders = commanderNames.map((card) => ({ card, quantity: 1 }));
+  const main = names.filter((n) => !cmdFront.has(front(n))).map((card) => ({ card, quantity: 1 }));
+  const key = `sbook:${md5Hex([...names].sort().join('|'))}`;
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, SBOOK_TTL_MS)) return cached;
+    const results = await fetchMyCombos(commanders, main);
+    if (!results) return null;
+    return setEntry(key, results);
+  });
+  if (!entry || !entry.data) return { miss: true };
+  return { nearMiss: nearMissCombos(entry.data, names), fetchedAt: entry.fetchedAt };
+}
+
+async function getEnrichment({ source, md5 }) {
+  if (source === 'edhrec') return edhrecEnrichment(md5);
+  if (source === 'spellbook') return spellbookEnrichment(md5);
+  return { error: `unknown enrichment source: ${source}` };
+}
+
+const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = msg && HANDLERS[msg.type];

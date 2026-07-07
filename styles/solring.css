@@ -75,6 +75,14 @@
 @keyframes solring-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .solring-spin-icon.solring-spin { animation: none; } }
 .solring-wordmark { letter-spacing: 0.01em; }
+/* Rule-zero copy button in the panel bar: a compact text button (reuses .solring-refresh
+   for the muted/hover treatment), sized for its "Rule 0" / "Copied ✓" label. */
+.solring-rz-copy {
+  font-size: 0.72rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+  border: 1px solid var(--solring-border); border-radius: 4px; padding: 0.05rem 0.4rem;
+}
+.solring-rz-copy[hidden] { display: none; }
+.solring-rz-copy:hover { border-color: var(--solring-accent); }
 /* Panel-bar chevron: same big ⌃ as the expandable tiles — rotated 180° when the
    panel is collapsed, upright when open. */
 .solring-chevron {
@@ -140,6 +148,56 @@
    stacks on small viewports without a fixed media query); grid gap spaces both axes, so
    the groups need no margins of their own. */
 .solring-syn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 0.7rem 1.5rem; align-items: start; }
+/* Synergy expansion header: label + value chip on one line. The label occupies the same
+   fixed-width column (9rem) as the bar-row labels below, so it forms a real column and the
+   chip begins where the bars begin. Matches .solring-pl-row's grid. */
+.solring-syn-head { display: grid; grid-template-columns: 9rem 1fr; align-items: baseline; gap: 0.5rem; margin-bottom: 0.55rem; }
+.solring-syn-head .solring-pl-h { margin-bottom: 0; white-space: nowrap; }
+.solring-syn-head .solring-flag { justify-self: start; }
+/* Commander-tier ladder: T1–T5 steps, the current tier filled with the accent. */
+.solring-tier-ladder { display: inline-flex; gap: 0.25rem; margin-bottom: 0.4rem; }
+.solring-tier-step {
+  font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 0.12rem 0.5rem; border-radius: 5px;
+  border: 1px solid var(--solring-border); color: var(--solring-text-2); background: var(--solring-surface);
+}
+.solring-tier-step-on { background: var(--solring-accent); color: #fff; border-color: var(--solring-accent); }
+/* EDHREC enrichment slot (Phase 4): popularity chip, bracket-spread graph, rank
+   sparkline, stock-o-meter. */
+.solring-edhrec-slot:empty { display: none; }
+/* "One card away" (Commander Spellbook): reuses the .solring-combo card style so it matches
+   the deck's existing combos; a divider + header separate the two categories, and the piece
+   the deck is missing is highlighted red. */
+.solring-nearmiss-slot:empty { display: none; }
+/* Space the near-miss cards like the deck's combo list (which is a grid with gap) — the slot is a
+   single grid item of .solring-combos, so give it its own matching grid + gap. */
+.solring-nearmiss-slot { display: grid; gap: 0.6rem; }
+.solring-combo-divider { border-top: 1px solid var(--solring-border); }
+.solring-piece-missing { color: var(--solring-rating-a); font-weight: 700; }
+.solring-pl-h2 { font-weight: 600; margin: .5rem 0 .25rem; opacity: .85; }
+.solring-pop-chip { font-size: .82em; opacity: .7; margin: .35rem 0; }
+.solring-bracket-fig, .solring-rank-fig { margin: .25rem 0 .5rem; }
+/* Bracket spread + rank-over-time side by side; stack when the panel is narrow. min-width:0
+   lets each full-width SVG shrink within its grid track instead of overflowing. */
+.solring-edhrec-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 1.25rem; }
+.solring-edhrec-col { min-width: 0; }
+/* Bracket-spread and rank-over-time both use the 2-col .solring-mc-wrap grid (y-axis + plot)
+   like the mana-curve chart — the y-axis child is what makes the plot land in the 1fr column
+   and fill its width (without one, the plot falls in the auto column and shrink-wraps to the
+   SVG's 300px intrinsic size). */
+/* Cap the plot height: at full panel width, `.solring-mc { height: auto }` would inherit
+   the 220×90 viewBox ratio and render ~560px tall. preserveAspectRatio="none" lets us pin a
+   compact pixel height and just stretch the drawing (non-scaling-stroke keeps lines crisp). */
+.solring-bracket-chart .solring-mc, .solring-rank-chart .solring-mc, .solring-power-hist .solring-mc { height: 100px; }
+.solring-pw-hist { margin-top: .5rem; }
+/* Hover readout: the plot is the positioning context for the marker dot + value tooltip. */
+.solring-mc-plot { position: relative; }
+.solring-chart-dot { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--solring-accent); box-shadow: 0 0 0 2px var(--solring-surface); pointer-events: none; }
+.solring-chart-tip { position: absolute; top: 0; transform: translate(-50%, -115%); white-space: nowrap; pointer-events: none; z-index: 3;
+  font-size: .68rem; padding: .05rem .35rem; border-radius: .3rem; background: var(--solring-text); color: var(--solring-surface); }
+.solring-rank-x span { font-size: .68rem; color: var(--solring-text-2); }
+.solring-rank-x span:last-child { font-weight: 600; color: var(--solring-text); }
+.solring-offmeta-chips { display: flex; flex-wrap: wrap; gap: .25rem; margin: .25rem 0; align-items: center; }
 .solring-pl-row { display: grid; grid-template-columns: 9rem 1fr 3rem; align-items: center; gap: 0.5rem; font-size: 0.78rem; margin: 0.18rem 0; }
 .solring-pl-label { color: var(--solring-text-2); min-width: 0; }
 /* A linked card name as a bar-row label must wrap inside its fixed column (card names
@@ -258,9 +316,13 @@
 .solring-mc-legend { display: flex; gap: 1rem; margin-top: 0.3rem; font-size: 0.7rem; color: var(--solring-text-2); }
 .solring-mc-legend span { display: inline-flex; align-items: center; }
 .solring-mc-legend span::before { content: ''; width: 14px; margin-right: 5px; border-top: 2px solid currentColor; }
-.solring-mc-k-actual::before { border-top-color: var(--solring-accent); }
+/* Scope the icon overrides under .solring-mc-legend so they out-specify the generic
+   `span::before` above (which is (0,1,2)); a bare `.solring-mc-k-*::before` (0,1,1) loses to
+   it and the colour/dash never take. Icons then match the chart: accent solid = this deck,
+   muted dashed = baseline. */
+.solring-mc-legend .solring-mc-k-actual::before { border-top-color: var(--solring-accent); }
 .solring-mc-k-base { color: var(--solring-text-2); }
-.solring-mc-k-base::before { border-top-style: dashed; }
+.solring-mc-legend .solring-mc-k-base::before { border-top-style: dashed; border-top-color: var(--solring-text-2); }
 
 /* Per-combo toggle: the whole combo card expands the collapsible body; a chevron
    (rotated 180° when closed, like the metric tiles) sits at the end of the meta. */
@@ -386,6 +448,23 @@
   font-variant-numeric: tabular-nums; color: var(--solring-text-2);
   white-space: nowrap;
 }
+.solring-edhrec-cell { opacity: .6; font-variant-numeric: tabular-nums; min-width: 2.6em; }
+.solring-edhrec-cell.solring-edhrec-na { opacity: .3; } /* commander / off-meta: "–", dimmer */
+/* Column-label key, overlaid on each type group's header row (Text view has no table
+   header). Absolutely anchored to the header's right edge (offset by the trailing
+   collection/menu columns) so each abbreviation sits over its number column below. */
+.solring-collegend-host { position: relative; }
+.solring-collegend { position: absolute; inset: 0; pointer-events: none; }
+.solring-collabel {
+  position: absolute; top: 50%; transform: translateY(-50%); text-align: right;
+  text-transform: uppercase; color: var(--solring-text-2); white-space: nowrap;
+}
+/* Clickable column labels: sort the deck's cards by that metric. pointer-events re-enabled
+   just on the labels (the legend container stays inert so it never blocks the header). */
+.solring-collabel-btn { pointer-events: auto; cursor: pointer; }
+.solring-collabel-btn:hover { color: var(--solring-text); }
+.solring-collabel-btn:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+.solring-collabel-on { color: var(--solring-accent); }
 /* Mark for standout cards (thresholds + colors configurable in the options page):
    power above N× the deck average, saltiness at/above the threshold. Applied to the
    decklist columns and the modal/sidebar tile values. */
@@ -433,20 +512,19 @@
 
 /* ---- per-card Info panel (card-detail modal sidebar, ~220px wide) ---- */
 .solring-card-modal {
-  /* width is capped to the card image's pixel width in JS; this is the fallback
-     ceiling if that measurement is unavailable, so a long tag/synergy list wraps
-     instead of stretching the shrink-to-content column and breaking the modal. */
-  width: 100%; max-width: 20rem; box-sizing: border-box; text-align: left;
+  /* The image column is inline-block (shrink-to-content), sized by the buy/price block
+     above it (wider than the centered card image). `contain: inline-size` stops our own
+     content from contributing to that intrinsic width — so the column stays buy-block-wide
+     and width:100% fills the panel to match, instead of a long tag/synergy list stretching
+     the whole modal. No JS measurement needed. */
+  width: 100%; contain: inline-size; box-sizing: border-box; text-align: left;
   margin-top: 1rem; font-size: 0.85rem;
 }
-/* On mobile the modal columns stack and the image column becomes full-width. Widen
-   the (normally image-width, inline-block) container to fill it so the panel can use
-   the full modal-body width like the oracle text / rulings below — the card image
-   stays centered at its own width (mx-auto), it does not stretch. Lift the desktop
-   image-width cap on the panel (the !important beats the inline max-width set in JS). */
+/* On mobile the modal columns stack: widen the (normally image-width) container to the
+   full column so the panel uses the full modal-body width like the oracle text / rulings
+   below — the card image stays centered at its own width (mx-auto), it does not stretch. */
 @media (max-width: 575.98px) {
   .modal-body .deckviewmodal-image-container { width: 100%; }
-  .solring-card-modal { max-width: none !important; }
 }
 .solring-card-modal .solring-panel-bar.solring-cm-bar { cursor: default; }
 .solring-card-modal .solring-panel-bar.solring-cm-bar:focus-visible { outline: 0; }
@@ -477,7 +555,7 @@
 /* Synergy anchor chip → full-card preview of the card's exact deck print on hover.
    The popover is body-level + position:fixed so the panel's overflow can't clip it. */
 .solring-syn-chip[data-img] { cursor: help; }
-.solring-syn-chip[data-href] { cursor: pointer; }
+.solring-syn-chip[data-href], .solring-syn-chip[data-resolve] { cursor: pointer; }
 .solring-syn-chip[data-href]:hover { color: var(--solring-accent); }
 .solring-syn-chip[data-href]:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
 /* Inline card-name reference (bracket cards, combo pieces) — not a pill; hover previews
@@ -571,10 +649,47 @@ td.solring-col[data-col="archetype"] { white-space: normal; }
 .solring-grip { cursor: grab; opacity: 0.5; font-size: 0.9em; line-height: 1; }
 .solring-colmenu-row { user-select: none; }
 .solring-colmenu-row.solring-dragging { opacity: 0.45; }
+/* Deck-list overflow containment: with our extra metric columns the table can grow
+   wider than the content column and push the whole page into a horizontal scroll (the
+   Updated column ends up clipped off-screen). Toggled by reconcileColumns on the table's
+   wrapper: bound it to the column width and let the table scroll inside its own box.
+   overflow-x:auto only shows a scrollbar when the columns actually overflow, and with no
+   max-height the box grows to the table's height, so no vertical scrollbar appears. */
+.solring-col-host { min-width: 0; } /* let the flex content column shrink beside the sidebar */
+.solring-has-cols { overflow-x: auto; max-width: 100%; }
+
 /* Hide a Moxfield native column. The element-qualified selector (th/td) outranks
    Bootstrap's single-class .d-*-table-cell !important utilities, which otherwise win
    on source order (their CSS loads after ours) and keep the column visible. */
 th.solring-hide-native, td.solring-hide-native { display: none !important; }
+
+/* ---- power spread card (deck-list "Power spread" toggle) ---- */
+.solring-spread { margin: 0 0 1rem; }
+.solring-spread-bar { cursor: default; }
+.solring-spread-body { padding: 0.85rem; }
+.solring-spread-hist { display: flex; align-items: flex-end; gap: 0.3rem; height: 84px; }
+.solring-spread-col {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  height: 100%; gap: 0.15rem; cursor: pointer; border-radius: 4px; padding: 0.1rem 0;
+}
+.solring-spread-col:hover, .solring-spread-col:focus-visible { background: var(--solring-surface-2); outline: none; }
+.solring-spread-count { font-size: 0.62rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
+.solring-spread-bar { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.solring-spread-fill { width: 100%; min-height: 2px; background: var(--solring-surface-2); border-radius: 3px 3px 0 0; }
+.solring-spread-col-live .solring-spread-fill { background: var(--solring-accent); }
+.solring-spread-tick { font-size: 0.6rem; color: var(--solring-text-2); font-variant-numeric: tabular-nums; }
+.solring-spread-stats { font-size: 0.78rem; color: var(--solring-text-2); margin-top: 0.55rem; font-variant-numeric: tabular-nums; }
+.solring-spread-brackets { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+.solring-spread-outliers { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; }
+.solring-spread-outlier {
+  font-size: 0.74rem; color: var(--solring-accent); background: none;
+  border: 1px solid var(--solring-border); border-radius: 4px; padding: 0.05rem 0.4rem; cursor: pointer;
+}
+.solring-spread-outlier:hover { border-color: var(--solring-accent); }
+/* Dim rows outside the focused power band; flash a row scrolled-to from the outlier list. */
+.solring-dim { opacity: 0.35; transition: opacity 0.15s; }
+.solring-spread-flash { background: color-mix(in srgb, var(--solring-accent) 18%, transparent) !important; transition: background 0.4s; }
+@media (prefers-reduced-motion: reduce) { .solring-dim, .solring-spread-flash { transition: none; } }
 
 /* Profile-sidebar deck averages (T18): a card under the profile, 2-up tiles. */
 .solring-averages { margin-top: 1rem; }
@@ -600,3 +715,40 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-wide-toggle.solring-wide-on { color: var(--solring-accent); }
 
 @media (prefers-reduced-motion: reduce) { .solring-panel * { transition: none !important; } }
+
+/* ---- EDHREC "cuts" tab on the recommendations page ---- */
+/* A segmented pill matching Moxfield's view-mode pill (same height/rounding/grey), inline in
+   the header row and sitting on one line before that pill. */
+.solring-cuts-tabs {
+  display: inline-flex; align-items: center; gap: 2px; vertical-align: middle;
+  height: 38px; padding: 3px; border-radius: 20px; background: rgb(216, 216, 216); margin: 0;
+}
+.solring-cuts-tabs + .ms-4 { display: inline-block; vertical-align: middle; } /* keep the view pill on the same line */
+.solring-cuts-tab {
+  border: 0; background: transparent; padding: 0 0.9rem; height: 100%; border-radius: 20px;
+  font-weight: 600; cursor: pointer; color: #333; opacity: 0.85; font-size: 0.85rem; line-height: 1;
+}
+.solring-cuts-tab:hover { opacity: 1; }
+.solring-cuts-tab.active { background: var(--solring-accent, #8b5cf6); color: #fff; opacity: 1; }
+.solring-cuts-head { margin-bottom: 1rem; }
+.solring-cuts-title { font-size: 1.1rem; font-weight: 700; }
+.solring-cuts-hedge { font-size: 0.85rem; opacity: 0.7; max-width: 60ch; }
+.solring-cuts-status { padding: 1rem 0; opacity: 0.75; }
+.solring-cut-cell { position: relative; }
+.solring-cut-busy { opacity: 0.5; pointer-events: none; }
+/* The minus IS Moxfield's own add button with the glyph swapped to fa-minus — its classes carry
+   all the styling/size/position, so no custom rules are needed here. */
+/* Copy count shown beside the minus when the deck holds more than one copy. */
+.solring-cut-count {
+  display: inline-flex; align-items: center; height: 26px; padding: 0 0.4rem;
+  background: rgba(0,0,0,0.72); color: #fff; font-weight: 700; font-size: 0.8rem;
+  border-radius: 0.3rem; font-variant-numeric: tabular-nums;
+}
+/* EDHREC score badge, top-left corner of the card art. Compact Bootstrap-badge padding. */
+.solring-score-badge {
+  --bs-badge-padding-x: 0.25em !important; --bs-badge-padding-y: 0.25em !important;
+  position: absolute; top: 4px; left: 4px; z-index: 3;
+  background: rgba(0,0,0,0.72); font-variant-numeric: tabular-nums;
+}
+/* Removal toast reuses Moxfield's own .autosave-notification class for styling (see toast() in
+   recommendations.js) — no custom rules needed. */

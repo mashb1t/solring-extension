@@ -39,6 +39,21 @@ export function teardown(root = document) {
   root.querySelectorAll('[data-solring-root]').forEach((n) => n.remove());
 }
 
+// Route-scoped cleanup. Installers that attach a MutationObserver or a window/document
+// listener register their undo here; the content router drains the registry on every SPA
+// navigation (before re-mounting), so nothing observing document.body / window survives a
+// route change. teardown() above only removes DOM; this removes the live listeners.
+const disposables = [];
+/** Register a cleanup fn to run on the next route change (disposeAll). */
+export function registerDisposable(fn) { if (typeof fn === 'function') disposables.push(fn); }
+/** Run and clear every registered disposer. A thrower can't block the rest. */
+export function disposeAll() {
+  while (disposables.length) {
+    const fn = disposables.pop();
+    guard('disposable', fn);
+  }
+}
+
 /** Detect Moxfield's active theme. This build exposes no data-bs-theme, so the
     reliable signal is the body's background luminance. Attr/media are hints. */
 export function isDark() {

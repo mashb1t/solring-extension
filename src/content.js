@@ -11,7 +11,7 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
@@ -19,8 +19,9 @@
       import(u('wide-layout.js')),
       import(u('render-user.js')),
       import(u('sync.js')),
+      import(u('recommendations.js')),
     ]);
-    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync };
+    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations };
     return mods;
   }
 
@@ -50,12 +51,17 @@
 
   async function route() {
     const m = await load();
-    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync } = m;
+    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations } = m;
     wideLayout.installWideToggle(); // idempotent global header toggle, applies on every page
+    dom.disposeAll(); // first: disconnect every observer/listener from the previous route
     dom.guard('teardown', () => dom.teardown());
     decklist.teardownDeckList(); // drop any prior list observer/state on every nav
     renderUser.teardownUserAverages(); // and the profile-averages card
     sync.teardownSync(); // and the bulk-sync controls
+    recommendations.teardownRecommendations(); // and the EDHREC cuts tab
+    // The /decks/{id}/recommendations route isn't pageType 'deck' (parseDeckId rejects the
+    // suffix), so install the cuts tab unconditionally — it self-guards to that route.
+    recommendations.installRecommendations({ waitFor }).catch((e) => console.warn('[solring] cuts', e));
     const type = moxfield.pageType(location.href);
     if (type === 'deck') {
       await renderDeck.mount({ ...m, waitFor });

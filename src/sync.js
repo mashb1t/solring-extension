@@ -6,19 +6,29 @@
 // each row and the averages as it goes. Verb mirrors the single-deck panel ("Analyze",
 // "Analyze", "analyzed X ago").
 
-import { el, guard, installOutsideClose } from './dom.js';
+import { el, guard, installOutsideClose, registerDisposable } from './dom.js';
 import { relTime } from './format.js';
 import { canonicalDeckUrl } from './md5.js';
 import { getDeck, importDeck } from './messaging.js';
 import { getEntries, isCached, hasDeckListTable, onDeckListChange, setFull, setRowSpinning } from './decklist.js';
 import { getSync, setSync } from './cache.js';
+import { togglePowerSpread } from './power-spread.js';
 
-const THROTTLE_MS = 400; // breathing room so we don't hammer the API
+const THROTTLE_MS = 400; // base breathing room between requests so we don't hammer the API
+const THROTTLE_MAX_MS = 30000; // backoff ceiling
+
+// Next inter-request delay: reset to the base on a good response, otherwise double (up to
+// the ceiling). Bulk "Analyze all" can fire hundreds of requests; if CommanderSalt starts
+// erroring (429/503/network), fixed pacing would keep hammering it. Pure + exported for test.
+export function nextDelay(cur, ok, base = THROTTLE_MS, cap = THROTTLE_MAX_MS) {
+  return ok ? base : Math.min(cap, cur * 2);
+}
 
 let username = null;
 let active = false; // on a deck-list page
 let running = false;
-let cancelFlag = false;
+let cancelFlag = false; // per-run: user hit Cancel
+let runId = 0; // monotonic run token; SPA nav bumps it to invalidate an in-flight run
 let wired = false;
 let raf = null;
 let controls = null; // { wrap, analyzeBtn, cancelBtn, status }
@@ -51,42 +61,57 @@ async function run({ force = false, uncachedOnly = false }) {
   if (running) return;
   running = true;
   cancelFlag = false;
+  const me = ++runId; // this run's token; a later installSync/teardownSync bumps runId to invalidate us
+  const user = username; // capture now so late results attribute to the right user, even if username is reassigned
   setBusy(true);
   let entries = syncableEntries();
   if (uncachedOnly) entries = entries.filter((e) => !isCached(e.md5));
   if (!entries.length) {
     running = false;
     setBusy(false);
-    if (controls) controls.status.textContent = uncachedOnly ? 'All listed decks already analyzed' : 'No analyzable decks';
+    if (controls && me === runId) controls.status.textContent = uncachedOnly ? 'All listed decks already analyzed' : 'No analyzable decks';
     return;
   }
   let done = 0;
   let failed = 0;
+  let curDelay = THROTTLE_MS; // grows on API errors (429/503/network), resets on success
   for (const e of entries) {
-    if (cancelFlag) break;
-    if (controls) controls.status.textContent = `${force ? 'Recalculating' : 'Fetching'} ${done + 1}/${entries.length}…`;
+    if (cancelFlag || me !== runId) break;
+    if (controls && me === runId) controls.status.textContent = `${force ? 'Recalculating' : 'Fetching'} ${done + 1}/${entries.length}…`;
     setRowSpinning(e.md5, true); // spin this deck's per-row glyph while it's processing
+    let errored = false; // a real API/network error (not just a stub / no-data deck)
     try {
       let res;
       if (force) {
         res = await importDeck(canonicalDeckUrl(e.publicId), e.md5, e.md5); // POST analysis
+        if (me !== runId) return; // navigated away mid-flight: abandon silently
       } else {
         res = await getDeck(e.md5, { allowFetch: true }); // GET, warm cache
-        if (res && res.stub) res = await importDeck(canonicalDeckUrl(e.publicId), e.md5); // un-indexed, first import
+        if (me !== runId) return; // navigated away mid-flight: abandon silently
+        if (res && res.stub) {
+          res = await importDeck(canonicalDeckUrl(e.publicId), e.md5); // un-indexed, first import
+          if (me !== runId) return; // navigated away mid-flight: abandon silently
+        }
       }
       if (res && res.fields) setFull(e.md5, res.fields); // update the row and averages
       else failed += 1; // stub, unanalyzable, error, or miss
+      if (res && res.error) errored = true; // background surfaced an API/network failure
     } catch (err) {
+      if (me !== runId) return; // navigated away during the await that threw: abandon silently
       failed += 1;
+      errored = true;
       console.warn('[solring] sync failed for', e.publicId, err);
     }
     setRowSpinning(e.md5, false); // stop (a successful scan already rerendered it un-spun)
     done += 1;
-    if (!cancelFlag) await delay(THROTTLE_MS);
+    if (cancelFlag || me !== runId) break;
+    curDelay = nextDelay(curDelay, !errored); // back off while the API is erroring
+    await delay(curDelay);
   }
+  if (me !== runId) return; // superseded run: don't write status/sync for a page that's gone
   running = false;
   setBusy(false);
-  await setSync(username, { at: Date.now() });
+  await setSync(user, { at: Date.now() });
   if (controls) {
     const ok = done - failed;
     controls.status.textContent = `${cancelFlag ? 'Cancelled' : 'Done'} · ${ok}/${entries.length} ok${failed ? ` · ${failed} failed` : ''}`;
@@ -130,6 +155,7 @@ const ANALYZE_ACTIONS = [
       if (window.confirm(`Analyze all ${n} listed deck${n === 1 ? '' : 's'}? This sends one analysis request per deck and can take a while.`)) run({ force: true });
     },
   },
+  { label: 'Power spread', title: 'Show a power distribution of the listed decks (which fit the same table)', go: () => togglePowerSpread() },
 ];
 
 function closeAnalyzeMenu(scope) {
@@ -179,13 +205,24 @@ function buildControls(btnClass) {
   return wrap;
 }
 
+// Cache the toolbar's Sort button (ensureControls runs on every list MutationObserver
+// tick; a full-document button scan per tick is wasteful). Reuse while still connected
+// and still the Sort button, else re-query. Excludes our own colmenu, as before.
+let sortBtnCache = null;
+function findSortButton() {
+  const ok = (b) => b && b.isConnected && /^\s*Sort\s*$/i.test((b.textContent || '').trim()) && !b.closest('.solring-colmenu');
+  if (ok(sortBtnCache)) return sortBtnCache;
+  sortBtnCache = [...document.querySelectorAll('button')].find(ok) || null;
+  return sortBtnCache;
+}
+
 function ensureControls() {
   raf = null;
   if (!active) return;
   // Only where a deck-list table is actually shown, never on image/grid browse pages
   // (/decks/public, /liked, /private, ...), which carry a Sort button but no deck table.
   if (!hasDeckListTable()) { document.querySelectorAll('.solring-sync').forEach((n) => n.remove()); controls = null; return; }
-  const sortBtn = [...document.querySelectorAll('button')].find((b) => /^\s*Sort\s*$/i.test((b.textContent || '').trim()) && !b.closest('.solring-colmenu'));
+  const sortBtn = findSortButton();
   const toolbar = sortBtn && sortBtn.parentElement;
   if (!toolbar || toolbar.querySelector(':scope > .solring-sync')) return;
   // Land before the Stats-columns menu when it's already in place, so the toolbar order
@@ -207,9 +244,12 @@ export function installSync(user) {
   active = true;
   if (!wired) {
     wired = true;
-    onDeckListChange(() => { schedule(); refreshStatus(); }); // re-inject and tick the timestamp
+    const off = onDeckListChange(() => { schedule(); refreshStatus(); }); // re-inject and tick the timestamp
     const obs = new MutationObserver(() => schedule());
     obs.observe(document.body, { childList: true, subtree: true });
+    // Router drains this on nav: disconnect the body observer, drop the deck-list
+    // subscription, and reset the once-guard so a later list page re-wires cleanly.
+    registerDisposable(() => { obs.disconnect(); off(); wired = false; });
   }
   schedule();
 }
@@ -217,7 +257,9 @@ export function installSync(user) {
 /** Remove the controls (SPA nav away). A run in progress is cancelled. */
 export function teardownSync() {
   active = false;
-  cancelFlag = true;
+  runId += 1; // invalidate any in-flight run so it abandons silently
+  running = false; // free the lock so a fresh scan on the next page isn't blocked by a stuck await
   controls = null;
+  sortBtnCache = null; // drop the cached toolbar button (new page has its own)
   document.querySelectorAll('.solring-sync').forEach((n) => n.remove());
 }

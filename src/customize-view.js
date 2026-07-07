@@ -3,14 +3,15 @@
 // Injection is idempotent. Toggles apply immediately (our global prefs are
 // independent of Moxfield's own Save/Cancel).
 
-import { el } from './dom.js';
+import { el, registerDisposable } from './dom.js';
 import { getCardPrefs, setCardPrefs } from './prefs.js';
 
 const TOGGLES = [
   ['power', 'Power'],
   ['saltValue', 'Saltiness'],
-  ['synergies', 'Synergies'],
+  ['synergy', 'Synergy'],
   ['tags', 'Tags'],
+  ['edhrec', 'EDHREC %'],
 ];
 
 // Replicates Moxfield's Include-Extra-Data checkbox markup.
@@ -26,8 +27,12 @@ function checkbox(id, label, checked, onChange) {
   ]);
 }
 
-async function injectInto(group) {
-  if (group.querySelector('.solring-cv')) return; // already injected
+export async function injectInto(group) {
+  // Claim the group SYNCHRONOUSLY before the await: the modal-mount observer fires
+  // tryInject several times inside the getCardPrefs() await window, so a querySelector
+  // sentinel checked before awaiting lets every call through and injects duplicates.
+  if (group.dataset.solringCv || group.querySelector('.solring-cv')) return;
+  group.dataset.solringCv = '1';
   const prefs = await getCardPrefs();
   for (const [key, label] of TOGGLES) {
     group.append(checkbox(key, label, !!prefs[key], (val) => { setCardPrefs({ [key]: val }); }));
@@ -49,5 +54,6 @@ export function installCustomizeViewToggles() {
   tryInject(); // in case it's already open
   const obs = new MutationObserver(tryInject);
   obs.observe(document.body, { childList: true, subtree: true });
-  return obs;
+  // Router drains this on nav so the modal watcher doesn't outlive the deck page.
+  registerDisposable(() => obs.disconnect());
 }

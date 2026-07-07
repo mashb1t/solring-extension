@@ -7,18 +7,19 @@
 import { parseDeckId } from './moxfield.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { csRatingGrade } from './ratings.js';
-import { getDeck, importDeck } from './messaging.js';
-import { el, isDark, chevronSvg } from './dom.js';
-import { relTime, num } from './format.js';
+import { getDeck, importDeck, getEnrichment } from './messaging.js';
+import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
+import { relTime, num, exact } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
-import { getCardPrefs, getOptions, onPrefChange } from './prefs.js';
+import { getCardPrefs, getOptions, onPrefChange, getCardSortView } from './prefs.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
 import { installCardModal } from './render-card-modal.js';
 import { installCardSidebar } from './render-card-sidebar.js';
-import { buildCombosSection } from './render-combos.js';
-import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel } from './render-panels.js';
+import { buildCombosSection, renderSpellbookNearMiss } from './render-combos.js';
+import { buildRuleZeroText } from './rule-zero.js';
+import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel, buildThreatPanel, buildCommanderTierPanel, renderEdhrecEnrichment } from './render-panels.js';
 
 // ---- per-card annotation orchestration (module-scoped, set up once) ----
 let currentFields = null;
@@ -71,9 +72,9 @@ function connectObserver() {
 
 async function reannotate() {
   if (!currentFields) return;
-  const prefs = await getCardPrefs();
-  if (deckObserver) deckObserver.disconnect(); // ignore our own mutations
-  annotate(currentFields, prefs, currentOptions);
+  const [prefs, cardSort] = await Promise.all([getCardPrefs(), getCardSortView()]);
+  if (deckObserver) deckObserver.disconnect(); // ignore our own mutations (incl. row reorder)
+  annotate(currentFields, prefs, currentOptions, cardSort);
   connectObserver();
 }
 
@@ -108,6 +109,9 @@ function observeDecklist() {
       if (!mutationsAreRelevant(mutations) || raf) return;
       raf = requestAnimationFrame(() => { raf = null; reannotate(); });
     });
+    // Router drains this on nav so the decklist observer doesn't outlive its deck (and
+    // stale deck fields clear, so the card panels can't render the old deck's data).
+    registerDisposable(() => { if (deckObserver) deckObserver.disconnect(); deckObserver = null; dvRef = null; currentFields = null; });
   } else {
     deckObserver.disconnect();
   }
@@ -121,10 +125,13 @@ function installOnce() {
   installCustomizeViewToggles();          // inject Salt Value/Tags/Stats into Customize View
   installCardModal(() => currentFields, () => currentOptions);  // per-card Info panel (card-detail modal)
   installCardSidebar(() => currentFields, () => currentOptions); // mirrored on the deck-page sidebar
-  onPrefChange(async (which) => {
+  const offPref = onPrefChange(async (which) => {
     if (which === 'card') { reannotate(); return; }
     if (which === 'options') { currentOptions = await getOptions(); applyOptionColors(currentOptions); reannotate(); }
   });
+  // Router drains this on nav: drop the prefs listener and reset the once-guard so the
+  // next deck re-runs installOnce (which re-installs the card panels it also disposed).
+  registerDisposable(() => { offPref(); installedOnce = false; });
 }
 
 // Begin annotating card rows for this deck: store fields, watch the decklist for
@@ -162,13 +169,20 @@ function syncChartHeights(scope) {
   }
 }
 let chartSyncWired = false;
+let chartResizeHandler = null;
 function wireChartSync() {
   if (chartSyncWired) return;
   chartSyncWired = true;
   let raf = null;
-  window.addEventListener('resize', () => {
+  chartResizeHandler = () => {
     if (raf) return;
     raf = requestAnimationFrame(() => { raf = null; syncChartHeights(document); });
+  };
+  window.addEventListener('resize', chartResizeHandler);
+  // Router drains this on nav so the resize listener doesn't persist for the tab's life.
+  registerDisposable(() => {
+    if (chartResizeHandler) window.removeEventListener('resize', chartResizeHandler);
+    chartResizeHandler = null; chartSyncWired = false;
   });
 }
 
@@ -213,10 +227,16 @@ function renderBody(body, f) {
 
   // Row 1: the headline tiles. Power subline shows the precise 0-10 rating and the
   // deck's raw total power score (scoring.total), what per-card contributions sum to.
+  // Precise 0-10 rating at 2 decimals (the tile value shows 1). Never the raw
+  // 12-digit float that powerLevelRating carries.
   const powerSub = typeof f.power === 'number'
-    ? `${f.power}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
+    ? `${exact(f.power)}${f.powerScoreTotal ? ` · ${num(f.powerScoreTotal)} total` : ''}`
     : null;
   const tierTile = tile('Commander tier', el('span', { class: 'solring-num', text: f.commanderTier != null ? `T${f.commanderTier}` : '—' }));
+  // Tagged so loadEdhrecEnrichment (resolves later, async) can find this tile and set its
+  // subline to the EDHREC rank once enrichment arrives — the tile itself renders before
+  // that fetch settles, with no subline yet.
+  tierTile.dataset.solringTile = 'tier';
   // cEDH classification chip next to the power total: 'fringe cEDH' when borderline,
   // else 'cEDH' for a solid spike deck (casual decks get none).
   const cedhChip = f.fringeCEDH ? 'fringe cEDH' : (f.inferredType === 'spike' ? 'cEDH' : null);
@@ -248,8 +268,14 @@ function renderBody(body, f) {
     ? `${num(f.wincons)} total${f.combosCount != null ? ` · ${f.combosCount} combo${f.combosCount === 1 ? '' : 's'}` : ''}`
     : '—';
   const winconsTile = tile('Wincons', gradeChip(csRatingGrade(f.wincons, 'comboRating')), winconsSub);
+  winconsTile.classList.add('solring-wincons-tile'); // marker: the async spellbook loader appends the "one card away" count to its subline
   const synergyTile = gradeTile('Synergy', 'synergy', 'synergyRating');
-  const saltTile = gradeTile('Saltiness', 'salt', 'saltRating');
+  // Saltiness (Task 2.1): grade + "N total", plus the intensity word. The personality flavor
+  // (headline "Spicy Noodle" + its hint sentence) is dropped — intensity alone is the useful bit.
+  const saltSub = typeof f.salt === 'number'
+    ? `${num(f.salt)} total${f.saltPersonality && f.saltPersonality.intensity ? ` · ${f.saltPersonality.intensity}` : ''}`
+    : '—';
+  const saltTile = tile('Saltiness', gradeChip(csRatingGrade(f.salt, 'saltRating')), saltSub);
   const gradeTiles = el('div', { class: 'solring-tiles solring-grade-tiles' },
     [threatTile, interactionTile, winconsTile, synergyTile, saltTile]);
 
@@ -260,14 +286,24 @@ function renderBody(body, f) {
   const hasWincon = hasCombos || !!(wp && ((wp.paths && wp.paths.length) || (wp.combos && wp.combos.count)));
   if (hasWincon) makeExpandable(winconsTile, buildCombosSection(f.combos, wp), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint }), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint, antiPatternPenalty: f.antiPatternPenalty, history: f.powerHistory }), body);
+  // Threat expansion (2.8): top cards by power contribution + avg quality per card.
+  if (f.threatTop && f.threatTop.length) {
+    const avgQuality = typeof f.threat === 'number' && f.cards ? f.threat / Math.max(1, Object.keys(f.cards).length) : null;
+    makeExpandable(threatTile, buildThreatPanel(f.threatTop, avgQuality), body);
+  }
+  // Commander-tier expansion (2.9): the tier ladder (Phase 4/5 enrichment mount point).
+  if (f.commanderTier != null) {
+    const tierPanel = buildCommanderTierPanel(f.commanderTier);
+    if (tierPanel) makeExpandable(tierTile, tierPanel, body);
+  }
   const bp = f.bracketProfile || {};
   const hasBracket = (f.bracketCategories && f.bracketCategories.length)
     || [bp.rationale, bp.soften, bp.harden, bp.ruleZero].some((l) => l && l.length);
   if (hasBracket) makeExpandable(bracketTile, buildBracketPanel(f.bracketBaseline, f.bracketRealistic, f.bracketCategories, f.bracketProfile), body);
   if (f.saltSources && f.saltSources.length) makeExpandable(saltTile, buildSaltPanel(f.saltSources), body);
   if (f.archetypeMajors && f.archetypeMajors.length) makeExpandable(archTile, buildArchetypePanel(f.archetypeMajors, f.archetype), body);
-  if ((f.synergyAnchors && f.synergyAnchors.length) || (f.synergyHubs && f.synergyHubs.length)) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors, f.synergyHubs), body);
+  if ((f.synergyAnchors && f.synergyAnchors.length) || (f.synergyHubs && f.synergyHubs.length) || f.synergyCentricity) makeExpandable(synergyTile, buildSynergyPanel(f.synergyAnchors, f.synergyHubs, f.synergyCentricity), body);
   if (f.interactionParts && f.interactionParts.length) makeExpandable(interactionTile, buildInteractionPanel(f.interactionParts), body);
 }
 
@@ -327,6 +363,53 @@ export async function mount({ waitFor }) {
     : currentOptions.deckPanelDefault === 'collapsed' ? false : analyzed);
 
   const body = el('div', { class: 'solring-panel-body' });
+
+  // EDHREC enrichment: resolves AFTER renderBody/startAnnotations, so guard against the
+  // panel being torn down or the SPA having navigated to another deck before injecting.
+  async function loadEdhrecEnrichment() {
+    if (currentOptions.sources && currentOptions.sources.edhrec === false) return;
+    const data = await guardAsync(() => getEnrichment('edhrec', md5));
+    if (parseDeckId(location.href) !== publicId) return;     // navigated away
+    if (!data || data.error || data.miss) return;
+    // per-card badges (Task 4.5): stash the inclusion map on the live fields + repaint
+    if (currentFields && data.inclusion) { currentFields.edhrecInclusion = data.inclusion; reannotate(); }
+    if (!body.isConnected) return;
+    const slot = body.querySelector('.solring-edhrec-slot');
+    if (slot && slot.isConnected) renderEdhrecEnrichment(slot, data);
+    // Commander-tier tile subline: "EDHREC #<rank> · ~<N> decks", only once the enrichment
+    // resolves (the tile rendered before this fetch settled, so it started with no subline).
+    const pop = data.popularity || {};
+    const subParts = [];
+    if (pop.rank) subParts.push(`EDHREC #${pop.rank}`);
+    if (pop.deckCount) subParts.push(`~${Number(pop.deckCount).toLocaleString('en-US')} decks`);
+    if (subParts.length) {
+      const tierTile = body.querySelector('[data-solring-tile="tier"]');
+      if (tierTile && tierTile.isConnected) {
+        let sub = tierTile.querySelector('.solring-tile-sub');
+        if (!sub) {
+          sub = el('div', { class: 'solring-tile-sub' });
+          tierTile.append(sub);
+        }
+        sub.textContent = subParts.join(' · ');
+      }
+    }
+  }
+
+  // Commander Spellbook "one card away": resolves after render, fills the near-miss slot in
+  // the Wincons/Combos expansion. Same stale-async guard as the EDHREC loader.
+  async function loadSpellbookEnrichment() {
+    if (currentOptions.sources && currentOptions.sources.spellbook === false) return;
+    const data = await guardAsync(() => getEnrichment('spellbook', md5));
+    if (parseDeckId(location.href) !== publicId || !body.isConnected) return;
+    if (!data || data.error || data.miss) return;
+    const slot = body.querySelector('.solring-nearmiss-slot');
+    if (slot && slot.isConnected) renderSpellbookNearMiss(slot, data);
+    // Surface the "one card away" count next to the deck's combo count in the Wincons tile.
+    const n = ((data.nearMiss || []).length);
+    const sub = body.querySelector('.solring-wincons-tile .solring-tile-sub');
+    if (n && sub && !sub.dataset.nearmiss) { sub.dataset.nearmiss = '1'; sub.textContent += ` · ${n} one away`; }
+  }
+
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
   // The refresh glyph lives in its own span so spinning rotates only the icon, not the
@@ -336,13 +419,28 @@ export async function mount({ waitFor }) {
     class: 'solring-refresh',
     attrs: { type: 'button', 'aria-label': 'Analyze', title: 'Analyze (~5s)' },
   }, [refreshIcon]);
+  // Rule-zero copy button: pastes a pre-game summary (commander, bracket, salt, combos,
+  // anti-patterns). Hidden until a deck is analyzed; flips to a confirmation on click.
+  const rzBtn = el('button', {
+    class: 'solring-refresh solring-rz-copy',
+    attrs: { type: 'button', hidden: '', 'aria-label': 'Copy rule-zero summary', title: 'Copy a rule-zero summary to the clipboard' },
+  }, ['Rule 0']);
+  rzBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!currentFields) return;
+    const title = (document.querySelector('.deckheader h1, .deckheader-wrapper h1, h1') || {}).textContent;
+    const text = buildRuleZeroText(currentFields, (title || '').trim());
+    try { await navigator.clipboard.writeText(text); rzBtn.textContent = 'Copied ✓'; }
+    catch { rzBtn.textContent = 'Copy failed'; }
+    setTimeout(() => { rzBtn.textContent = 'Rule 0'; }, 1500);
+  });
   // Spin the refresh icon (and disable the button) whenever a fetch is in flight:
   // the initial load, an edit analysis, or a manual refresh.
   const setRefreshSpinning = (on) => { refreshIcon.classList.toggle('solring-spin', on); refreshBtn.disabled = on; };
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
     el('span', { class: 'solring-wordmark', text: 'Solring' }),
-    el('span', { class: 'solring-bar-right' }, [synced, refreshBtn, chevron]),
+    el('span', { class: 'solring-bar-right' }, [synced, rzBtn, refreshBtn, chevron]),
   ]);
 
   const panel = el('div', { class: `solring-panel${isDark() ? ' solring-dark' : ''}` }, [titleBar, body]);
@@ -368,6 +466,7 @@ export async function mount({ waitFor }) {
   // ticker left by a prior mount so intervals never stack across SPA navigations.
   clearInterval(syncTimer);
   syncTimer = setInterval(() => { if (lastSync) synced.textContent = `analyzed ${relTime(lastSync)}`; }, 30000);
+  registerDisposable(() => clearInterval(syncTimer)); // stop ticking when we leave the deck page
   // The sync button always forces a fresh analysis (POST /decks?url=...&oldDeckId=md5),
   // not just a re-fetch, so decklist edits are reflected. Spins the icon while the
   // ~5s upstream compute runs. (Initial page load still uses the cheap GET/cache.)
@@ -375,7 +474,7 @@ export async function mount({ waitFor }) {
     setRefreshSpinning(true);
     const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
     setRefreshSpinning(false);
-    if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
+    if (fresh && fresh.fields) { showFields(fresh.fields, fresh.history); setSynced(fresh.fetchedAt || Date.now()); }
   }
 
   // insert just above the Primer/Playtest toolbar (the orange slot)
@@ -404,15 +503,19 @@ export async function mount({ waitFor }) {
     setOpen(true);
     return;
   }
-  function showFields(f) {
+  function showFields(f, history) {
     // We only reach here with real (non-stub) analysis. CommanderSalt still returns
     // full metrics for decks it flags isIllegal (banned card / not strictly legal),
     // so render them. Don't mistake the flag for "can't analyze". Genuinely
     // unanalyzable decks (private / un-indexed) come back as stubs and are handled
     // by the Analyze flow below.
+    if (history) f.powerHistory = history; // forward-only local power history (Phase 6)
     renderBody(body, f);
+    rzBtn.hidden = false; // a real analysis is loaded → enable the rule-zero copy
     setOpen(panelOpenFor(true)); // analyzed: honor the configured default ('auto' opens)
     startAnnotations(f);
+    loadEdhrecEnrichment(); // async, fail-silent, guarded
+    loadSpellbookEnrichment(); // "one card away" combos, async + guarded
   }
 
   // When auto-fetch is on, analyze (POST) a deck that Moxfield says was edited
@@ -426,7 +529,7 @@ export async function mount({ waitFor }) {
     setRefreshSpinning(true);
     const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
     setRefreshSpinning(false);
-    if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
+    if (fresh && fresh.fields) { showFields(fresh.fields, fresh.history); setSynced(fresh.fetchedAt || Date.now()); }
   }
 
   // Stats never auto-revalidate on a timer: an analysis can change anytime, but a
@@ -435,7 +538,7 @@ export async function mount({ waitFor }) {
   // label (ticked live above) keeps the staleness visible. The one exception is an
   // edited decklist (above), which auto-fetch analyzes so the data stays truthful.
   if (res.fields) {
-    showFields(res.fields);
+    showFields(res.fields, res.history);
     setSynced(res.fetchedAt);
     maybeReanalyzeIfEdited(res.fields);
     return;

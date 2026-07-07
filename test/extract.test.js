@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractDeck, extractHit, isStub } from '../src/extract.js';
+import { extractDeck, extractHit, isStub, topThreats } from '../src/extract.js';
 
 const deck = JSON.parse(readFileSync(new URL('../fixtures/deck_ojer.json', import.meta.url)));
 const search = JSON.parse(readFileSync(new URL('../fixtures/search_mashb1t.json', import.meta.url)));
@@ -24,11 +24,25 @@ test('extractDeck pulls the displayed metrics', () => {
   assert.equal(d.analyzedAt, 1780256803317); // ingestDate — for edit-detection re-analysis
 });
 
+test('extractDeck keeps all commanders for partner slugs', () => {
+  const d = extractDeck(deck);
+  assert.deepEqual(d.commanders, ['Ojer Axonil, Deepest Might // Temple of Power']);
+});
+
 test('extractDeck drops deck value; keeps both brackets (baseline only for the delta arrow)', () => {
   const d = extractDeck(deck);
   assert.equal(d.value, undefined);
   assert.equal(d.bracketRealistic, 3); // csBracket — the displayed number
   assert.equal(d.bracketBaseline, 3); // wotcBracket — drives the up/down arrow
+});
+
+test('extractDeck drops DFC/MDFC back-face entries (keeps the front)', () => {
+  const d = extractDeck(deck);
+  assert.equal(d.cards['temple of power'], undefined);       // commander back face
+  assert.equal(d.cards['spikefield cave'], undefined);       // MDFC land back
+  assert.equal(d.cards['shatterskull, the hammer pass'], undefined);
+  assert.ok(d.cards['spikefield hazard']);                   // front kept
+  assert.ok(d.cards['ojer axonil, deepest might']);          // commander front kept
 });
 
 test('extractDeck builds a per-card map (salt + prettified tags)', () => {
@@ -158,4 +172,35 @@ test('isStub detects unanalyzable payloads', () => {
   assert.equal(isStub({ name: null, _cardCount: 0 }), true);
   assert.equal(isStub({ name: 'x', _cardCount: 0 }), true);
   assert.equal(isStub({}), true);
+});
+
+test('countDeckCombos tolerates non-string combo card ids', () => {
+  // A malformed API combo (null / numeric entries in cards[]) must not crash extraction.
+  const p = structuredClone(deck);
+  p.details.combos.list[0].cards = [null, 123, 'pyrohemia'];
+  assert.doesNotThrow(() => extractDeck(p));
+});
+
+test('extractDeck surfaces the new Phase-2 metric fields', () => {
+  const d = extractDeck(deck);
+  // 2.1 salt intensity (personality flavor is intentionally dropped)
+  assert.equal(d.saltPersonality.intensity, 'moderate');
+  assert.equal(d.saltPersonality.headline, undefined);
+  // 2.2/2.3/2.4 fingerprint additions
+  assert.equal(d.powerFingerprint.cardAdvantage.draw, 'dense');
+  assert.equal(d.powerFingerprint.resourceDenial.stax, 'light');
+  assert.equal(d.powerFingerprint.graveyard.engagement, 'none');
+  // 2.5 commander centricity
+  assert.equal(d.synergyCentricity, 'detached');
+  // 2.6 anti-pattern penalty (applied in this fixture)
+  assert.ok(d.antiPatternPenalty && typeof d.antiPatternPenalty.cap === 'number');
+  // 2.8 top threats: sorted desc by power contribution, capped, names present
+  assert.ok(Array.isArray(d.threatTop) && d.threatTop.length > 0 && d.threatTop.length <= 8);
+  assert.ok(typeof d.threatTop[0].name === 'string' && d.threatTop[0].score >= (d.threatTop[d.threatTop.length - 1].score));
+});
+
+test('topThreats orders by powerTotal desc and caps', () => {
+  const cards = { a: { name: 'A', powerTotal: 3 }, b: { name: 'B', powerTotal: 10 }, c: { name: 'C', powerTotal: 0 } };
+  const top = topThreats(cards);
+  assert.deepEqual(top.map((t) => t.name), ['B', 'A']); // C dropped (0), B before A
 });

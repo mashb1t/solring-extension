@@ -9,6 +9,7 @@
 
 import { buildPanel, deckStats, lookupCard } from './render-card-modal.js';
 import { onPrefChange } from './prefs.js';
+import { registerDisposable } from './dom.js';
 
 const ASIDE_SEL = 'aside.deckview-image-container';
 
@@ -78,5 +79,7 @@ export function installCardSidebar(fieldsGetter, optsGetter) {
   // attributeFilter keeps this cheap despite the body-wide subtree.
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
-  onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  const offPref = onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  // Router drains this on nav (disconnect + drop listener + reset once-guard).
+  registerDisposable(() => { if (observer) observer.disconnect(); offPref(); observer = null; });
 }

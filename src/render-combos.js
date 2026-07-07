@@ -100,7 +100,7 @@ function comboCard(combo) {
       card.setAttribute('aria-expanded', String(open));
     };
     // Clicking the Spellbook link should follow the link, not toggle.
-    card.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
+    card.addEventListener('click', (e) => { if (e.target.closest('a, .solring-syn-chip')) return; toggle(); });
     card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   }
 
@@ -154,5 +154,96 @@ export function buildCombosSection(combos, profile) {
   const ordered = [...(combos || [])].sort((a, b) =>
     (a.pieces || []).length - (b.pieces || []).length || (b.score || 0) - (a.score || 0));
   for (const c of ordered) children.push(comboCard(c));
+  // Filled asynchronously by renderSpellbookNearMiss when find-my-combos resolves (Phase 5).
+  children.push(el('div', { class: 'solring-nearmiss-slot' }));
   return el('div', { class: 'solring-combos', attrs: { hidden: '' } }, children);
+}
+
+// "One card away": Commander Spellbook combos the deck is a single card short of, grouped by
+// the card to add (one card can complete several). Idempotent — clears the slot first;
+// renders nothing when empty. `data.nearMiss` = [{ id, add, produces, popularity, bracketTag }].
+// Commander Spellbook combo bracket tags → the official-Bracket number they suit + a blurb.
+// (From commanderspellbook.com syntax guide.) The chip shows the bracket (1 / 2+ / 2 / 3+ /
+// 3 / 4+); the tier name + blurb are the tooltip.
+const BRACKET_TAG = {
+  E: { name: 'Exhibition', bracket: '1', desc: 'casual / janky combo, fine in any deck' },
+  C: { name: 'Core', bracket: '2+', desc: 'fast two-card combo or extra-turn card' },
+  O: { name: 'Oddball', bracket: '2', desc: 'could be powerful but needs more cards / unclear' },
+  P: { name: 'Powerful', bracket: '3+', desc: 'game changers or strong two-card combos' },
+  S: { name: 'Spicy', bracket: '3', desc: 'could be ruthless but needs a third card / unclear' },
+  R: { name: 'Ruthless', bracket: '4+', desc: 'competitive: infinite turns, mass denial, control' },
+  B: { name: 'Banned', bracket: 'banned', desc: 'contains a card banned in Commander' },
+};
+function bracketStat(tag) {
+  if (!tag) return null;
+  const b = BRACKET_TAG[tag];
+  const s = stat('bracket', b ? b.bracket : tag);
+  if (b) s.title = `${b.name} · ${b.desc}`;
+  return s;
+}
+
+// A near-miss combo, rendered with the SAME shape as an existing combo card (comboCard): the
+// full piece list (the missing card marked red), produces chips, meta stats + Spellbook link,
+// and an expandable body (prerequisites / steps / produces).
+function nearMissCard(combo) {
+  const blocks = [
+    listBlock('Prerequisites', combo.prerequisites),
+    listBlock('Steps', combo.steps),
+    listBlock('Produces', combo.produces),
+  ].filter(Boolean);
+  const body = blocks.length ? el('div', { class: 'solring-combo-body', attrs: { hidden: '' } }, blocks) : null;
+  const chev = body ? el('span', { class: 'solring-combo-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]) : null;
+
+  const meta = el('div', { class: 'solring-combo-meta' }, [
+    combo.popularity != null ? stat('decks', Number(combo.popularity).toLocaleString('en-US')) : null,
+    bracketStat(combo.bracketTag),
+    combo.id ? el('a', {
+      class: 'solring-combo-link', text: 'Spellbook ↗',
+      attrs: { href: `https://commanderspellbook.com/combo/${combo.id}/`, target: '_blank', rel: 'noopener' },
+    }) : null,
+    chev,
+  ]);
+
+  const pieces = el('div', { class: 'solring-combo-pieces' });
+  combo.pieces.forEach((p, i) => {
+    if (i) pieces.append('  +  ');
+    // Pass the Scryfall image so the hover preview works even for the missing card. Since it
+    // has no deck-row link, resolve it to Moxfield's card view on click (Scryfall fallback).
+    const scry = p.missing ? `https://scryfall.com/search?q=${encodeURIComponent(`!"${p.name}"`)}` : undefined;
+    const ref = cardRefs([{ name: p.name, image: p.image, href: scry, resolve: p.missing }], { chip: false })[0];
+    if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Not in deck · add to complete the combo - click to open the card'; }
+    pieces.append(ref);
+  });
+  const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);
+  const chips = (combo.produces || []).length
+    ? el('div', { class: 'solring-combo-tags' }, combo.produces.map((t) => el('span', { class: 'solring-combo-tag', text: t })))
+    : null;
+  const card = el('div', { class: 'solring-combo' }, [head, chips, body]);
+
+  if (body) {
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-expanded', 'false');
+    const toggle = () => {
+      const open = body.hasAttribute('hidden');
+      if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
+      card.classList.toggle('solring-open', open);
+      card.setAttribute('aria-expanded', String(open));
+    };
+    card.addEventListener('click', (e) => { if (e.target.closest('a, .solring-syn-chip')) return; toggle(); });
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  }
+  return card;
+}
+
+export function renderSpellbookNearMiss(slot, data) {
+  slot.replaceChildren();
+  const combos = (data && data.nearMiss) || [];
+  if (!combos.length) return;
+  // Divider + header separating the deck's existing combos (above) from the near-misses.
+  slot.append(
+    el('div', { class: 'solring-combo-divider', attrs: { 'aria-hidden': 'true' } }),
+    el('div', { class: 'solring-combo-h', text: `One card away · ${combos.length} combo${combos.length === 1 ? '' : 's'}` }),
+    ...combos.map(nearMissCard),
+  );
 }

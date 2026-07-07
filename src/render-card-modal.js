@@ -8,7 +8,7 @@
 // deck is analyzed. Fields are read live via a getter. A bare /cards/ page with no
 // deck shows nothing.
 
-import { el, isDark } from './dom.js';
+import { el, isDark, registerDisposable } from './dom.js';
 import { num } from './format.js';
 import { flagChips, tagChips } from './components.js';
 import { prettifyStat } from './labels.js';
@@ -148,25 +148,60 @@ function installCardHover() {
   // the live on-page link so React Router handles it (modal overlay), falling back
   // to a plain navigation if the row was unmounted.
   const open = (chip) => {
+    hide();
+    // A card not in the deck (a near-miss combo's missing piece) has no on-page link to
+    // click; resolve its name to Moxfield's card view and open it in a new tab. Scryfall is
+    // the fallback if resolution fails.
+    if (chip.dataset.resolve) { openMoxCard(chip.dataset.resolve, chip.dataset.fallback); return; }
     const href = chip.dataset.href;
     if (!href) return;
-    hide();
+    if (/^https?:/i.test(href)) { window.open(href, '_blank', 'noopener'); return; }
+    // Relative hrefs are Moxfield deck-row links: click the live one so React opens the overlay.
     const live = document.querySelector(`a.table-deck-row-link[href="${href}"]`) || document.querySelector(`a[href="${href}"]`);
     if (live) live.click(); else location.assign(href);
   };
+  const CHIP_SEL = '.solring-syn-chip[data-href], .solring-syn-chip[data-resolve]';
   document.addEventListener('click', (e) => {
-    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
+    const chip = e.target.closest && e.target.closest(CHIP_SEL);
     if (!chip) return;
     e.preventDefault();
     open(chip);
   }, true);
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-href]');
+    const chip = e.target.closest && e.target.closest(CHIP_SEL);
     if (!chip) return;
     e.preventDefault();
     open(chip);
   }, true);
+}
+
+// Open Moxfield's card view for a card NOT in the deck (a near-miss combo's missing piece)
+// in a new tab, so the user keeps their deck. Resolve the name to Moxfield's card id via its
+// public search API. The tab is opened synchronously (about:blank) to keep the click's user
+// gesture, then redirected once the async lookup resolves — otherwise a popup blocker would
+// stop the post-await window.open. Falls back to `fallback` (Scryfall) if the lookup fails.
+// Session-cached by name.
+const moxCardPath = new Map();
+async function openMoxCard(name, fallback) {
+  const win = window.open('about:blank', '_blank');
+  if (win) win.opener = null; // sever the opener (about:blank is same-origin, so this works)
+  let path = moxCardPath.get(normName(name));
+  if (!path) {
+    try {
+      const r = await fetch(`https://api2.moxfield.com/v2/cards/search?q=${encodeURIComponent(name)}`, { headers: { accept: 'application/json' } });
+      if (r.ok) {
+        const data = ((await r.json()) || {}).data || [];
+        const key = name.toLowerCase();
+        // Exact match, tolerating that Moxfield names DFCs "front // back" but combos use the front face.
+        const card = data.find((c) => c && c.name && (c.name.toLowerCase() === key || c.name.toLowerCase().split(' // ')[0] === key)) || data[0];
+        if (card && card.id) { path = `/cards/${card.id}`; moxCardPath.set(normName(name), path); }
+      }
+    } catch { /* fall through to fallback */ }
+  }
+  const url = path ? `https://moxfield.com${path}` : fallback;
+  if (win) { if (url) win.location.href = url; else win.close(); }
+  else if (url) window.open(url, '_blank', 'noopener'); // popup was blocked; try a direct open
 }
 
 // Map decklist rows to normalized name to { img, href }. A card's id in its
@@ -199,6 +234,8 @@ export function cardRefs(items, opts = {}) {
   return (items || []).map((it) => {
     const name = typeof it === 'string' ? it : it.name;
     const image = typeof it === 'string' ? null : it.image;
+    const href = typeof it === 'string' ? null : it.href; // external fallback link (card not in deck)
+    const resolve = typeof it === 'string' ? false : it.resolve; // open Moxfield's card view by name
     const hit = prints[normName(name)];
     const deckImg = hit && hit.img; // deck's selected art, else the supplied print
     const primary = deckImg || image;
@@ -207,7 +244,12 @@ export function cardRefs(items, opts = {}) {
     // Keep the supplied (CommanderSalt) print as a fallback for when the synthesized
     // deck-print URL 404s (double-faced cards use a different, face-keyed URL).
     if (deckImg && image && image !== deckImg) attrs['data-img-cs'] = image;
+    // Deck-row link (opens Moxfield's card overlay) when the card is on the page; else, if
+    // asked to resolve, open Moxfield's card view by name (with an external fallback); else
+    // just the external link if one was supplied.
     if (hit && hit.href) { attrs['data-href'] = hit.href; attrs.role = 'link'; attrs.tabindex = '0'; }
+    else if (resolve) { attrs['data-resolve'] = name; if (href) attrs['data-fallback'] = href; attrs.role = 'link'; attrs.tabindex = '0'; }
+    else if (href) { attrs['data-href'] = href; attrs.role = 'link'; attrs.tabindex = '0'; }
     return el('span', { class: cls, text: name, attrs });
   });
 }
@@ -314,15 +356,10 @@ function apply() {
   if (existing) existing.remove();
   if (!card) return;
   const stats = { ...deckStats(fields), powerThreshold: opts.powerThreshold, saltThreshold: opts.saltThreshold };
-  const panel = buildPanel(card, key, stats);
-  // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
-  // list would stretch the whole modal. Cap the panel to the card image's width,
-  // measured before inserting since our content could otherwise widen the box. On
-  // mobile a media query widens the container to the full column and lifts this cap.
-  const img = box.querySelector('.deckview-image-wrapper') || box.querySelector('img.deckview-image');
-  const w = img ? Math.round(img.getBoundingClientRect().width) : 0;
-  if (w > 40) panel.style.maxWidth = `${w}px`;
-  box.appendChild(panel);
+  // Width is handled in CSS: the panel fills the (inline-block, shrink-to-content) image
+  // column, whose width is driven by the buy/price block above. `contain: inline-size`
+  // keeps our own content from stretching that column. See styles/solring.css.
+  box.appendChild(buildPanel(card, key, stats));
 }
 
 function schedule() {
@@ -341,5 +378,8 @@ export function installCardModal(fieldsGetter, optsGetter) {
   if (observer) return;
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true });
-  onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  const offPref = onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  // Router drains this on nav: disconnect the body observer, drop the prefs listener,
+  // and null the once-guard so a later deck re-installs cleanly.
+  registerDisposable(() => { if (observer) observer.disconnect(); offPref(); observer = null; });
 }

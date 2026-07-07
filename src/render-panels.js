@@ -3,7 +3,8 @@
 // vars so they follow Moxfield light/dark. Hidden by default.
 
 import { el } from './dom.js';
-import { prettifyStat, BRACKET_FLAG_LABELS } from './labels.js';
+import { num, exact } from './format.js';
+import { prettifyStat, BRACKET_FLAG_LABELS, humanizeId, humanizeValueMaybe } from './labels.js';
 import { cardRefs } from './render-card-modal.js';
 
 function section(title, children) {
@@ -29,12 +30,20 @@ function barRow(label, valueText, pct) {
 // Power-relevant shape metrics. Null values are dropped.
 function fingerprintRow(fp) {
   if (!fp) return null;
+  const ca = fp.cardAdvantage;
+  const rd = fp.resourceDenial;
+  const gy = fp.graveyard;
   const tiles = [
     ['Tutors', fp.tutors, [fp.tutorDensity, fp.tutorQuality != null ? `${fp.tutorQuality.toFixed(1)} avg quality` : null].filter(Boolean).join(' · ') || null],
     ['Ramp', fp.ramp, fp.rampDensity || 'rocks + dorks + …'],
     ['Curve', fp.avgMv != null ? fp.avgMv.toFixed(2) : null, fp.curveShape || 'avg MV'],
     ['Instant-speed', fp.instantRatio != null ? `${Math.round(fp.instantRatio * 100)}%` : null, fp.reactiveDensity ? `${fp.reactiveDensity} reactive` : 'at instant speed'],
     ['Creatures', fp.creatures, fp.permanentRatio != null ? `${Math.round(fp.permanentRatio * 100)}% permanents` : null],
+    // Extra profile reads (Tasks 2.2/2.3/2.4). Values are short enum words; keep them
+    // as-is (already readable) and drop the whole tile when the field is absent.
+    ['Card advantage', ca && ca.draw ? `draw ${ca.draw}` : null, ca && ca.recursion ? `recursion ${ca.recursion}` : null],
+    ['Denial', rd && rd.stax ? `stax ${rd.stax}` : null, rd ? [rd.taxes ? `taxes ${rd.taxes}` : null, rd.discard ? `discard ${rd.discard}` : null].filter(Boolean).join(' · ') || null : null],
+    ['Graveyard', gy && gy.engagement ? gy.engagement : null, gy ? gy.counts : null],
   ].filter(([, v]) => v != null);
   if (!tiles.length) return null;
   return el('div', { class: 'solring-mb-stats' }, tiles.map(([k, v, s]) => el('div', { class: 'solring-mb-stat' }, [
@@ -46,18 +55,15 @@ function fingerprintRow(fp) {
 
 const titleWord = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s);
 
-// camelCase scorer id → readable words ("pipCoverageHigh" → "Pip coverage high").
-const humanizeId = (id) => {
-  const s = String(id).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+// humanizeId now lives in labels.js (shared with the deck-list archetype column).
 
 // A labeled list of raw { id, data, direction? } scorer signals: humanized id (+ ↑/↓)
-// over its data pairs (keys humanized, values verbatim). Null when empty.
+// over its data pairs (keys humanized, camelCase/enum values humanized too so a raw
+// "winconInconsistency" reads as "wincon inconsistency"). Null when empty.
 function signalGroup(title, entries) {
   if (!(entries || []).length) return null;
   const items = entries.map(({ id, data, direction }) => {
-    const pairs = Object.entries(data || {}).map(([k, v]) => `${humanizeId(k).toLowerCase()}: ${v}`).join(' · ');
+    const pairs = Object.entries(data || {}).map(([k, v]) => `${humanizeId(k).toLowerCase()}: ${humanizeValueMaybe(v)}`).join(' · ');
     const arrow = direction === 'up' ? ' ↑' : direction === 'down' ? ' ↓' : '';
     return el('div', { class: 'solring-sig-item' }, [
       el('span', { class: 'solring-sig-id', text: humanizeId(id) + arrow }),
@@ -155,7 +161,22 @@ export function buildPowerPanel(p, profile, meta) {
   // header, shown top-most, above the pillar bars.
   const fpRow = fingerprintRow(meta && meta.fingerprint);
   const fp = fpRow ? el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]) : null;
-  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows]);
+  // Power over time (Phase 6): only once ≥2 analyses have been recorded locally.
+  const histChart = powerHistoryChart(meta && meta.history);
+  const histBlock = histChart ? el('div', { class: 'solring-pw-hist' }, [el('div', { class: 'solring-pl-h', text: 'Power over time' }), histChart]) : null;
+  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows, histBlock]);
+  // Score cap (Task 2.6): when anti-patterns capped the power score, say so and by how
+  // much — answers "why is my power lower than the pillars suggest?". Sits above the flags.
+  const cap = meta && meta.antiPatternPenalty;
+  if (cap && cap.cap != null) {
+    sec.append(el('div', { class: 'solring-sig-group' }, [
+      el('div', { class: 'solring-pl-h', text: 'Score cap' }),
+      el('div', { class: 'solring-sig-item' }, [
+        el('span', { class: 'solring-sig-id', text: `Anti-pattern penalty caps the score at ${num(cap.cap)}` }),
+        cap.severity != null ? el('span', { class: 'solring-sig-sev', text: `severity ${cap.severity}` }) : null,
+      ]),
+    ]));
+  }
   // Score drivers: what nudged the final number off the pillar baselines. Laid out as
   // side-by-side columns (wrapping when narrow): boosts up, penalties down, the named
   // anti-patterns, and improvement suggestions.
@@ -186,7 +207,10 @@ function group(title, desc, rows) {
 
 // Synergy: two complementary lenses on the synergy web. Anchors carry the most score,
 // Hubs are referenced by the most other entries (connective tissue). Either may be empty.
-export function buildSynergyPanel(anchors, hubs) {
+// `centricity` (commanderCentricity, Task 2.5) rides as a chip on its own row above the
+// groups, left-aligned with the bar-row labels (it sits at the section's content edge,
+// same as the grid, not floating in the header).
+export function buildSynergyPanel(anchors, hubs, centricity) {
   const groups = [];
   if (anchors && anchors.length) {
     groups.push(group('Anchors', 'Cards carrying the biggest share of synergy score',
@@ -197,7 +221,240 @@ export function buildSynergyPanel(anchors, hubs) {
     groups.push(group('Hubs', 'Cards referenced most by other entries',
       hubs.map((h) => barRow(cardRefs([h], { chip: false })[0], String(h.connections), ((h.connections || 0) / max) * 100))));
   }
-  return el('div', { class: 'solring-panel-section solring-syn-grid', attrs: { hidden: '' } }, groups);
+  const grid = el('div', { class: 'solring-syn-grid' }, groups);
+  // Label + commander-dependency chip on one line, above the Anchors/Hubs bars. The label
+  // sits in a fixed-width column matching the bar-row label column, so it aligns with the
+  // card-name labels below and the chip starts where the bars start.
+  const head = el('div', { class: 'solring-syn-head' }, [
+    el('div', { class: 'solring-pl-h', text: 'Commander reliance' }),
+    centricity ? el('span', {
+      class: 'solring-flag',
+      title: 'How much the deck relies on the commander - a spectrum from detached (works without it) to central (can\'t win without it).',
+      text: humanizeId(centricity).toLowerCase(),
+    }) : null,
+  ]);
+  return el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [head, grid]);
+}
+
+// Threat expansion (Task 2.8): the deck's biggest cards by power contribution, plus a
+// derived average-quality caption. Deliberately does NOT repeat the tile's "N total".
+export function buildThreatPanel(top, avgQuality) {
+  const rows = (top || []);
+  const max = Math.max(...rows.map((t) => t.score), 1);
+  // Route the card name through cardRefs so it hovers to a preview and opens the card on
+  // click, like every other card label; threat cards are in the deck so their art resolves
+  // from the on-page rows.
+  const children = rows.map((t) => barRow(cardRefs([t.name], { chip: false })[0], num(t.score), (t.score / max) * 100));
+  if (avgQuality != null) children.push(el('div', { class: 'solring-pl-desc', text: `ø ${num(avgQuality)} quality per card` }));
+  return section('Top threats', children);
+}
+
+// Commander-tier expansion (Task 2.9): a T1–T5 ladder with the current tier marked. No
+// power/score-cap or casual-spike data here (those live in the Power expansion). This is
+// the mount point for the Phase 4/5 commander enrichment (EDHREC rank, tournament record).
+export function buildCommanderTierPanel(tier) {
+  if (tier == null) return null;
+  const steps = [1, 2, 3, 4, 5].map((n) => el('span', {
+    class: `solring-tier-step${n === tier ? ' solring-tier-step-on' : ''}`,
+    text: `T${n}`,
+  }));
+  return section('Commander tier', [
+    el('div', { class: 'solring-tier-ladder' }, steps),
+    // Filled asynchronously by renderEdhrecEnrichment when EDHREC data arrives (Phase 4).
+    el('div', { class: 'solring-edhrec-slot' }),
+  ]);
+}
+
+// Hover readout for the tier charts: a marker dot + a tooltip that snap to the nearest data
+// point and show its value. `hoverPts` carry fractional coords (fx/fy in 0..1 of the plot
+// box) + a label; fractions map correctly under preserveAspectRatio="none" at any size.
+function wireChartHover(wrap, hoverPts) {
+  const plot = wrap.querySelector('.solring-mc-plot');
+  if (!plot || !hoverPts.length) return;
+  const dot = el('span', { class: 'solring-chart-dot', attrs: { hidden: '' } });
+  const tip = el('span', { class: 'solring-chart-tip', attrs: { hidden: '' } });
+  plot.append(dot, tip);
+  plot.addEventListener('mousemove', (e) => {
+    const r = plot.getBoundingClientRect();
+    if (!r.width) return;
+    const fx = (e.clientX - r.left) / r.width;
+    let best = hoverPts[0];
+    for (const p of hoverPts) if (Math.abs(p.fx - fx) < Math.abs(best.fx - fx)) best = p;
+    dot.style.left = `${(best.fx * 100).toFixed(2)}%`;
+    dot.style.top = `${(best.fy * 100).toFixed(2)}%`;
+    tip.textContent = best.label;
+    dot.hidden = false; tip.hidden = false;
+    // Clamp the tooltip's centre so it never spills past the plot edges (where an ancestor
+    // clips it). Measured in px after unhiding so offsetWidth is real. transform:-50% still
+    // centres it, now on the clamped point.
+    const half = tip.offsetWidth / 2;
+    tip.style.left = `${Math.min(Math.max(best.fx * r.width, half), r.width - half)}px`;
+  });
+  plot.addEventListener('mouseleave', () => { dot.hidden = true; tip.hidden = true; });
+}
+
+// Bracket-spread graph: x = bracket 1..5, y = count normalized to the largest bracket.
+// Single series (no baseline to compare against), so just one area + one line, same SVG
+// idiom as manaCurveChart. Counts are labeled in HTML beneath the plot (never inside the
+// SVG — see manaCurveChart's comment on why <text> doesn't survive preserveAspectRatio).
+// Returns a wired DOM node (or null when empty).
+function bracketSpreadChart(brackets) {
+  const pts = [1, 2, 3, 4, 5].map((b) => ({ b, count: Number(brackets[b]) || 0 }));
+  if (!pts.some((p) => p.count > 0)) return null;
+  const W = 220; const H = 90; const pad = 2;
+  const max = Math.max(...pts.map((p) => p.count), 1);
+  const X = (b) => pad + ((b - 1) / 4) * (W - 2 * pad);
+  const Y = (v) => pad + (1 - v / max) * (H - 2 * pad);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.b).toFixed(1)} ${Y(p.count).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(5).toFixed(1)} ${Y(0).toFixed(1)} L${X(1).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+  const grid = [0, 0.5, 1].map((v) => `<line x1="${pad}" y1="${(pad + v * (H - 2 * pad)).toFixed(1)}" x2="${W - pad}" y2="${(pad + v * (H - 2 * pad)).toFixed(1)}" class="solring-mc-grid"/>`).join('');
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="Bracket spread: decks per bracket on EDHREC">`
+    + grid
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path}" class="solring-mc-line"/>`
+    + '</svg>';
+  const xl = pts.map((p) => `<span>B${p.b}</span>`).join(''); // counts live in the hover readout now
+  // y-axis: 0 (bottom) to the largest bracket count (top).
+  const wrap = el('div', {
+    class: 'solring-mc-wrap solring-bracket-chart',
+    html: `<div class="solring-mc-y"><span>${max.toLocaleString('en-US')}</span><span>0</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div><div class="solring-mc-x">${xl}</div>`,
+  });
+  wireChartHover(wrap, pts.map((p) => ({ fx: X(p.b) / W, fy: Y(p.count) / H, label: `Bracket ${p.b}: ${p.count.toLocaleString('en-US')}` })));
+  return wrap;
+}
+
+// Rank-over-time sparkline. EDHREC rank is "lower = more popular", so the y-axis is
+// inverted here (min rank plots at the top) so a rising line reads as "getting more
+// popular" like everything else in the panel. Endpoint label carries the current rank
+// (HTML, not SVG text, for the same reason as manaCurveChart).
+function rankSparkline(rankHistory) {
+  const pts = (rankHistory || []).filter((p) => Number.isFinite(p.rank));
+  if (pts.length < 2) return null;
+  const W = 220; const H = 60; const pad = 2;
+  const ranks = pts.map((p) => p.rank);
+  const rMin = Math.min(...ranks); const rMax = Math.max(...ranks);
+  const span = Math.max(1, rMax - rMin);
+  const X = (i) => pad + (i / (pts.length - 1)) * (W - 2 * pad);
+  // Inverted: best (lowest) rank maps near the top (small Y).
+  const Y = (rank) => pad + ((rank - rMin) / span) * (H - 2 * pad);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.rank).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(pts.length - 1).toFixed(1)} ${(H - pad).toFixed(1)} L${X(0).toFixed(1)} ${(H - pad).toFixed(1)} Z`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="EDHREC rank over time (rising = more popular)">`
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path}" class="solring-mc-line"/>`
+    + '</svg>';
+  const current = pts[pts.length - 1].rank;
+  // y-axis: the rank range over the window. Inverted plot → best (lowest #) at top, worst
+  // (highest #) at the bottom, so the line rising means "climbing the rankings".
+  const wrap = el('div', {
+    class: 'solring-mc-wrap solring-rank-chart',
+    html: `<div class="solring-mc-y"><span>#${rMin}</span><span>#${rMax}</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div>`
+      + `<div class="solring-mc-x solring-rank-x"><span>${pts[0].date.slice(0, 7)}</span><span>EDHREC #${current}</span></div>`,
+  });
+  wireChartHover(wrap, pts.map((p, i) => ({ fx: X(i) / W, fy: Y(p.rank) / H, label: `${p.date.slice(0, 7)}: #${p.rank}` })));
+  return wrap;
+}
+
+// Local date-time helpers for the power-history chart. `stamp` = "YYYY-MM-DD HH:MM" (local),
+// for the hover so each point is traceable to when it was recorded; `day` = "YYYY-MM-DD" for
+// the compact x-axis endpoints. Local (not UTC) so the time matches the user's clock.
+const pad2 = (n) => String(n).padStart(2, '0');
+function histDay(at) { const d = new Date(at); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function histStamp(at) { const d = new Date(at); return `${histDay(at)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+
+// Power over time (Phase 6, forward-only local history): this deck's power rating across
+// analyses. y-axis auto-scaled min..max so small shifts are visible (power lives in a narrow
+// band); index-spaced x with the first/last analysis date. Hover shows the exact score +
+// date-time + bracket for traceability. Returns a wired node, or null with fewer than 2 points.
+function powerHistoryChart(history) {
+  const pts = (history || []).filter((p) => p && Number.isFinite(p.power) && Number.isFinite(p.at));
+  if (pts.length < 2) return null;
+  const W = 220; const H = 60; const pad = 2;
+  const vals = pts.map((p) => p.power);
+  const lo = Math.min(...vals); const hi = Math.max(...vals);
+  const span = (hi - lo) || 1;
+  const X = (i) => pad + (i / (pts.length - 1)) * (W - 2 * pad);
+  const Y = (v) => pad + (1 - (v - lo) / span) * (H - 2 * pad); // higher power → higher on the chart
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.power).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(pts.length - 1).toFixed(1)} ${(H - pad).toFixed(1)} L${X(0).toFixed(1)} ${(H - pad).toFixed(1)} Z`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="Power rating over time">`
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path}" class="solring-mc-line"/>`
+    + '</svg>';
+  const wrap = el('div', {
+    class: 'solring-mc-wrap solring-power-hist',
+    html: `<div class="solring-mc-y"><span>${exact(hi)}</span><span>${exact(lo)}</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div>`
+      + `<div class="solring-mc-x"><span>${histDay(pts[0].at)}</span><span>${histDay(pts[pts.length - 1].at)}</span></div>`,
+  });
+  wireChartHover(wrap, pts.map((p, i) => ({
+    fx: X(i) / W, fy: Y(p.power) / H,
+    label: `${histStamp(p.at)}: ${exact(p.power)}${p.bracket != null ? ` · B${p.bracket}` : ''}`,
+  })));
+  return wrap;
+}
+
+// Fill the commander-tier expansion's EDHREC slot: commander popularity + rank, its
+// bracket spread, rank-over-time, and the deck's stock-o-meter (how netdecked vs brewed).
+// Idempotent — clears the slot first. Renders nothing when empty. Data Moxfield's EDHREC
+// page never shows.
+export function renderEdhrecEnrichment(slot, data) {
+  slot.replaceChildren();
+  const kids = [];
+  const pop = data && data.popularity;
+  if (pop && (pop.rank || pop.deckCount)) {
+    const parts = [];
+    if (pop.rank) parts.push(`EDHREC #${pop.rank}`);
+    if (pop.deckCount) parts.push(`~${Number(pop.deckCount).toLocaleString('en-US')} decks`);
+    kids.push(el('div', { class: 'solring-pop-chip', text: parts.join(' · ') }));
+  }
+  // Bracket spread + rank-over-time sit side by side (2-col; stacks on a narrow panel).
+  const brChart = pop && pop.brackets ? bracketSpreadChart(pop.brackets) : null;
+  const rkChart = pop && pop.rankHistory && pop.rankHistory.length > 1 ? rankSparkline(pop.rankHistory) : null;
+  if (brChart || rkChart) {
+    const charts = el('div', { class: 'solring-edhrec-charts' });
+    if (brChart) {
+      charts.append(el('div', { class: 'solring-edhrec-col' }, [
+        el('div', { class: 'solring-pl-h2', text: 'Bracket spread' }),
+        el('div', { class: 'solring-bracket-fig' }, [brChart]),
+      ]));
+    }
+    if (rkChart) {
+      charts.append(el('div', { class: 'solring-edhrec-col' }, [
+        el('div', { class: 'solring-pl-h2', text: 'Rank over time' }),
+        el('div', { class: 'solring-rank-fig' }, [rkChart]),
+      ]));
+    }
+    kids.push(charts);
+  }
+  const s = data && data.stock;
+  if (s && s.cards) {
+    kids.push(el('div', { class: 'solring-pl-h2', text: 'Stock-o-meter' }));
+    const row = barRow(`${s.stockScore}% stock · ${s.brew} off-meta`, `${s.stockScore}%`, s.stockScore);
+    row.title = `Mean EDHREC inclusion across ${s.cards} cards (excludes basics and your commander). ${s.brew} appear in no EDHREC list for this commander.`;
+    kids.push(row);
+    if (s.offMeta && s.offMeta.length) {
+      const CAP = 12;
+      const cont = el('div', { class: 'solring-offmeta-chips' });
+      const chips = cardRefs(s.offMeta, { chip: true });
+      chips.forEach((chip, i) => { if (i >= CAP) chip.classList.add('solring-syn-hidden'); cont.append(chip); });
+      if (chips.length > CAP) {
+        const more = el('button', { class: 'solring-syn-more', attrs: { type: 'button' }, text: `+${chips.length - CAP} more` });
+        more.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          cont.querySelectorAll('.solring-syn-hidden').forEach((c) => c.classList.remove('solring-syn-hidden'));
+          more.remove();
+        });
+        cont.append(more);
+      }
+      kids.push(el('div', { class: 'solring-pl-desc', text: 'Off-meta' }), cont);
+    }
+  }
+  // (EDHREC "suggested cuts" live on the deck's Recommendations page — the Cuts tab — not here.)
+  if (!kids.length) return;
+  slot.append(...kids);
 }
 
 // On-curve castability per turn: this deck's `actual` (solid, filled) against a typical
@@ -207,7 +464,7 @@ export function buildSynergyPanel(anchors, hubs) {
 // panel width. Strokes stay crisp via non-scaling-stroke.
 function manaCurveChart(curve) {
   const pts = (curve || []).filter((p) => Number.isFinite(p.turn));
-  if (!pts.length) return '';
+  if (!pts.length) return null;
   const W = 220; const H = 110; const pad = 2; // pad keeps strokes from clipping at the edges
   const turns = pts.map((p) => p.turn);
   const tMin = Math.min(...turns); const tMax = Math.max(...turns);
@@ -227,12 +484,20 @@ function manaCurveChart(curve) {
     + `<path d="${path('actual')}" class="solring-mc-line"/>`
     + '</svg>';
   const xl = [];
-  for (let t = Math.ceil(tMin); t <= tMax; t += 1) xl.push(`<span>${t}</span>`);
-  return `<div class="solring-mc-wrap">`
-    + `<div class="solring-mc-y"><span>100</span><span>50</span><span>0</span></div>`
-    + `<div class="solring-mc-plot">${svg}</div>`
-    + `<div class="solring-mc-x">${xl.join('')}</div>`
-    + `</div>`;
+  for (let t = Math.ceil(tMin); t <= tMax; t += 1) xl.push(`<span>T${t}</span>`);
+  const wrap = el('div', {
+    class: 'solring-mc-wrap',
+    html: `<div class="solring-mc-y"><span>100%</span><span>50%</span><span>0%</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div>`
+      + `<div class="solring-mc-x">${xl.join('')}</div>`,
+  });
+  const pctv = (v) => `${Math.round(clamp(v) * 100)}%`;
+  wireChartHover(wrap, pts.map((p) => ({
+    fx: X(p.turn) / W,
+    fy: Y(p.actual) / H,
+    label: `Turn ${p.turn}: ${pctv(p.actual)}${Number.isFinite(p.baseline) ? ` (typical ${pctv(p.baseline)})` : ''}`,
+  })));
+  return wrap;
 }
 
 // Mana source breakdown: card count per source category as label/bar/value rows
@@ -280,12 +545,16 @@ function colorReqProdChart(perColor) {
   }).join('');
 }
 
-// One titled chart cell in the manabase content row.
-function diagramCell(title, svgHtml, caption) {
-  if (!svgHtml) return null;
+// One titled chart cell in the manabase content row. `chart` is either a DOM node (a wired
+// interactive chart, e.g. manaCurveChart) or an HTML string (e.g. the colour req/prod bars).
+function diagramCell(title, chart, caption) {
+  if (!chart) return null;
+  const fig = chart.nodeType
+    ? el('div', { class: 'solring-mb-fig' }, [chart])
+    : el('div', { class: 'solring-mb-fig', html: chart });
   return el('div', { class: 'solring-mb-cell solring-mb-cell-chart' }, [
     el('div', { class: 'solring-pl-h', text: title }),
-    el('div', { class: 'solring-mb-fig', html: svgHtml }),
+    fig,
     caption ? el('div', { class: 'solring-pl-desc', text: caption }) : null,
   ]);
 }
@@ -409,10 +678,16 @@ export function buildManabasePanel(m) {
   // Column 2: the on-curve castability chart.
   const cells = [];
   if (barsCol.length) cells.push(el('div', { class: 'solring-mb-col-bars' }, barsCol));
-  const curveHtml = m.curve && m.curve.length
-    ? `${manaCurveChart(m.curve)}<div class="solring-mc-legend"><span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Expected</span></div>`
-    : '';
-  if (curveHtml) cells.push(diagramCell('On-curve castability', curveHtml, null));
+  const curveChart = m.curve && m.curve.length ? manaCurveChart(m.curve) : null;
+  if (curveChart) {
+    // Curve node (interactive, wired hover) + its legend as siblings in the fig, matching
+    // diagramCell's structure so the chart/tables height-sync (syncChartHeights) still works.
+    const legend = el('div', { class: 'solring-mc-legend', html: '<span class="solring-mc-k-actual">This deck</span><span class="solring-mc-k-base">Typical</span>' });
+    cells.push(el('div', { class: 'solring-mb-cell solring-mb-cell-chart' }, [
+      el('div', { class: 'solring-pl-h', text: 'On-curve castability' }),
+      el('div', { class: 'solring-mb-fig' }, [curveChart, legend]),
+    ]));
+  }
   if (cells.length) children.push(el('div', { class: 'solring-mb-grid' }, cells));
 
   const table = profileTable(m.strengths, m.risks, m.improve);
