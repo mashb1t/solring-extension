@@ -20,7 +20,7 @@ import { getUserDecks, getDeck, importDeck, getEnrichment } from './messaging.js
 import { csRatingGrade } from './ratings.js';
 import {
   getListColumns, setListColumns, getColumnOrder, setColumnOrder,
-  getHiddenNativeCols, setHiddenNativeCols, getSortPref, setSortPref, onPrefChange,
+  getHiddenNativeCols, setHiddenNativeCols, getSortPref, setSortPref, onPrefChange, getOptions,
 } from './prefs.js';
 import { el, guard, installOutsideClose } from './dom.js';
 import { num } from './format.js';
@@ -107,6 +107,7 @@ let listColumns = {}; // prefs:listColumns, which metric columns are enabled
 let columnOrder = []; // prefs:listColumnOrder, display order of the metric columns
 let hiddenNative = []; // prefs:hiddenNativeCols, Moxfield native columns to hide
 let sortState = { key: null, dir: 'desc' }; // prefs:sort, active score-sort (null = none)
+let edhrecSourceOn = true; // options.sources.edhrec — gates the EDH# column + rank fetches
 let nativeIdx = new WeakMap(); // row to Moxfield's native ordinal, snapshotted while no sort is active (to restore on clear)
 let pendingNativeRestore = false; // set only by our own "clear sort" click, restores the page default ONCE, then leaves Moxfield's own sort alone
 let nativeSortClause = null; // Moxfield's own "sorted by X in Y order" caption clause, captured before we override it (restored on clear)
@@ -267,7 +268,7 @@ const COLUMNS = [
   { key: 'tier', label: 'Tier', title: 'Commander tier', hit: false, cell: (v) => (v.commanderTier != null ? textNode(`T${v.commanderTier}`) : null) },
   // Commander EDHREC rank — same value as the Tier cell's hover. Filled async per row
   // (fillRankCell) since the rank is fetched, not in the view; only for analyzed decks.
-  { key: 'edhrecRank', label: 'EDH#', title: 'Commander EDHREC rank', hit: false, cell: (v) => (v.commanderTier != null ? el('span', { class: 'solring-num', text: '…' }) : null) },
+  { key: 'edhrecRank', label: '#EDH', title: 'Commander EDHREC rank', hit: false, cell: (v) => (v.commanderTier != null ? el('span', { class: 'solring-num', text: '…' }) : null) },
   { key: 'power', label: 'Pow', title: 'Power level (0–10)', hit: true, cell: (v) => numNode(v.power) },
   { key: 'bracket', label: 'Brkt', title: 'Realistic bracket', hit: true, cell: (v) => (v.bracketRealistic != null ? bracketValue(v) : null) },
   { key: 'manabase', label: 'Mana', title: 'Manabase (% vs benchmark)', hit: false, cell: (v) => (v.manabaseOverall != null ? textNode(`${Math.round(v.manabaseOverall)}%`) : null) },
@@ -292,15 +293,18 @@ const COLUMNS = [
 // to callers, so sharing the cached array is safe.
 let colCacheSig = null;
 let colCache = [];
+// A column is shown when its pref is on — and, for edhrecRank, only when the EDHREC source
+// is enabled in options (so disabling the source hides the whole #EDH column).
+const columnShown = (key) => !!listColumns[key] && (key !== 'edhrecRank' || edhrecSourceOn);
 function enabledColumns() {
-  const sig = `${JSON.stringify(listColumns)}|${columnOrder.join(',')}`;
+  const sig = `${JSON.stringify(listColumns)}|${columnOrder.join(',')}|${edhrecSourceOn}`;
   if (sig === colCacheSig) return colCache;
   const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
   const seen = new Set();
   const out = [];
   for (const k of columnOrder) {
     const c = byKey.get(k);
-    if (c && listColumns[k] && !seen.has(k)) { out.push(c); seen.add(k); }
+    if (c && columnShown(k) && !seen.has(k)) { out.push(c); seen.add(k); }
   }
   // Enabled columns not in the saved order (e.g. a newly shipped key like edhrecRank) slot
   // in at their natural COLUMNS position — right after their nearest already-placed
@@ -308,7 +312,7 @@ function enabledColumns() {
   // (edhrecRank after tier) even for users who've customised their column order.
   for (let i = 0; i < COLUMNS.length; i += 1) {
     const c = COLUMNS[i];
-    if (!listColumns[c.key] || seen.has(c.key)) continue;
+    if (!columnShown(c.key) || seen.has(c.key)) continue;
     let insertAt = out.length;
     for (let j = i - 1; j >= 0; j -= 1) {
       const idx = out.indexOf(byKey.get(COLUMNS[j].key));
@@ -342,6 +346,9 @@ const SORT_VALUE = {
   tier: (v) => v.commanderTier,
   manabase: (v) => v.manabaseOverall,
   combos: (v) => v.combosCount,
+  // Rank is fetched (keyed by md5, so it reads the entry, not the view) and "lower = more
+  // popular", so negate: desc then surfaces #1 first, like desc surfaces the "top" elsewhere.
+  edhrecRank: (v, e) => { const r = e ? rankOf(e.md5) : null; return r == null ? null : -r; },
 };
 const isSortable = (key) => Object.prototype.hasOwnProperty.call(SORT_VALUE, key);
 
@@ -429,7 +436,7 @@ function updateSortIndicators(htr) {
 
 // Lowercase field names for Moxfield's results caption ("...sorted by <field> in ... order").
 const SORT_TITLE_LABEL = {
-  tier: 'commander tier', power: 'power', bracket: 'bracket', manabase: 'manabase',
+  tier: 'commander tier', edhrecRank: 'EDHREC rank', power: 'power', bracket: 'bracket', manabase: 'manabase',
   threat: 'threat', salt: 'saltiness', interaction: 'interaction', wincons: 'win conditions', combos: 'combos',
   synergy: 'synergy'
 };
@@ -483,8 +490,8 @@ function compareEntries(key, dir) {
   const sign = dir === 'asc' ? 1 : -1;
   const has = (x) => typeof x === 'number' && Number.isFinite(x);
   return (ea, eb) => {
-    const av = get(viewFor(ea));
-    const bv = get(viewFor(eb));
+    const av = get(viewFor(ea), ea);
+    const bv = get(viewFor(eb), eb);
     if (has(av) && has(bv)) return (av - bv) * sign;
     if (has(av)) return -1; // present before missing, regardless of direction
     if (has(bv)) return 1;
@@ -645,47 +652,59 @@ const CELL_TITLE = {
   wincons: (v) => scoreTitle(v.wincons, 'win conditions'),
 };
 
-// A deck's commander EDHREC rank, cached per md5 (number = rank, null = fetched-but-none) so
+// A deck's commander EDHREC popularity ({ rank, deckCount } | null), cached per md5 so
 // re-renders apply it synchronously; rankPending de-dupes concurrent fetches (e.g. the Tier
-// hover and the EDH# column asking at once). The commander page is itself cached by slug in
+// hover and the #EDH column asking at once). The commander page is itself cached by slug in
 // the worker, so only the first deck of each commander actually hits EDHREC.
 const tierRankByMd5 = new Map();
 const rankPending = new Map();
+const rankOf = (md5) => { const p = tierRankByMd5.get(md5); return p && typeof p.rank === 'number' ? p.rank : null; };
 function fetchRank(md5) {
+  if (!edhrecSourceOn) return Promise.resolve(null); // source disabled → don't hit EDHREC
   if (tierRankByMd5.has(md5)) return Promise.resolve(tierRankByMd5.get(md5));
   if (rankPending.has(md5)) return rankPending.get(md5);
   const p = getEnrichment('edhrec', md5).then((data) => {
-    const rank = data && data.popularity && typeof data.popularity.rank === 'number' ? data.popularity.rank : null;
-    tierRankByMd5.set(md5, rank);
+    const pop = data && data.popularity
+      ? { rank: typeof data.popularity.rank === 'number' ? data.popularity.rank : null, deckCount: data.popularity.deckCount || null }
+      : null;
+    tierRankByMd5.set(md5, pop);
     rankPending.delete(md5);
-    return rank;
+    return pop;
   }).catch(() => { rankPending.delete(md5); return null; });
   rankPending.set(md5, p);
   return p;
 }
+// "EDHREC #<rank> · ~<N> decks" from a popularity object (either half optional).
+function rankLabel(pop) {
+  const parts = [];
+  if (pop && typeof pop.rank === 'number') parts.push(`EDHREC #${pop.rank}`);
+  if (pop && pop.deckCount) parts.push(`~${Number(pop.deckCount).toLocaleString('en-US')} decks`);
+  return parts.join(' · ');
+}
 
 // EDHREC commander-rank tooltip on the Tier cell, fetched LAZILY on first hover — the Tier
-// column ships without EDH# on, so fetching every row up front would burst EDHREC for a
+// column ships without #EDH on, so fetching every row up front would burst EDHREC for a
 // tooltip most rows never get.
 function wireTierRankTitle(td, md5) {
-  const cached = tierRankByMd5.get(md5);
-  if (typeof cached === 'number') { td.title = `EDHREC #${cached}`; td.classList.add('solring-col-help'); return; }
-  if (tierRankByMd5.has(md5)) return; // fetched, no rank available
-  const onEnter = () => {
-    td.removeEventListener('mouseenter', onEnter);
-    fetchRank(md5).then((r) => { if (typeof r === 'number' && td.isConnected) { td.title = `EDHREC #${r}`; td.classList.add('solring-col-help'); } });
-  };
+  if (!edhrecSourceOn) return;
+  const applied = (pop) => { const t = rankLabel(pop); if (t && td.isConnected) { td.title = t; td.classList.add('solring-col-help'); } };
+  if (tierRankByMd5.has(md5)) { applied(tierRankByMd5.get(md5)); return; }
+  const onEnter = () => { td.removeEventListener('mouseenter', onEnter); fetchRank(md5).then(applied); };
   td.addEventListener('mouseenter', onEnter);
 }
 
-// Fill the EDH# column cell with "#<rank>" (or "—" when the commander has no EDHREC rank).
-// Eager: the column only renders when the user has opted the EDH# column on, so fetching
-// the rank for each analyzed row is what they asked for. Cached/de-duped via fetchRank.
+// Fill the #EDH column cell with "#<rank>" (or "—" when the commander has no EDHREC rank);
+// the cell's title tooltip shows the commander's EDHREC deck amount. Eager: the column only
+// renders when the user opted it on, so fetching the rank per analyzed row is intended.
 function fillRankCell(node, md5) {
-  const cached = tierRankByMd5.get(md5);
-  if (typeof cached === 'number') { node.textContent = `#${cached}`; return; }
-  if (tierRankByMd5.has(md5)) { node.textContent = '—'; return; }
-  fetchRank(md5).then((r) => { if (node.isConnected) node.textContent = typeof r === 'number' ? `#${r}` : '—'; });
+  const td = node.closest('td');
+  const paint = (pop) => {
+    const rank = pop && typeof pop.rank === 'number' ? pop.rank : null;
+    node.textContent = rank != null ? `#${rank}` : '—';
+    if (td && pop && pop.deckCount) { td.title = `~${Number(pop.deckCount).toLocaleString('en-US')} decks on EDHREC`; td.classList.add('solring-col-help'); }
+  };
+  if (tierRankByMd5.has(md5)) { paint(tierRankByMd5.get(md5)); return; }
+  fetchRank(md5).then((pop) => { if (node.isConnected) paint(pop); });
 }
 
 // Build/rebuild one row's metric cells from its current view, inserted before the
@@ -711,7 +730,7 @@ function renderRowCells(entry, idx) {
       // hover shows the raw total, help cursor signals the cell carries it
       if (inner && titleFn) { const t = titleFn(view); if (t) { td.title = t; td.classList.add('solring-col-help'); } }
       else if (inner && c.key === 'tier') wireTierRankTitle(td, entry.md5); // hover → commander EDHREC rank
-      else if (inner && c.key === 'edhrecRank') fillRankCell(inner, entry.md5); // EDH# column value
+      else if (inner && c.key === 'edhrecRank') fillRankCell(inner, entry.md5); // #EDH column value
       else if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
         td.title = 'Analyze this deck';
@@ -854,8 +873,10 @@ function orderedColumns() {
   const byKey = new Map(COLUMNS.map((c) => [c.key, c]));
   const seen = new Set();
   const out = [];
-  for (const k of columnOrder) { const c = byKey.get(k); if (c && !seen.has(k)) { out.push(c); seen.add(k); } }
-  for (const c of COLUMNS) if (!seen.has(c.key)) out.push(c);
+  // #EDH is only offered in the menu when the EDHREC source is enabled in options.
+  const listable = (key) => key !== 'edhrecRank' || edhrecSourceOn;
+  for (const k of columnOrder) { const c = byKey.get(k); if (c && listable(k) && !seen.has(k)) { out.push(c); seen.add(k); } }
+  for (const c of COLUMNS) if (listable(c.key) && !seen.has(c.key)) out.push(c);
   return out;
 }
 
@@ -1091,7 +1112,9 @@ function scheduleSweep() {
     every deck row, and keeps re-annotating across Moxfield's SPA re-renders. */
 export async function installDeckList(username, { waitFor } = {}) {
   if (!username) return;
-  [listColumns, columnOrder, hiddenNative, sortState] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols(), getSortPref()]);
+  let options;
+  [listColumns, columnOrder, hiddenNative, sortState, options] = await Promise.all([getListColumns(), getColumnOrder(), getHiddenNativeCols(), getSortPref(), getOptions()]);
+  edhrecSourceOn = !(options.sources && options.sources.edhrec === false);
   installOutsideClose('.solring-colmenu', closeMenu);
   installNativeSortYield();
   if (!prefSubscribed) {
@@ -1103,6 +1126,10 @@ export async function installDeckList(username, { waitFor } = {}) {
       } else if (which === 'sort') {
         sortState = await getSortPref();
         guard('deck-list sort', () => reconcileColumns());
+      } else if (which === 'options') {
+        const o = await getOptions();
+        edhrecSourceOn = !(o.sources && o.sources.edhrec === false);
+        guard('deck-list reconcile', () => reconcileColumns());
       }
     });
   }
