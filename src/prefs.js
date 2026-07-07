@@ -70,7 +70,7 @@ export const OPTIONS_DEFAULT = {
   accordion: true, // deck report-card: only one metric tile open at a time
   cacheLifetimeDays: 30,
   // External enrichment sources (Phase 4). Disabling one leaves its panel slot empty.
-  sources: { edhrec: true },
+  sources: { edhrec: true, spellbook: true },
 };
 
 export async function getCardPrefs() {

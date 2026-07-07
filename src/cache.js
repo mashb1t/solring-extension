@@ -64,6 +64,7 @@ export function isFresh(entry, ttl = TTL_MS) {
 }
 
 export const ENRICH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const SBOOK_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (combo data changes slowly)
 
 // Freshness for enrichment entries: TTL only, NO schema-version gate. Enrichment shape is
 // owned by its source module, not extractDeck, so a deck SCHEMA_VERSION bump must not
@@ -74,7 +75,7 @@ export function isFreshTtl(entry, ttl) {
 
 // Cached analyses + enrichment: deck:* / search:* / edhrec:* (not prefs:* / sync:*).
 function isCacheKey(k) {
-  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:');
+  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:');
 }
 
 /** Total storage footprint of cached analyses → { bytes, count }. */

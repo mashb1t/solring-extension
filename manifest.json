@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Solring – Stats for Moxfield",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shows deck metrics and useful information for evaluating decks on Moxfield.",
   "icons": {
     "16": "icons/16.png",
@@ -10,7 +10,7 @@
     "128": "icons/128.png"
   },
   "permissions": ["storage"],
-  "host_permissions": ["https://api.commandersalt.com/*"],
+  "host_permissions": ["https://api.commandersalt.com/*", "https://backend.commanderspellbook.com/*"],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
