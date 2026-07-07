@@ -123,12 +123,12 @@ export function topThreats(cards, cap = 8) {
     .slice(0, cap);
 }
 
-// Salt personality (details.salt.personality): CommanderSalt's one-line "flavor" read of
-// the deck's salt — a headline archetype ("Punisher"), an intensity, and a hint sentence.
+// Salt intensity (details.salt.personality.intensity): CommanderSalt's one-word read of how
+// salty the deck plays. The personality's flavor (headline / hint) is intentionally not surfaced.
 function saltPersonality(dt) {
   const p = g(dt, 'salt', 'personality');
-  if (!p || !p.headline) return null;
-  return { headline: p.headline, intensity: p.intensity || null, flavor: p.flavor || null, hint: p.headlineHint || null };
+  const intensity = p && typeof p.intensity === 'string' && p.intensity ? p.intensity : null;
+  return intensity ? { intensity } : null;
 }
 
 // Anti-pattern score cap (details.powerLevel.ratings.antiPatternPenalty): whether the

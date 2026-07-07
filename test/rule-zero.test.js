@@ -8,7 +8,7 @@ const fields = {
   power: 5.9879, powerScoreTotal: 789.8,
   bracketRealistic: 3, bracketBaseline: 3,
   commanderTier: 4, archetype: 'MIDRANGE / COMBO',
-  salt: 129.7, saltPersonality: { headline: 'Punisher', intensity: 'moderate' },
+  salt: 129.7, saltPersonality: { intensity: 'moderate' },
   combos: [{ pieces: ['Ojer Axonil, Deepest Might', 'Pyrohemia'] }],
   powerProfile: { antiPatterns: [{ label: 'Group-slug pressure', severity: 'minor' }, { label: 'Multi-deficit penalty', severity: 'major' }] },
   deckId: '9bc8a6c2106583c1fd66e0492a3a5a26',
@@ -21,9 +21,9 @@ test('includes title, commander, and rounded power', () => {
   assert.match(t, /Bracket 3 \(baseline 3\)/);
   assert.match(t, /Tier T4/);
 });
-test('salt grade with personality, combo pieces, and CS link', () => {
+test('salt grade with intensity, combo pieces, and CS link', () => {
   const t = buildRuleZeroText(fields, 'X');
-  assert.match(t, /Salt: .+\(Punisher, moderate\)/);
+  assert.match(t, /Salt: .+\(moderate\)/);
   assert.match(t, /Combos: 1 \(Ojer Axonil, Deepest Might \+ Pyrohemia\)/);
   assert.match(t, /commandersalt\.com\/details\/deck\/9bc8a6c2106583c1fd66e0492a3a5a26/);
 });

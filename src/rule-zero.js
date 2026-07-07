@@ -35,12 +35,8 @@ export function buildRuleZeroText(fields, title) {
   const l3 = [];
   if (isNum(f.salt)) {
     let salt = `Salt: ${csRatingGrade(f.salt, 'saltRating')}`;
-    if (f.saltPersonality && typeof f.saltPersonality.headline === 'string' && f.saltPersonality.headline.length) {
-      const bits = [f.saltPersonality.headline];
-      if (typeof f.saltPersonality.intensity === 'string' && f.saltPersonality.intensity.length) {
-        bits.push(f.saltPersonality.intensity);
-      }
-      salt += ` (${bits.join(', ')})`;
+    if (f.saltPersonality && typeof f.saltPersonality.intensity === 'string' && f.saltPersonality.intensity.length) {
+      salt += ` (${f.saltPersonality.intensity})`;
     }
     l3.push(salt);
   }

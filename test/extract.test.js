@@ -183,9 +183,9 @@ test('countDeckCombos tolerates non-string combo card ids', () => {
 
 test('extractDeck surfaces the new Phase-2 metric fields', () => {
   const d = extractDeck(deck);
-  // 2.1 salt personality
-  assert.equal(d.saltPersonality.headline, 'Punisher');
+  // 2.1 salt intensity (personality flavor is intentionally dropped)
   assert.equal(d.saltPersonality.intensity, 'moderate');
+  assert.equal(d.saltPersonality.headline, undefined);
   // 2.2/2.3/2.4 fingerprint additions
   assert.equal(d.powerFingerprint.cardAdvantage.draw, 'dense');
   assert.equal(d.powerFingerprint.resourceDenial.stax, 'light');
