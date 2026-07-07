@@ -162,22 +162,23 @@ export function buildCombosSection(combos, profile) {
 // "One card away": Commander Spellbook combos the deck is a single card short of, grouped by
 // the card to add (one card can complete several). Idempotent — clears the slot first;
 // renders nothing when empty. `data.nearMiss` = [{ id, add, produces, popularity, bracketTag }].
-// Commander Spellbook combo bracket tags → the official-Bracket tier they suit + a blurb.
-// (From commanderspellbook.com syntax guide.) Shown on the near-miss meta chip as a tooltip.
+// Commander Spellbook combo bracket tags → the official-Bracket number they suit + a blurb.
+// (From commanderspellbook.com syntax guide.) The chip shows the bracket (1 / 2+ / 2 / 3+ /
+// 3 / 4+); the tier name + blurb are the tooltip.
 const BRACKET_TAG = {
-  E: { name: 'Exhibition', desc: 'Bracket 1 · casual / janky combo, fine in any deck' },
-  C: { name: 'Core', desc: 'Bracket 2+ · fast two-card combo or extra-turn card' },
-  O: { name: 'Oddball', desc: 'Bracket 2 · could be powerful but needs more cards / unclear' },
-  P: { name: 'Powerful', desc: 'Bracket 3+ · game changers or strong two-card combos' },
-  S: { name: 'Spicy', desc: 'Bracket 3 · could be ruthless but needs a third card / unclear' },
-  R: { name: 'Ruthless', desc: 'Bracket 4+ · competitive: infinite turns, mass denial, control' },
-  B: { name: 'Banned', desc: 'Contains a card banned in Commander' },
+  E: { name: 'Exhibition', bracket: '1', desc: 'casual / janky combo, fine in any deck' },
+  C: { name: 'Core', bracket: '2+', desc: 'fast two-card combo or extra-turn card' },
+  O: { name: 'Oddball', bracket: '2', desc: 'could be powerful but needs more cards / unclear' },
+  P: { name: 'Powerful', bracket: '3+', desc: 'game changers or strong two-card combos' },
+  S: { name: 'Spicy', bracket: '3', desc: 'could be ruthless but needs a third card / unclear' },
+  R: { name: 'Ruthless', bracket: '4+', desc: 'competitive: infinite turns, mass denial, control' },
+  B: { name: 'Banned', bracket: 'banned', desc: 'contains a card banned in Commander' },
 };
 function bracketStat(tag) {
   if (!tag) return null;
   const b = BRACKET_TAG[tag];
-  const s = stat('bracket', b ? b.name : tag);
-  if (b) s.title = b.desc;
+  const s = stat('bracket', b ? b.bracket : tag);
+  if (b) s.title = `${b.name} · ${b.desc}`;
   return s;
 }
 
@@ -206,9 +207,11 @@ function nearMissCard(combo) {
   const pieces = el('div', { class: 'solring-combo-pieces' });
   combo.pieces.forEach((p, i) => {
     if (i) pieces.append('  +  ');
-    // pass the Scryfall image so the hover preview works even for the missing card
-    const ref = cardRefs([{ name: p.name, image: p.image }], { chip: false })[0];
-    if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Add this card to complete the combo'; }
+    // Pass the Scryfall image so the hover preview works even for the missing card, and —
+    // since it has no deck-row link — an external Scryfall link so it's still clickable.
+    const scry = p.missing ? `https://scryfall.com/search?q=${encodeURIComponent(`!"${p.name}"`)}` : undefined;
+    const ref = cardRefs([{ name: p.name, image: p.image, href: scry }], { chip: false })[0];
+    if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Not in deck · add to complete the combo — click to view on Scryfall'; }
     pieces.append(ref);
   });
   const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);

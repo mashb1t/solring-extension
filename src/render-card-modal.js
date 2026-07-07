@@ -151,6 +151,10 @@ function installCardHover() {
     const href = chip.dataset.href;
     if (!href) return;
     hide();
+    // Absolute URL (a card not in the deck, e.g. a near-miss combo's missing piece linked
+    // to Scryfall) opens in a new tab so the user keeps their deck. Relative hrefs are
+    // Moxfield deck-row links: click the live one so React Router opens the card overlay.
+    if (/^https?:/i.test(href)) { window.open(href, '_blank', 'noopener'); return; }
     const live = document.querySelector(`a.table-deck-row-link[href="${href}"]`) || document.querySelector(`a[href="${href}"]`);
     if (live) live.click(); else location.assign(href);
   };
@@ -199,6 +203,7 @@ export function cardRefs(items, opts = {}) {
   return (items || []).map((it) => {
     const name = typeof it === 'string' ? it : it.name;
     const image = typeof it === 'string' ? null : it.image;
+    const href = typeof it === 'string' ? null : it.href; // explicit external link (card not in deck)
     const hit = prints[normName(name)];
     const deckImg = hit && hit.img; // deck's selected art, else the supplied print
     const primary = deckImg || image;
@@ -207,7 +212,10 @@ export function cardRefs(items, opts = {}) {
     // Keep the supplied (CommanderSalt) print as a fallback for when the synthesized
     // deck-print URL 404s (double-faced cards use a different, face-keyed URL).
     if (deckImg && image && image !== deckImg) attrs['data-img-cs'] = image;
+    // Deck-row link (opens Moxfield's card overlay) when the card is on the page; else the
+    // supplied external link if any (a missing combo piece → Scryfall).
     if (hit && hit.href) { attrs['data-href'] = hit.href; attrs.role = 'link'; attrs.tabindex = '0'; }
+    else if (href) { attrs['data-href'] = href; attrs.role = 'link'; attrs.tabindex = '0'; }
     return el('span', { class: cls, text: name, attrs });
   });
 }
