@@ -404,6 +404,10 @@ export async function mount({ waitFor }) {
     if (!data || data.error || data.miss) return;
     const slot = body.querySelector('.solring-nearmiss-slot');
     if (slot && slot.isConnected) renderSpellbookNearMiss(slot, data);
+    // Surface the "one card away" count next to the deck's combo count in the Wincons tile.
+    const n = ((data.nearMiss || []).length);
+    const sub = winconsTile.querySelector('.solring-tile-sub');
+    if (n && sub && !sub.dataset.nearmiss) { sub.dataset.nearmiss = '1'; sub.textContent += ` · ${n} one away`; }
   }
 
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
