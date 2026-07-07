@@ -4,7 +4,7 @@ import { nearMissCombos } from '../src/sources/spellbook.js';
 
 const combo = (id, useNames, produces, popularity, opts = {}) => ({
   id,
-  uses: useNames.map((name) => ({ card: { name } })),
+  uses: useNames.map((name) => ({ card: { name, imageUriFrontNormal: `img:${name}` } })),
   produces: produces.map((name) => ({ feature: { name } })),
   popularity,
   bracketTag: opts.bracketTag || 'C',
@@ -20,8 +20,8 @@ test('nearMissCombos: keeps combos one card short, marks the missing piece', () 
   const out = nearMissCombos(results, ['Isochron Scepter', 'Island']);
   assert.equal(out.length, 1);
   assert.deepEqual(out[0].pieces, [
-    { name: 'Isochron Scepter', missing: false },
-    { name: 'Dramatic Reversal', missing: true },
+    { name: 'Isochron Scepter', image: 'img:Isochron Scepter', missing: false },
+    { name: 'Dramatic Reversal', image: 'img:Dramatic Reversal', missing: true },
   ]);
   assert.equal(out[0].add, 'Dramatic Reversal');
   assert.deepEqual(out[0].produces, ['Infinite mana']);

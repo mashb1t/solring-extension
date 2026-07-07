@@ -162,6 +162,25 @@ export function buildCombosSection(combos, profile) {
 // "One card away": Commander Spellbook combos the deck is a single card short of, grouped by
 // the card to add (one card can complete several). Idempotent — clears the slot first;
 // renders nothing when empty. `data.nearMiss` = [{ id, add, produces, popularity, bracketTag }].
+// Commander Spellbook combo bracket tags → the official-Bracket tier they suit + a blurb.
+// (From commanderspellbook.com syntax guide.) Shown on the near-miss meta chip as a tooltip.
+const BRACKET_TAG = {
+  E: { name: 'Exhibition', desc: 'Bracket 1 · casual / janky combo, fine in any deck' },
+  C: { name: 'Core', desc: 'Bracket 2+ · fast two-card combo or extra-turn card' },
+  O: { name: 'Oddball', desc: 'Bracket 2 · could be powerful but needs more cards / unclear' },
+  P: { name: 'Powerful', desc: 'Bracket 3+ · game changers or strong two-card combos' },
+  S: { name: 'Spicy', desc: 'Bracket 3 · could be ruthless but needs a third card / unclear' },
+  R: { name: 'Ruthless', desc: 'Bracket 4+ · competitive: infinite turns, mass denial, control' },
+  B: { name: 'Banned', desc: 'Contains a card banned in Commander' },
+};
+function bracketStat(tag) {
+  if (!tag) return null;
+  const b = BRACKET_TAG[tag];
+  const s = stat('bracket', b ? b.name : tag);
+  if (b) s.title = b.desc;
+  return s;
+}
+
 // A near-miss combo, rendered with the SAME shape as an existing combo card (comboCard): the
 // full piece list (the missing card marked red), produces chips, meta stats + Spellbook link,
 // and an expandable body (prerequisites / steps / produces).
@@ -176,7 +195,7 @@ function nearMissCard(combo) {
 
   const meta = el('div', { class: 'solring-combo-meta' }, [
     combo.popularity != null ? stat('decks', Number(combo.popularity).toLocaleString('en-US')) : null,
-    combo.bracketTag ? stat('bracket', combo.bracketTag) : null,
+    bracketStat(combo.bracketTag),
     combo.id ? el('a', {
       class: 'solring-combo-link', text: 'Spellbook ↗',
       attrs: { href: `https://commanderspellbook.com/combo/${combo.id}/`, target: '_blank', rel: 'noopener' },
@@ -187,7 +206,8 @@ function nearMissCard(combo) {
   const pieces = el('div', { class: 'solring-combo-pieces' });
   combo.pieces.forEach((p, i) => {
     if (i) pieces.append('  +  ');
-    const ref = cardRefs([p.name], { chip: false })[0];
+    // pass the Scryfall image so the hover preview works even for the missing card
+    const ref = cardRefs([{ name: p.name, image: p.image }], { chip: false })[0];
     if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Add this card to complete the combo'; }
     pieces.append(ref);
   });

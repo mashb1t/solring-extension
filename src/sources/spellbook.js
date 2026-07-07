@@ -37,9 +37,11 @@ export function nearMissCombos(results, deckNames, cap = 25) {
   const out = [];
   for (const combo of (results && results.almostIncluded) || []) {
     const pieces = (combo.uses || [])
-      .map((u) => u && u.card && u.card.name)
-      .filter(Boolean)
-      .map((name) => ({ name, missing: !have.has(norm(name)) }));
+      .map((u) => u && u.card)
+      .filter((c) => c && c.name)
+      // keep each piece's Scryfall image so the hover preview works even for cards not in
+      // the deck (the missing one) — cardRefs falls back to this when there's no deck print.
+      .map((c) => ({ name: c.name, image: c.imageUriFrontNormal || c.imageUriFrontPng || null, missing: !have.has(norm(c.name)) }));
     const missing = pieces.filter((p) => p.missing);
     if (missing.length !== 1) continue; // strictly one card away
     out.push({
