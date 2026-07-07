@@ -123,11 +123,14 @@ export async function setSync(username, patch) {
 }
 
 // ---- per-deck power history (forward-only) ----
-// A local time series of a deck's power/bracket, one point per distinct CommanderSalt
-// analysis (keyed by analyzedAt / ingestDate, so repeat views of the same analysis don't
-// duplicate a point). Cannot backfill — history only accrues from when the user first views
-// a deck onward. Kept OUT of isCacheKey so it survives cache eviction / "Clear cache" (it is
-// user history, not a re-fetchable analysis). Capped so a long-lived deck can't grow unbounded.
+// A local time series of a deck's power/bracket. A point is recorded whenever power or
+// bracket CHANGES from the last point (so repeat views of an unchanged analysis don't
+// duplicate a point, but an edit-driven re-analysis does). Dedup keys on the values, NOT on
+// analyzedAt/ingestDate — CommanderSalt omits ingestDate on a fresh on-demand POST analysis,
+// which is exactly the edit-then-reanalyze case we most want to capture. The point's
+// timestamp is analyzedAt when present, else the current time. Cannot backfill — history
+// accrues from first view onward. Kept OUT of isCacheKey so it survives cache eviction /
+// "Clear cache" (user history, not a re-fetchable analysis). Capped to bound storage.
 export const POWER_HISTORY_CAP = 60;
 
 export async function getPowerHistory(md5) {
@@ -136,14 +139,16 @@ export async function getPowerHistory(md5) {
   return Array.isArray(v) ? v : [];
 }
 
-// Append { at, power, bracket } for this analysis if not already recorded. Returns the
+// Append { at, power, bracket } when power/bracket changed since the last point. Returns the
 // (possibly unchanged) history, sorted ascending by `at`.
 export async function recordPowerPoint(md5, fields) {
-  const at = fields && fields.analyzedAt;
   const power = fields && typeof fields.power === 'number' && Number.isFinite(fields.power) ? fields.power : null;
   const list = await getPowerHistory(md5);
-  if (!md5 || !at || power == null || list.some((p) => p.at === at)) return list;
+  if (!md5 || power == null) return list;
   const bracket = fields.bracketRealistic != null ? fields.bracketRealistic : null;
+  const last = list[list.length - 1];
+  if (last && last.power === power && last.bracket === bracket) return list; // nothing changed
+  const at = Number.isFinite(fields.analyzedAt) ? fields.analyzedAt : Date.now();
   const next = [...list, { at, power, bracket }].sort((a, b) => a.at - b.at).slice(-POWER_HISTORY_CAP);
   await chrome.storage.local.set({ [`hist:${md5}`]: next });
   return next;
