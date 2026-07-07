@@ -308,21 +308,26 @@ function apply() {
   const existing = box.querySelector(':scope > .solring-card-modal');
   const opts = getOpts();
   if (opts.cardPanelModal === false) { if (existing) existing.remove(); return; } // panel disabled
-  if (existing && existing.getAttribute('data-card') === key) return; // already current
+  if (existing && existing.getAttribute('data-card') === key) { fitWidth(box, existing); return; } // already current — re-fit only
   const fields = getFields();
   const card = lookupCard(fields, name);
   if (existing) existing.remove();
   if (!card) return;
   const stats = { ...deckStats(fields), powerThreshold: opts.powerThreshold, saltThreshold: opts.saltThreshold };
   const panel = buildPanel(card, key, stats);
-  // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
-  // list would stretch the whole modal. Cap the panel to the container's current width
-  // — driven by the buy/price block above, wider than the (centered) card image — so it
-  // lines up with that block. Measured before inserting since our content could otherwise
-  // widen the box. On mobile a media query widens the container and lifts this cap.
+  fitWidth(box, panel);
+  box.appendChild(panel);
+}
+
+// Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy list
+// would stretch the whole modal. Cap the panel to the container width — driven by the
+// buy/price block above, wider than the (centered) card image — so it lines up with that
+// block. The buy-block can render a frame after the image (first apply sees only the
+// ~251px image), so this re-runs on the already-current path until the box settles; the
+// capped panel is never the widest child, so re-measuring converges. Mobile lifts the cap.
+function fitWidth(box, panel) {
   const w = Math.round(box.getBoundingClientRect().width);
   if (w > 40) panel.style.maxWidth = `${w}px`;
-  box.appendChild(panel);
 }
 
 function schedule() {
