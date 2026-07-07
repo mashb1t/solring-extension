@@ -307,9 +307,13 @@
 .solring-mc-legend { display: flex; gap: 1rem; margin-top: 0.3rem; font-size: 0.7rem; color: var(--solring-text-2); }
 .solring-mc-legend span { display: inline-flex; align-items: center; }
 .solring-mc-legend span::before { content: ''; width: 14px; margin-right: 5px; border-top: 2px solid currentColor; }
-.solring-mc-k-actual::before { border-top-color: var(--solring-accent); }
+/* Scope the icon overrides under .solring-mc-legend so they out-specify the generic
+   `span::before` above (which is (0,1,2)); a bare `.solring-mc-k-*::before` (0,1,1) loses to
+   it and the colour/dash never take. Icons then match the chart: accent solid = this deck,
+   muted dashed = baseline. */
+.solring-mc-legend .solring-mc-k-actual::before { border-top-color: var(--solring-accent); }
 .solring-mc-k-base { color: var(--solring-text-2); }
-.solring-mc-k-base::before { border-top-style: dashed; }
+.solring-mc-legend .solring-mc-k-base::before { border-top-style: dashed; border-top-color: var(--solring-text-2); }
 
 /* Per-combo toggle: the whole combo card expands the collapsible body; a chevron
    (rotated 180° when closed, like the metric tiles) sits at the end of the meta. */
