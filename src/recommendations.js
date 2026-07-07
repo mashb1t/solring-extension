@@ -11,9 +11,12 @@
 // injected card.
 
 import { el, registerDisposable } from './dom.js';
-import { getOptions } from './prefs.js';
+import { getOptions, getCardPrefs, getCardSortView } from './prefs.js';
 import { fetchRecs, cutRecs } from './sources/edhrec-recs.js';
 import { readDeck, frontKey } from './moxfield-edit.js';
+import { deckMd5, canonicalDeckUrl } from './md5.js';
+import { getDeck, getEnrichment } from './messaging.js';
+import { annotate } from './render-cards.js';
 
 // The recommendations route carries a suffix that moxfield.parseDeckId (anchored on /decks/{id}$)
 // rejects, so match + extract the public id here.
@@ -78,6 +81,34 @@ export async function installRecommendations({ waitFor }) {
   };
   tabAdd.addEventListener('click', () => show(false));
   tabCut.addEventListener('click', () => show(true));
+
+  annotatePreview(publicId); // mirror the deck view's per-card Solring columns onto the Deck Preview
+}
+
+// Show the same per-card Solring columns (Power / Salt / Synergy / Tags / EDHREC%, per the user's
+// Customize-View prefs) on the Deck Preview list that the deck view shows. The preview rows use
+// the same `a.table-deck-row-link` markup annotate() targets, so once we have the deck's
+// CommanderSalt analysis we just call annotate whenever the preview is expanded. No-op if the
+// deck was never analyzed.
+async function annotatePreview(publicId) {
+  const md5 = deckMd5(canonicalDeckUrl(publicId));
+  const res = await getDeck(md5).catch(() => null);
+  const fields = res && res.fields;
+  if (!fields || !fields.cards) return;
+  try { const e = await getEnrichment('edhrec', md5); if (e && e.inclusion) fields.edhrecInclusion = e.inclusion; } catch { /* EDHREC% column stays blank */ }
+
+  let obs = null, timer = null;
+  const apply = async () => {
+    if (!document.querySelector('.deck-preview.expanded')) return; // only when the preview list is shown
+    const [prefs, cardSort, opts] = await Promise.all([getCardPrefs(), getCardSortView(), getOptions()]);
+    if (obs) obs.disconnect(); // annotate() clears+re-adds nodes — don't let that retrigger us
+    try { annotate(fields, prefs, opts, cardSort); } finally { if (obs) obs.observe(document.body, { childList: true, subtree: true }); }
+  };
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(apply, 150); };
+  obs = new MutationObserver(schedule);
+  obs.observe(document.body, { childList: true, subtree: true });
+  registerDisposable(() => { if (obs) obs.disconnect(); clearTimeout(timer); });
+  schedule();
 }
 
 // Open Moxfield's native card modal for a deck card by clicking its link in the "Deck Preview"
