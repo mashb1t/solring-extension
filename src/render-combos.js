@@ -162,36 +162,65 @@ export function buildCombosSection(combos, profile) {
 // "One card away": Commander Spellbook combos the deck is a single card short of, grouped by
 // the card to add (one card can complete several). Idempotent — clears the slot first;
 // renders nothing when empty. `data.nearMiss` = [{ id, add, produces, popularity, bracketTag }].
+// A near-miss combo, rendered with the SAME shape as an existing combo card (comboCard): the
+// full piece list (the missing card marked red), produces chips, meta stats + Spellbook link,
+// and an expandable body (prerequisites / steps / produces).
+function nearMissCard(combo) {
+  const blocks = [
+    listBlock('Prerequisites', combo.prerequisites),
+    listBlock('Steps', combo.steps),
+    listBlock('Produces', combo.produces),
+  ].filter(Boolean);
+  const body = blocks.length ? el('div', { class: 'solring-combo-body', attrs: { hidden: '' } }, blocks) : null;
+  const chev = body ? el('span', { class: 'solring-combo-chev', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]) : null;
+
+  const meta = el('div', { class: 'solring-combo-meta' }, [
+    combo.popularity != null ? stat('decks', Number(combo.popularity).toLocaleString('en-US')) : null,
+    combo.bracketTag ? stat('bracket', combo.bracketTag) : null,
+    combo.id ? el('a', {
+      class: 'solring-combo-link', text: 'Spellbook ↗',
+      attrs: { href: `https://commanderspellbook.com/combo/${combo.id}/`, target: '_blank', rel: 'noopener' },
+    }) : null,
+    chev,
+  ]);
+
+  const pieces = el('div', { class: 'solring-combo-pieces' });
+  combo.pieces.forEach((p, i) => {
+    if (i) pieces.append('  +  ');
+    const ref = cardRefs([p.name], { chip: false })[0];
+    if (p.missing) { ref.classList.add('solring-piece-missing'); ref.title = 'Add this card to complete the combo'; }
+    pieces.append(ref);
+  });
+  const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);
+  const chips = (combo.produces || []).length
+    ? el('div', { class: 'solring-combo-tags' }, combo.produces.map((t) => el('span', { class: 'solring-combo-tag', text: t })))
+    : null;
+  const card = el('div', { class: 'solring-combo' }, [head, chips, body]);
+
+  if (body) {
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-expanded', 'false');
+    const toggle = () => {
+      const open = body.hasAttribute('hidden');
+      if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
+      card.classList.toggle('solring-open', open);
+      card.setAttribute('aria-expanded', String(open));
+    };
+    card.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  }
+  return card;
+}
+
 export function renderSpellbookNearMiss(slot, data) {
   slot.replaceChildren();
   const combos = (data && data.nearMiss) || [];
   if (!combos.length) return;
-  const byCard = new Map();
-  for (const c of combos) { if (!byCard.has(c.add)) byCard.set(c.add, []); byCard.get(c.add).push(c); }
   // Divider + header separating the deck's existing combos (above) from the near-misses.
-  const kids = [
+  slot.append(
     el('div', { class: 'solring-combo-divider', attrs: { 'aria-hidden': 'true' } }),
-    el('div', { class: 'solring-combo-h', text: `One card away · ${byCard.size} card${byCard.size === 1 ? '' : 's'}` }),
-  ];
-  for (const [card, list] of byCard) {
-    const top = list[0]; // most popular (combos are pre-sorted popularity desc)
-    const produces = top.produces && top.produces.length ? top.produces[0] : 'a combo';
-    const extra = list.length > 1 ? ` · +${list.length - 1} more combo${list.length - 1 === 1 ? '' : 's'}` : '';
-    // Same card shape as an existing combo: "Add <card>" as the pieces line, stats + link in
-    // the meta, and a produces sub-line — so both categories read alike.
-    const pieces = el('div', { class: 'solring-combo-pieces' });
-    pieces.append('Add ');
-    pieces.append(cardRefs([card], { chip: false })[0]);
-    const meta = el('div', { class: 'solring-combo-meta' }, [
-      top.bracketTag ? stat('bracket', top.bracketTag) : null,
-      top.id ? el('a', {
-        class: 'solring-combo-link', text: 'Spellbook ↗',
-        attrs: { href: `https://commanderspellbook.com/combo/${top.id}/`, target: '_blank', rel: 'noopener' },
-      }) : null,
-    ]);
-    const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);
-    const sub = el('div', { class: 'solring-combo-produces', text: `${produces}${extra}` });
-    kids.push(el('div', { class: 'solring-combo' }, [head, sub]));
-  }
-  slot.append(...kids);
+    el('div', { class: 'solring-combo-h', text: `One card away · ${combos.length} combo${combos.length === 1 ? '' : 's'}` }),
+    ...combos.map(nearMissCard),
+  );
 }

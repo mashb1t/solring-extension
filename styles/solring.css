@@ -166,10 +166,11 @@
    sparkline, stock-o-meter. */
 .solring-edhrec-slot:empty { display: none; }
 /* "One card away" (Commander Spellbook): reuses the .solring-combo card style so it matches
-   the deck's existing combos; a divider + header separate the two categories. */
+   the deck's existing combos; a divider + header separate the two categories, and the piece
+   the deck is missing is highlighted red. */
 .solring-nearmiss-slot:empty { display: none; }
 .solring-combo-divider { border-top: 1px solid var(--solring-border); margin: .75rem 0 .5rem; }
-.solring-combo-produces { font-size: .78rem; color: var(--solring-text-2); margin-top: .15rem; overflow-wrap: anywhere; }
+.solring-piece-missing { color: var(--solring-rating-a); font-weight: 700; }
 .solring-pl-h2 { font-weight: 600; margin: .5rem 0 .25rem; opacity: .85; }
 .solring-pop-chip { font-size: .82em; opacity: .7; margin: .35rem 0; }
 .solring-bracket-fig, .solring-rank-fig { margin: .25rem 0 .5rem; }

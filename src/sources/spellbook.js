@@ -25,24 +25,32 @@ export async function fetchMyCombos(commanders, main) {
   return json && json.results ? json.results : null;
 }
 
+const lines = (s) => (typeof s === 'string' ? s.split('\n').map((x) => x.trim()).filter(Boolean) : []);
+
 // The combos the deck is exactly ONE card away from completing (the "one card away" feature).
-// From results.almostIncluded, keep combos whose single missing `uses` card isn't in the
-// deck; trim to { id, add, produces, popularity, bracketTag }, popularity desc, capped.
-// `deckNames` = the deck's card names. Combos missing 2+ cards are dropped (not "one away").
+// From results.almostIncluded, keep combos with exactly one `uses` card missing from the
+// deck; trim to a render-ready shape mirroring the deck's own combo cards: all pieces (each
+// flagged missing/present), what it produces, popularity, bracket, and the expandable detail
+// (prerequisites + steps). Sorted by popularity desc, capped. Combos missing 2+ are dropped.
 export function nearMissCombos(results, deckNames, cap = 25) {
   const have = new Set((deckNames || []).map(norm));
   const out = [];
   for (const combo of (results && results.almostIncluded) || []) {
-    const missing = (combo.uses || [])
+    const pieces = (combo.uses || [])
       .map((u) => u && u.card && u.card.name)
-      .filter((n) => n && !have.has(norm(n)));
+      .filter(Boolean)
+      .map((name) => ({ name, missing: !have.has(norm(name)) }));
+    const missing = pieces.filter((p) => p.missing);
     if (missing.length !== 1) continue; // strictly one card away
     out.push({
       id: combo.id,
-      add: missing[0],
+      pieces,
+      add: missing[0].name,
       produces: (combo.produces || []).map((p) => (p && p.feature && p.feature.name) || (p && p.name)).filter(Boolean),
       popularity: typeof combo.popularity === 'number' ? combo.popularity : null,
       bracketTag: combo.bracketTag || null,
+      prerequisites: [...lines(combo.easyPrerequisites), ...lines(combo.notablePrerequisites)],
+      steps: lines(combo.description),
     });
   }
   return out.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, cap);
