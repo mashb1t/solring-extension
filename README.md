@@ -56,12 +56,47 @@ You can also customize which columns are shown using the **Columns** button (kin
 Solring focuses on the most popular ones, but if you want to see more, you can always open the full analysis on
 CommanderSalt by clicking the **"CS"** buttons/links.
 
+## Data sources
+
+Solring pulls from three independent APIs. Everything is fetched **directly** from the source — nothing is ever routed
+through a Solring backend. EDHREC and Commander Spellbook can each be turned off individually in the
+[Options](#options).
+
+### EDHREC (`json.edhrec.com`, `edhrec.com`)
+
+Commander meta context, surfaced on the **Commander tier** tile and the **Recommendations** page:
+
+- **Popularity** — EDHREC rank and deck count, a **bracket-spread** chart, and **rank-over-time**.
+- **Stock-o-meter** — the mean EDHREC inclusion of your non-basic cards across this commander's decks (how *netdecked*
+  vs. *brewed* the list is), with your off-meta cards listed out.
+- **Per-card inclusion %** — the **EDH** column in the card lists and Deck Preview.
+- **Recommended cuts** — the *Cuts* tab on the Recommendations page (EDHREC's recs tool), rankable by deck-fit or
+  popularity.
+
+EDHREC serves permissive CORS, so it needs no host permission.
+
+### Commander Spellbook (`backend.commanderspellbook.com`)
+
+Combo detection, surfaced under the **Wincons** tile:
+
+- **Combos in the deck** — each with its pieces, prerequisites, step-by-step line, and what it produces.
+- **"One card away"** — near-miss combos the deck would complete by adding a single card; the missing piece is marked,
+  hover-previewed, and links out to the card.
+
+Commander Spellbook does not serve CORS to the extension, so it requires the `backend.commanderspellbook.com`
+host permission.
+
+### CommanderSalt (`api.commandersalt.com`)
+
+The core deck/card analysis — power level, bracket, saltiness, synergy, archetype, threat, interaction, manabase, and
+per-card contributions — powering the deck panel, per-card columns, and deck-list metric columns.
+
 ## Options
 
 The extension's [options page](chrome-extension://odjkckchpflbblnnngjmapjdmdfcihfb/options.html).
 
-Here you can customize the cache lifetime, color thresholds for the card metrics (Power, Saltiness, Synergy) as well as 
-panel display toggles.
+Here you can customize the cache lifetime, color thresholds for the card metrics (Power, Saltiness, Synergy), panel
+display toggles, and enable/disable the **EDHREC** and **Commander Spellbook** data sources.
 
 ## Installation
 
