@@ -100,7 +100,7 @@ function comboCard(combo) {
       card.setAttribute('aria-expanded', String(open));
     };
     // Clicking the Spellbook link should follow the link, not toggle.
-    card.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
+    card.addEventListener('click', (e) => { if (e.target.closest('a, .solring-syn-chip')) return; toggle(); });
     card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   }
 
@@ -230,7 +230,7 @@ function nearMissCard(combo) {
       card.classList.toggle('solring-open', open);
       card.setAttribute('aria-expanded', String(open));
     };
-    card.addEventListener('click', (e) => { if (e.target.closest('a')) return; toggle(); });
+    card.addEventListener('click', (e) => { if (e.target.closest('a, .solring-syn-chip')) return; toggle(); });
     card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   }
   return card;
