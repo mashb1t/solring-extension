@@ -219,14 +219,18 @@ function annotateAdds(grid, inScore) {
 }
 
 function renderCuts(view, template, gridClass, cuts, ctx) {
-  const header = el('div', { class: 'solring-cuts-head' }, [
-    el('div', { class: 'solring-cuts-title', text: `EDHREC suggested cuts · ${cuts.length}` }),
-    el('div', { class: 'solring-cuts-hedge', text: 'Ranked by how few of this commander’s decks keep the card — popularity, not deck-fit. The grey − removes the card from your deck immediately.' }),
-  ]);
-  if (!cuts.length) { view.replaceChildren(header, el('div', { class: 'solring-cuts-status', text: 'No cut suggestions (could not read the deck or EDHREC returned none).' })); return; }
+  // Empty state keeps a header + message; when there ARE cuts the reworded Moxfield header line
+  // (“We found N recommended cuts …”) already labels the section, so render just the grid.
+  if (!cuts.length) {
+    view.replaceChildren(
+      el('div', { class: 'solring-cuts-head' }, [el('div', { class: 'solring-cuts-title', text: 'EDHREC suggested cuts' })]),
+      el('div', { class: 'solring-cuts-status', text: 'No cut suggestions (could not read the deck or EDHREC returned none).' }),
+    );
+    return;
+  }
   const gridEl = el('div', { class: gridClass }); // same grid classes as Moxfield's recommendation row
   for (const cut of cuts) gridEl.append(buildCutCard(template, cut, ctx));
-  view.replaceChildren(header, gridEl);
+  view.replaceChildren(gridEl);
 }
 
 // Clone a live Moxfield recommendation card for identical styling; keep its image + name, drop
