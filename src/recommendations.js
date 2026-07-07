@@ -74,9 +74,10 @@ export async function installRecommendations({ waitFor }) {
   if (inScore.size) annotateAdds(grid, inScore); // stamp the native "add" cards with their score
 
   // Moxfield's "We found N recommendations from edhrec.com." header line — reword it for the Cuts
-  // tab, restore the original for Recommended.
+  // tab (same <p>, count in <strong>, edhrec.com kept as the original link), restore for Recommended.
   const foundLine = [...document.querySelectorAll('.text-muted')].find((e) => /We found .*recommendations from edhrec/i.test(e.textContent || ''));
   const foundOrig = foundLine ? foundLine.innerHTML : null;
+  const foundLink = foundLine ? foundLine.querySelector('a') : null;
 
   let cutsRendered = false;
   const show = (showCuts) => {
@@ -86,8 +87,17 @@ export async function installRecommendations({ waitFor }) {
     if (showCuts) grid.setAttribute('data-solring-recohidden', '1'); else grid.removeAttribute('data-solring-recohidden');
     if (showCuts) cutsView.removeAttribute('hidden'); else cutsView.setAttribute('hidden', '');
     if (foundLine) {
-      if (showCuts) foundLine.textContent = `We found ${cuts.length} recommended cuts from edhrec.com (least-played in this commander’s decks first).`;
-      else if (foundOrig != null) foundLine.innerHTML = foundOrig;
+      if (showCuts) {
+        foundLine.replaceChildren(
+          document.createTextNode('We found '),
+          el('strong', { text: String(cuts.length) }),
+          document.createTextNode(' recommended cuts from '),
+          foundLink ? foundLink.cloneNode(true) : document.createTextNode('edhrec.com'),
+          document.createTextNode(' (least-played in this commander’s decks first).'),
+        );
+      } else if (foundOrig != null) {
+        foundLine.innerHTML = foundOrig;
+      }
     }
     if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, { publicId, editId: deck && deck.editId }); }
   };
