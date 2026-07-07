@@ -18,9 +18,9 @@ export function num(n, d = 1) {
   return typeof n === 'number' && Number.isFinite(n) ? n.toFixed(d) : '—';
 }
 
-/** The number at full-ish precision for traceability: up to 4 decimals, trailing zeros
-    trimmed (6 → "6", 5.9879 → "5.9879"). Non-finite → em-dash. Shared by the power-tile
-    sub-line and the power-history chart so they always show the same exact value. */
+/** The raw number, verbatim, for exact traceability (6 → "6", 5.987902360863 →
+    "5.987902360863") — no rounding. Non-finite → em-dash. Shared by the power-tile sub-line
+    and the power-history chart so they always show the same raw value. */
 export function exact(n) {
-  return typeof n === 'number' && Number.isFinite(n) ? String(Number(n.toFixed(4))) : '—';
+  return typeof n === 'number' && Number.isFinite(n) ? String(n) : '—';
 }
