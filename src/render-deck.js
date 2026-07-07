@@ -286,7 +286,7 @@ function renderBody(body, f) {
   const hasWincon = hasCombos || !!(wp && ((wp.paths && wp.paths.length) || (wp.combos && wp.combos.count)));
   if (hasWincon) makeExpandable(winconsTile, buildCombosSection(f.combos, wp), body);
   if ((mb.curve && mb.curve.length) || mbc.lands || (mb.strengths && mb.strengths.length)) makeExpandable(manabaseTile, buildManabasePanel(mb), body);
-  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint, antiPatternPenalty: f.antiPatternPenalty }), body);
+  if (f.powerPillars && f.powerPillars.scores && Object.keys(f.powerPillars.scores).length) makeExpandable(powerTile, buildPowerPanel(f.powerPillars, f.powerProfile, { inferredType: f.inferredType, fringeCEDH: f.fringeCEDH, fingerprint: f.powerFingerprint, antiPatternPenalty: f.antiPatternPenalty, history: f.powerHistory }), body);
   // Threat expansion (2.8): top cards by power contribution + avg quality per card.
   if (f.threatTop && f.threatTop.length) {
     const avgQuality = typeof f.threat === 'number' && f.cards ? f.threat / Math.max(1, Object.keys(f.cards).length) : null;
@@ -456,7 +456,7 @@ export async function mount({ waitFor }) {
     setRefreshSpinning(true);
     const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
     setRefreshSpinning(false);
-    if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
+    if (fresh && fresh.fields) { showFields(fresh.fields, fresh.history); setSynced(fresh.fetchedAt || Date.now()); }
   }
 
   // insert just above the Primer/Playtest toolbar (the orange slot)
@@ -485,12 +485,13 @@ export async function mount({ waitFor }) {
     setOpen(true);
     return;
   }
-  function showFields(f) {
+  function showFields(f, history) {
     // We only reach here with real (non-stub) analysis. CommanderSalt still returns
     // full metrics for decks it flags isIllegal (banned card / not strictly legal),
     // so render them. Don't mistake the flag for "can't analyze". Genuinely
     // unanalyzable decks (private / un-indexed) come back as stubs and are handled
     // by the Analyze flow below.
+    if (history) f.powerHistory = history; // forward-only local power history (Phase 6)
     renderBody(body, f);
     rzBtn.hidden = false; // a real analysis is loaded → enable the rule-zero copy
     setOpen(panelOpenFor(true)); // analyzed: honor the configured default ('auto' opens)
@@ -509,7 +510,7 @@ export async function mount({ waitFor }) {
     setRefreshSpinning(true);
     const fresh = await guardAsync(() => importDeck(canonicalUrl, md5, md5));
     setRefreshSpinning(false);
-    if (fresh && fresh.fields) { showFields(fresh.fields); setSynced(fresh.fetchedAt || Date.now()); }
+    if (fresh && fresh.fields) { showFields(fresh.fields, fresh.history); setSynced(fresh.fetchedAt || Date.now()); }
   }
 
   // Stats never auto-revalidate on a timer: an analysis can change anytime, but a
@@ -518,7 +519,7 @@ export async function mount({ waitFor }) {
   // label (ticked live above) keeps the staleness visible. The one exception is an
   // edited decklist (above), which auto-fetch analyzes so the data stays truthful.
   if (res.fields) {
-    showFields(res.fields);
+    showFields(res.fields, res.history);
     setSynced(res.fetchedAt);
     maybeReanalyzeIfEdited(res.fields);
     return;

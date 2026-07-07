@@ -161,7 +161,10 @@ export function buildPowerPanel(p, profile, meta) {
   // header, shown top-most, above the pillar bars.
   const fpRow = fingerprintRow(meta && meta.fingerprint);
   const fp = fpRow ? el('div', { class: 'solring-pw-fp' }, [el('div', { class: 'solring-pl-h', text: 'Deck fingerprint' }), fpRow]) : null;
-  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows]);
+  // Power over time (Phase 6): only once ≥2 analyses have been recorded locally.
+  const histChart = powerHistoryChart(meta && meta.history);
+  const histBlock = histChart ? el('div', { class: 'solring-pw-hist' }, [el('div', { class: 'solring-pl-h', text: 'Power over time' }), histChart]) : null;
+  const sec = el('div', { class: 'solring-panel-section', attrs: { hidden: '' } }, [fp, head, note, rows, histBlock]);
   // Score cap (Task 2.6): when anti-patterns capped the power score, say so and by how
   // much — answers "why is my power lower than the pillars suggest?". Sits above the flags.
   const cap = meta && meta.antiPatternPenalty;
@@ -351,6 +354,39 @@ function rankSparkline(rankHistory) {
       + `<div class="solring-mc-x solring-rank-x"><span>${pts[0].date.slice(0, 7)}</span><span>EDHREC #${current}</span></div>`,
   });
   wireChartHover(wrap, pts.map((p, i) => ({ fx: X(i) / W, fy: Y(p.rank) / H, label: `${p.date.slice(0, 7)}: #${p.rank}` })));
+  return wrap;
+}
+
+// Power over time (Phase 6, forward-only local history): this deck's power rating across
+// analyses. y-axis auto-scaled min..max so small shifts are visible (power lives in a narrow
+// band); index-spaced x with the first/last analysis month. Hover shows each point's date +
+// power (+ bracket). Returns a wired node, or null with fewer than 2 points.
+function powerHistoryChart(history) {
+  const pts = (history || []).filter((p) => p && Number.isFinite(p.power) && Number.isFinite(p.at));
+  if (pts.length < 2) return null;
+  const W = 220; const H = 60; const pad = 2;
+  const vals = pts.map((p) => p.power);
+  const lo = Math.min(...vals); const hi = Math.max(...vals);
+  const span = (hi - lo) || 1;
+  const X = (i) => pad + (i / (pts.length - 1)) * (W - 2 * pad);
+  const Y = (v) => pad + (1 - (v - lo) / span) * (H - 2 * pad); // higher power → higher on the chart
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.power).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(pts.length - 1).toFixed(1)} ${(H - pad).toFixed(1)} L${X(0).toFixed(1)} ${(H - pad).toFixed(1)} Z`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="solring-mc" preserveAspectRatio="none" role="img" aria-label="Power rating over time">`
+    + `<path d="${area}" class="solring-mc-fill"/>`
+    + `<path d="${path}" class="solring-mc-line"/>`
+    + '</svg>';
+  const month = (at) => new Date(at).toISOString().slice(0, 7);
+  const wrap = el('div', {
+    class: 'solring-mc-wrap solring-power-hist',
+    html: `<div class="solring-mc-y"><span>${hi.toFixed(1)}</span><span>${lo.toFixed(1)}</span></div>`
+      + `<div class="solring-mc-plot">${svg}</div>`
+      + `<div class="solring-mc-x"><span>${month(pts[0].at)}</span><span>${month(pts[pts.length - 1].at)}</span></div>`,
+  });
+  wireChartHover(wrap, pts.map((p, i) => ({
+    fx: X(i) / W, fy: Y(p.power) / H,
+    label: `${month(p.at)}: ${p.power.toFixed(1)}${p.bracket != null ? ` · B${p.bracket}` : ''}`,
+  })));
   return wrap;
 }
 
