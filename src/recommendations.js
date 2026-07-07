@@ -13,12 +13,13 @@
 import { el, registerDisposable } from './dom.js';
 import { getOptions, getCardPrefs, getCardSortView, onPrefChange } from './prefs.js';
 import { fetchRecs, cutRecs } from './sources/edhrec-recs.js';
-import { readDeck, frontKey } from './moxfield-edit.js';
+import { readDeck, frontKey, hasToken, setCardQuantity, removeCard } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { getDeck, getEnrichment } from './messaging.js';
 import { annotate } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCardSidebar } from './render-card-sidebar.js';
+import { installCardModal } from './render-card-modal.js';
 
 // The recommendations route carries a suffix that moxfield.parseDeckId (anchored on /decks/{id}$)
 // rejects, so match + extract the public id here.
@@ -79,7 +80,7 @@ export async function installRecommendations({ waitFor }) {
     grid.style.display = showCuts ? 'none' : '';
     if (showCuts) grid.setAttribute('data-solring-recohidden', '1'); else grid.removeAttribute('data-solring-recohidden');
     if (showCuts) cutsView.removeAttribute('hidden'); else cutsView.setAttribute('hidden', '');
-    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, { publicId }); }
+    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, { publicId, editId: deck && deck.editId }); }
   };
   tabAdd.addEventListener('click', () => show(false));
   tabCut.addEventListener('click', () => show(true));
@@ -103,7 +104,8 @@ async function annotatePreview(publicId) {
   // Card-detail panel (power / saltiness / tags / synergy) below the Deck Preview's card image —
   // the preview uses the same aside.deckview-image-container the deck-view sidebar anchors on.
   const opts0 = await getOptions().catch(() => ({}));
-  installCardSidebar(() => fields, () => opts0);
+  installCardSidebar(() => fields, () => opts0); // panel below the preview image
+  installCardModal(() => fields, () => opts0);   // Solring Info panel inside the card-detail modal
 
   let obs = null, timer = null;
   const apply = async () => {
@@ -229,12 +231,7 @@ function buildCutCard(template, cut, ctx) {
     });
   }
   const img = card.querySelector('img');
-  if (img) {
-    img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset');
-    // card-{id} works for singles, adventures, split, etc.; only true double-faced fronts 404 —
-    // fall back to the front-face image on error (fixes e.g. Virtue of Courage // Embereth Blaze).
-    if (cut.imageAlt) img.addEventListener('error', function onErr() { img.removeEventListener('error', onErr); img.setAttribute('src', cut.imageAlt); });
-  }
+  if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
   // Normalize Moxfield's cloned action overlay to a single "−" remove button, whatever it cloned
   // (a lone "+" add button, or a full "− [qty] +" stepper). Keep one Moxfield button for its exact
@@ -271,71 +268,53 @@ function buildCutCard(template, cut, ctx) {
   cell.querySelectorAll('.solring-score-badge').forEach((b) => b.remove());
   const visual = card.querySelector('.img-card-visual') || card;
   visual.appendChild(scoreBadge(cut.score));
+  if (cut.faces && cut.faces.length > 1) visual.appendChild(flipButton(img, cut.faces)); // MDFC face switch
   return cell;
 }
 
+// Double-faced card switch — Moxfield's exact transform-button markup (img-card-flip circle with
+// a fa-rotate glyph, centered over the art). Clicking it cycles the shown face.
+function flipButton(img, faces) {
+  let i = 0;
+  const icon = el('span', { class: 'fas fa-rotate m-0 no-pointer-events', attrs: { 'aria-label': 'Transform' } });
+  const btn = el('a', { class: 'cursor-pointer no-outline solring-cut-flip', attrs: { tabindex: '0', title: 'Flip card face' } }, [
+    el('div', { class: 'img-card-flip doubleborder text-white' }, [icon]),
+  ]);
+  btn.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    i = (i + 1) % faces.length;
+    img.setAttribute('src', faces[i]);
+  });
+  return btn;
+}
+
+// The minus: a direct edit via Moxfield's API (bearer token from moxfield-token.js). For a
+// single copy → DELETE the card and drop the tile. For multiples → PUT the decremented quantity
+// (like the native quantity control) and update the ×N count. No Deck Preview UI is driven.
 function wireRemove(btn, cut, ctx, cell) {
   btn.addEventListener('click', async (e) => {
     e.preventDefault(); e.stopPropagation();
+    if (!hasToken()) { toast('Interact with Moxfield once so it authenticates, then retry.', true); return; }
     cell.classList.add('solring-cut-busy'); btn.disabled = true;
-    const ok = await nativeRemove(cut.cardId);
-    if (ok) {
-      toast(`Removed: ${cut.name}`);
-      cell.remove();
-      bumpCount(-1);
-    } else {
-      cell.classList.remove('solring-cut-busy'); btn.disabled = false;
-      toast(`Couldn’t remove “${cut.name}”.`, true);
-    }
-  });
-}
-
-// Remove a card using Moxfield's OWN "Remove" action from the Deck Preview list's right-click
-// context menu — no API call or auth token needed; Moxfield performs the mutation. The preview
-// renders its rows only when expanded, so expand it first, right-click the card's row, then
-// click "Remove". Resolves true once "Remove" is clicked, false if the row/menu never appears.
-function nativeRemove(cardId) {
-  return new Promise((resolve) => {
-    const dp = document.querySelector('.deck-preview');
-    if (!dp) return resolve(false);
-    const wasExpanded = dp.classList.contains('expanded');
-    // Collapse the preview again if WE expanded it for the removal (so the minus doesn't leave the
-    // Deck Preview panel open). Re-query live nodes — the panel re-renders on mutation.
-    const done = (ok) => {
-      if (!wasExpanded) {
-        const live = document.querySelector('.deck-preview');
-        if (live && live.classList.contains('expanded')) { const b = live.querySelector('a'); if (b) b.click(); }
+    try {
+      if (cut.quantity > 1) {
+        const next = cut.quantity - 1;
+        await setCardQuantity(ctx.editId, 'mainboard', cut.cardId, next);
+        cut.quantity = next;
+        const count = cell.querySelector('.solring-cut-count');
+        if (next > 1) { if (count) count.textContent = `×${next}`; } else if (count) count.remove();
+        toast(`Removed one ${cut.name} (${next} left)`);
+        cell.classList.remove('solring-cut-busy'); btn.disabled = false;
+      } else {
+        await removeCard(ctx.editId, 'mainboard', cut.cardId);
+        toast(`Removed: ${cut.name}`);
+        cell.remove();
+        bumpCount(-1);
       }
-      resolve(ok);
-    };
-    const bar = dp.querySelector('a');
-    if (bar && !wasExpanded) bar.click(); // expand so rows render
-    let tries = 0;
-    const findRow = setInterval(() => {
-      const row = dp.querySelector(`li[data-hash="${cardId}"]`);
-      if (row) {
-        clearInterval(findRow);
-        const r = row.getBoundingClientRect();
-        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: Math.round(r.left + 20), clientY: Math.round(r.top + 10) }));
-        let t2 = 0;
-        const findRemove = setInterval(() => {
-          const menu = document.querySelector('.dropdown-menu.show, [role="menu"]');
-          const item = menu && [...menu.querySelectorAll('a, button, .dropdown-item')]
-            .find((i) => i.textContent.replace(/^Alt\+\d+/, '').trim() === 'Remove');
-          if (item) {
-            clearInterval(findRemove);
-            item.click();
-            // Confirm Moxfield applied it: its Deck Preview row disappears (local state updates
-            // immediately; Moxfield persists the removal itself). Avoids racing a server re-read.
-            let t3 = 0;
-            const confirmed = setInterval(() => {
-              if (!document.querySelector(`.deck-preview li[data-hash="${cardId}"]`)) { clearInterval(confirmed); done(true); }
-              else if (++t3 > 30) { clearInterval(confirmed); done(false); }
-            }, 80);
-          } else if (++t2 > 25) { clearInterval(findRemove); done(false); }
-        }, 80);
-      } else if (++tries > 30) { clearInterval(findRow); done(false); }
-    }, 100);
+    } catch (err) {
+      cell.classList.remove('solring-cut-busy'); btn.disabled = false;
+      toast(`Couldn’t remove “${cut.name}” (${(err && err.message) || 'error'}).`, true);
+    }
   });
 }
 
