@@ -16,7 +16,7 @@
 
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { parseDeckId } from './moxfield.js';
-import { getUserDecks, getDeck, importDeck } from './messaging.js';
+import { getUserDecks, getDeck, importDeck, getEnrichment } from './messaging.js';
 import { csRatingGrade } from './ratings.js';
 import {
   getListColumns, setListColumns, getColumnOrder, setColumnOrder,
@@ -628,6 +628,26 @@ const CELL_TITLE = {
   wincons: (v) => scoreTitle(v.wincons, 'win conditions'),
 };
 
+// EDHREC commander-rank tooltip on the Tier cell, fetched lazily on first hover (a list can
+// hold dozens of decks — fetching every one up front would burst EDHREC for a tooltip most
+// rows never get). Cached per md5 (number = rank, null = fetched-but-none) so re-renders and
+// re-hovers apply it synchronously. The commander page is itself cached by slug in the worker.
+const tierRankByMd5 = new Map();
+function wireTierRankTitle(td, md5) {
+  const cached = tierRankByMd5.get(md5);
+  if (typeof cached === 'number') { td.title = `EDHREC #${cached}`; td.classList.add('solring-col-help'); return; }
+  if (tierRankByMd5.has(md5)) return; // fetched, no rank available
+  const onEnter = () => {
+    td.removeEventListener('mouseenter', onEnter);
+    getEnrichment('edhrec', md5).then((data) => {
+      const rank = data && data.popularity ? data.popularity.rank : null;
+      tierRankByMd5.set(md5, typeof rank === 'number' ? rank : null);
+      if (typeof rank === 'number' && td.isConnected) { td.title = `EDHREC #${rank}`; td.classList.add('solring-col-help'); }
+    }).catch(() => {});
+  };
+  td.addEventListener('mouseenter', onEnter);
+}
+
 // Build/rebuild one row's metric cells from its current view, inserted before the
 // "Updated" column (idx). A blank full-only cell (deck not yet scanned) is clickable
 // to scan just that deck. idx omitted resolves it from the row's own table header.
@@ -650,6 +670,7 @@ function renderRowCells(entry, idx) {
       const titleFn = CELL_TITLE[c.key];
       // hover shows the raw total, help cursor signals the cell carries it
       if (inner && titleFn) { const t = titleFn(view); if (t) { td.title = t; td.classList.add('solring-col-help'); } }
+      else if (inner && c.key === 'tier') wireTierRankTitle(td, entry.md5); // hover → commander EDHREC rank
       else if (!inner && !c.hit && !view.analyzed) {
         td.classList.add('solring-col-scan');
         td.title = 'Analyze this deck';
