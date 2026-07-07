@@ -316,11 +316,11 @@ function apply() {
   const stats = { ...deckStats(fields), powerThreshold: opts.powerThreshold, saltThreshold: opts.saltThreshold };
   const panel = buildPanel(card, key, stats);
   // Desktop: the container is inline-block (shrink-to-content), so a long tag/synergy
-  // list would stretch the whole modal. Cap the panel to the card image's width,
-  // measured before inserting since our content could otherwise widen the box. On
-  // mobile a media query widens the container to the full column and lifts this cap.
-  const img = box.querySelector('.deckview-image-wrapper') || box.querySelector('img.deckview-image');
-  const w = img ? Math.round(img.getBoundingClientRect().width) : 0;
+  // list would stretch the whole modal. Cap the panel to the container's current width
+  // — driven by the buy/price block above, wider than the (centered) card image — so it
+  // lines up with that block. Measured before inserting since our content could otherwise
+  // widen the box. On mobile a media query widens the container and lifts this cap.
+  const w = Math.round(box.getBoundingClientRect().width);
   if (w > 40) panel.style.maxWidth = `${w}px`;
   box.appendChild(panel);
 }
