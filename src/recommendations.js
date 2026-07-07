@@ -88,15 +88,34 @@ function openCardPreview(cardId) {
   const dp = document.querySelector('.deck-preview');
   if (!dp) return false;
   const sel = `a[href^="/cards/${cardId}-"], a[href="/cards/${cardId}"]`;
-  const now = dp.querySelector(sel);
-  if (now) { now.click(); return true; }
   const bar = dp.querySelector('a');
-  if (bar && !dp.classList.contains('expanded')) bar.click(); // expand so the card links render
+  const wasExpanded = dp.classList.contains('expanded');
+  // Collapse again afterwards only if WE expanded it (leave it alone if the user had it open).
+  // Re-query live nodes — the panel re-renders when the modal toggles, so captured refs go stale.
+  const collapse = () => {
+    if (wasExpanded) return;
+    const live = document.querySelector('.deck-preview');
+    if (live && live.classList.contains('expanded')) { const b = live.querySelector('a'); if (b) b.click(); }
+  };
+  // Collapsing while the modal is open dismisses it (counts as an outside click), so wait until
+  // the modal has opened AND been closed, then collapse.
+  const collapseWhenModalCloses = () => {
+    let sawModal = false, ticks = 0;
+    const t = setInterval(() => {
+      const open = !!document.querySelector('.modal.show');
+      if (open) sawModal = true;
+      if (sawModal && !open) { clearInterval(t); collapse(); }
+      else if (++ticks > 1200) clearInterval(t); // ~2min safety cap
+    }, 100);
+  };
+  const existing = dp.querySelector(sel);
+  if (existing) { existing.click(); return true; }
+  if (bar && !wasExpanded) bar.click(); // expand so the card links render
   let tries = 0;
   const timer = setInterval(() => {
     const link = dp.querySelector(sel);
-    if (link) { clearInterval(timer); link.click(); }
-    else if (++tries > 25) clearInterval(timer);
+    if (link) { clearInterval(timer); link.click(); collapseWhenModalCloses(); }
+    else if (++tries > 25) { clearInterval(timer); collapse(); }
   }, 100);
   return true;
 }
