@@ -509,20 +509,19 @@
 
 /* ---- per-card Info panel (card-detail modal sidebar, ~220px wide) ---- */
 .solring-card-modal {
-  /* width is capped to the card image's pixel width in JS; this is the fallback
-     ceiling if that measurement is unavailable, so a long tag/synergy list wraps
-     instead of stretching the shrink-to-content column and breaking the modal. */
-  width: 100%; max-width: 20rem; box-sizing: border-box; text-align: left;
+  /* The image column is inline-block (shrink-to-content), sized by the buy/price block
+     above it (wider than the centered card image). `contain: inline-size` stops our own
+     content from contributing to that intrinsic width — so the column stays buy-block-wide
+     and width:100% fills the panel to match, instead of a long tag/synergy list stretching
+     the whole modal. No JS measurement needed. */
+  width: 100%; contain: inline-size; box-sizing: border-box; text-align: left;
   margin-top: 1rem; font-size: 0.85rem;
 }
-/* On mobile the modal columns stack and the image column becomes full-width. Widen
-   the (normally image-width, inline-block) container to fill it so the panel can use
-   the full modal-body width like the oracle text / rulings below — the card image
-   stays centered at its own width (mx-auto), it does not stretch. Lift the desktop
-   image-width cap on the panel (the !important beats the inline max-width set in JS). */
+/* On mobile the modal columns stack: widen the (normally image-width) container to the
+   full column so the panel uses the full modal-body width like the oracle text / rulings
+   below — the card image stays centered at its own width (mx-auto), it does not stretch. */
 @media (max-width: 575.98px) {
   .modal-body .deckviewmodal-image-container { width: 100%; }
-  .solring-card-modal { max-width: none !important; }
 }
 .solring-card-modal .solring-panel-bar.solring-cm-bar { cursor: default; }
 .solring-card-modal .solring-panel-bar.solring-cm-bar:focus-visible { outline: 0; }
