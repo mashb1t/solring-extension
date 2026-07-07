@@ -13,7 +13,7 @@
 import { el, registerDisposable } from './dom.js';
 import { getOptions } from './prefs.js';
 import { fetchRecs, cutRecs } from './sources/edhrec-recs.js';
-import { readDeck, removeFromMain, hasToken, frontKey } from './moxfield-edit.js';
+import { readDeck, frontKey } from './moxfield-edit.js';
 
 // The recommendations route carries a suffix that moxfield.parseDeckId (anchored on /decks/{id}$)
 // rejects, so match + extract the public id here.
@@ -74,7 +74,7 @@ export async function installRecommendations({ waitFor }) {
     grid.style.display = showCuts ? 'none' : '';
     if (showCuts) grid.setAttribute('data-solring-recohidden', '1'); else grid.removeAttribute('data-solring-recohidden');
     if (showCuts) cutsView.removeAttribute('hidden'); else cutsView.setAttribute('hidden', '');
-    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, { publicId, editId: deck && deck.editId }); }
+    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, { publicId }); }
   };
   tabAdd.addEventListener('click', () => show(false));
   tabCut.addEventListener('click', () => show(true));
@@ -201,17 +201,55 @@ function buildCutCard(template, cut, ctx) {
 function wireRemove(btn, cut, ctx, cell) {
   btn.addEventListener('click', async (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (!hasToken()) { toast('Interact with Moxfield once (so it authenticates), then retry.', true); return; }
     cell.classList.add('solring-cut-busy'); btn.disabled = true;
-    try {
-      await removeFromMain(ctx.publicId, ctx.editId, cut.cardId, cut.name);
+    const ok = await nativeRemove(cut.cardId);
+    if (ok) {
       toast(`Removed: ${cut.name}`);
       cell.remove();
       bumpCount(-1);
-    } catch (err) {
+    } else {
       cell.classList.remove('solring-cut-busy'); btn.disabled = false;
-      toast(`Couldn’t remove “${cut.name}” (${(err && err.message) || 'error'}).`, true);
+      toast(`Couldn’t remove “${cut.name}”.`, true);
     }
+  });
+}
+
+// Remove a card using Moxfield's OWN "Remove" action from the Deck Preview list's right-click
+// context menu — no API call or auth token needed; Moxfield performs the mutation. The preview
+// renders its rows only when expanded, so expand it first, right-click the card's row, then
+// click "Remove". Resolves true once "Remove" is clicked, false if the row/menu never appears.
+function nativeRemove(cardId) {
+  return new Promise((resolve) => {
+    const dp = document.querySelector('.deck-preview');
+    if (!dp) return resolve(false);
+    const bar = dp.querySelector('a');
+    if (bar && !dp.classList.contains('expanded')) bar.click(); // expand so rows render
+    let tries = 0;
+    const findRow = setInterval(() => {
+      const row = dp.querySelector(`li[data-hash="${cardId}"]`);
+      if (row) {
+        clearInterval(findRow);
+        const r = row.getBoundingClientRect();
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: Math.round(r.left + 20), clientY: Math.round(r.top + 10) }));
+        let t2 = 0;
+        const findRemove = setInterval(() => {
+          const menu = document.querySelector('.dropdown-menu.show, [role="menu"]');
+          const item = menu && [...menu.querySelectorAll('a, button, .dropdown-item')]
+            .find((i) => i.textContent.replace(/^Alt\+\d+/, '').trim() === 'Remove');
+          if (item) {
+            clearInterval(findRemove);
+            item.click();
+            // Confirm Moxfield applied it: its Deck Preview row disappears (local state updates
+            // immediately; Moxfield persists the removal itself). Avoids racing a server re-read.
+            let t3 = 0;
+            const confirm = setInterval(() => {
+              if (!dp.querySelector(`li[data-hash="${cardId}"]`)) { clearInterval(confirm); resolve(true); }
+              else if (++t3 > 30) { clearInterval(confirm); resolve(false); }
+            }, 80);
+          } else if (++t2 > 25) { clearInterval(findRemove); resolve(false); }
+        }, 80);
+      } else if (++tries > 30) { clearInterval(findRow); resolve(false); }
+    }, 100);
   });
 }
 

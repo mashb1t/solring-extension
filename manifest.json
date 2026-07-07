@@ -25,12 +25,6 @@
       "js": ["src/content.js"],
       "css": ["styles/solring.css"],
       "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://*.moxfield.com/*"],
-      "js": ["src/moxfield-token.js"],
-      "world": "MAIN",
-      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
