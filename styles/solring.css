@@ -169,7 +169,10 @@
    the deck's existing combos; a divider + header separate the two categories, and the piece
    the deck is missing is highlighted red. */
 .solring-nearmiss-slot:empty { display: none; }
-.solring-combo-divider { border-top: 1px solid var(--solring-border); margin: .75rem 0 .5rem; }
+/* Space the near-miss cards like the deck's combo list (which is a grid with gap) — the slot is a
+   single grid item of .solring-combos, so give it its own matching grid + gap. */
+.solring-nearmiss-slot { display: grid; gap: 0.6rem; }
+.solring-combo-divider { border-top: 1px solid var(--solring-border); }
 .solring-piece-missing { color: var(--solring-rating-a); font-weight: 700; }
 .solring-pl-h2 { font-weight: 600; margin: .5rem 0 .25rem; opacity: .85; }
 .solring-pop-chip { font-size: .82em; opacity: .7; margin: .35rem 0; }
