@@ -165,6 +165,14 @@
 /* EDHREC enrichment slot (Phase 4): popularity chip, bracket-spread graph, rank
    sparkline, stock-o-meter. */
 .solring-edhrec-slot:empty { display: none; }
+/* "One card away" (Commander Spellbook) rows in the combos section. */
+.solring-nearmiss-slot:empty { display: none; }
+.solring-nearmiss-slot { margin-top: .5rem; }
+.solring-nearmiss-row { display: flex; align-items: center; gap: .4rem; font-size: .82rem; margin: .2rem 0; }
+.solring-nearmiss-add { font-weight: 600; }
+.solring-nearmiss-produces { color: var(--solring-text-2); overflow-wrap: anywhere; }
+.solring-nearmiss-link { margin-left: auto; text-decoration: none; color: var(--solring-text-2); }
+.solring-nearmiss-link:hover { color: var(--solring-accent); }
 .solring-pl-h2 { font-weight: 600; margin: .5rem 0 .25rem; opacity: .85; }
 .solring-pop-chip { font-size: .82em; opacity: .7; margin: .35rem 0; }
 .solring-bracket-fig, .solring-rank-fig { margin: .25rem 0 .5rem; }

@@ -154,5 +154,35 @@ export function buildCombosSection(combos, profile) {
   const ordered = [...(combos || [])].sort((a, b) =>
     (a.pieces || []).length - (b.pieces || []).length || (b.score || 0) - (a.score || 0));
   for (const c of ordered) children.push(comboCard(c));
+  // Filled asynchronously by renderSpellbookNearMiss when find-my-combos resolves (Phase 5).
+  children.push(el('div', { class: 'solring-nearmiss-slot' }));
   return el('div', { class: 'solring-combos', attrs: { hidden: '' } }, children);
+}
+
+// "One card away": Commander Spellbook combos the deck is a single card short of, grouped by
+// the card to add (one card can complete several). Idempotent — clears the slot first;
+// renders nothing when empty. `data.nearMiss` = [{ id, add, produces, popularity, bracketTag }].
+export function renderSpellbookNearMiss(slot, data) {
+  slot.replaceChildren();
+  const combos = (data && data.nearMiss) || [];
+  if (!combos.length) return;
+  const byCard = new Map();
+  for (const c of combos) { if (!byCard.has(c.add)) byCard.set(c.add, []); byCard.get(c.add).push(c); }
+  const kids = [el('div', { class: 'solring-pl-h2', text: `One card away (${byCard.size})` })];
+  for (const [card, list] of byCard) {
+    const top = list[0]; // most popular (combos are pre-sorted popularity desc)
+    const produces = top.produces && top.produces.length ? top.produces[0] : 'a combo';
+    const extra = list.length > 1 ? ` (+${list.length - 1} more)` : '';
+    const row = el('div', { class: 'solring-nearmiss-row' }, [
+      el('span', { class: 'solring-nearmiss-add' }, [cardRefs([card], { chip: false })[0]]),
+      top.bracketTag ? el('span', { class: 'solring-bracket-chip', attrs: { title: 'Commander Spellbook bracket tag' }, text: top.bracketTag }) : null,
+      el('span', { class: 'solring-nearmiss-produces', text: `→ ${produces}${extra}` }),
+      top.id ? el('a', {
+        class: 'solring-nearmiss-link', text: '↗',
+        attrs: { href: `https://commanderspellbook.com/combo/${top.id}/`, target: '_blank', rel: 'noopener', title: 'View combo on Commander Spellbook' },
+      }) : null,
+    ]);
+    kids.push(row);
+  }
+  slot.append(...kids);
 }

@@ -17,7 +17,7 @@ import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
 import { installCardModal } from './render-card-modal.js';
 import { installCardSidebar } from './render-card-sidebar.js';
-import { buildCombosSection } from './render-combos.js';
+import { buildCombosSection, renderSpellbookNearMiss } from './render-combos.js';
 import { buildRuleZeroText } from './rule-zero.js';
 import { buildSaltPanel, buildPowerPanel, buildArchetypePanel, buildSynergyPanel, buildBracketPanel, buildInteractionPanel, buildManabasePanel, buildThreatPanel, buildCommanderTierPanel, renderEdhrecEnrichment } from './render-panels.js';
 
@@ -395,6 +395,17 @@ export async function mount({ waitFor }) {
     }
   }
 
+  // Commander Spellbook "one card away": resolves after render, fills the near-miss slot in
+  // the Wincons/Combos expansion. Same stale-async guard as the EDHREC loader.
+  async function loadSpellbookEnrichment() {
+    if (currentOptions.sources && currentOptions.sources.spellbook === false) return;
+    const data = await guardAsync(() => getEnrichment('spellbook', md5));
+    if (parseDeckId(location.href) !== publicId || !body.isConnected) return;
+    if (!data || data.error || data.miss) return;
+    const slot = body.querySelector('.solring-nearmiss-slot');
+    if (slot && slot.isConnected) renderSpellbookNearMiss(slot, data);
+  }
+
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const synced = el('span', { class: 'solring-synced' });
   // The refresh glyph lives in its own span so spinning rotates only the icon, not the
@@ -500,6 +511,7 @@ export async function mount({ waitFor }) {
     setOpen(panelOpenFor(true)); // analyzed: honor the configured default ('auto' opens)
     startAnnotations(f);
     loadEdhrecEnrichment(); // async, fail-silent, guarded
+    loadSpellbookEnrichment(); // "one card away" combos, async + guarded
   }
 
   // When auto-fetch is on, analyze (POST) a deck that Moxfield says was edited
