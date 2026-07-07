@@ -11,12 +11,13 @@
 // injected card.
 
 import { el, registerDisposable } from './dom.js';
-import { getOptions, getCardPrefs, getCardSortView } from './prefs.js';
+import { getOptions, getCardPrefs, getCardSortView, onPrefChange } from './prefs.js';
 import { fetchRecs, cutRecs } from './sources/edhrec-recs.js';
 import { readDeck, frontKey } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { getDeck, getEnrichment } from './messaging.js';
 import { annotate } from './render-cards.js';
+import { installCustomizeViewToggles } from './customize-view.js';
 
 // The recommendations route carries a suffix that moxfield.parseDeckId (anchored on /decks/{id}$)
 // rejects, so match + extract the public id here.
@@ -83,6 +84,7 @@ export async function installRecommendations({ waitFor }) {
   tabCut.addEventListener('click', () => show(true));
 
   annotatePreview(publicId); // mirror the deck view's per-card Solring columns onto the Deck Preview
+  installCustomizeViewToggles(); // add the Solring "Include Extra Data" toggles to the preview's Customize View
 }
 
 // Show the same per-card Solring columns (Power / Salt / Synergy / Tags / EDHREC%, per the user's
@@ -107,7 +109,10 @@ async function annotatePreview(publicId) {
   const schedule = () => { clearTimeout(timer); timer = setTimeout(apply, 150); };
   obs = new MutationObserver(schedule);
   obs.observe(document.body, { childList: true, subtree: true });
-  registerDisposable(() => { if (obs) obs.disconnect(); clearTimeout(timer); });
+  // Column-label clicks cycle the card-sort pref → re-annotate immediately (don't wait on the
+  // debounced DOM observer, which made sorting feel unresponsive).
+  const offPref = onPrefChange((which) => { if (which === 'card') apply(); });
+  registerDisposable(() => { if (obs) obs.disconnect(); clearTimeout(timer); offPref(); });
   schedule();
 }
 
@@ -218,7 +223,12 @@ function buildCutCard(template, cut, ctx) {
     });
   }
   const img = card.querySelector('img');
-  if (img) { img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset'); }
+  if (img) {
+    img.setAttribute('src', cut.image); img.setAttribute('alt', cut.name); img.removeAttribute('srcset');
+    // card-{id} works for singles, adventures, split, etc.; only true double-faced fronts 404 —
+    // fall back to the front-face image on error (fixes e.g. Virtue of Courage // Embereth Blaze).
+    if (cut.imageAlt) img.addEventListener('error', function onErr() { img.removeEventListener('error', onErr); img.setAttribute('src', cut.imageAlt); });
+  }
   card.querySelectorAll('[id^="vsr-"]').forEach((n) => n.removeAttribute('id'));
   // Normalize Moxfield's cloned action overlay to a single "−" remove button, whatever it cloned
   // (a lone "+" add button, or a full "− [qty] +" stepper). Keep one Moxfield button for its exact
@@ -235,7 +245,9 @@ function buildCutCard(template, cut, ctx) {
       if (path) path.setAttribute('d', 'M0 256c0-17.7 14.3-32 32-32l384 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 288c-17.7 0-32-14.3-32-32z');
     }
     btn.classList.add('solring-cut-minus');
-    btn.classList.remove('fa-plus');
+    // Match Moxfield's stepper "−" exactly: its minus button carries btn-outline-primary but NOT
+    // decklist-card-button-btn (that's only on the "+").
+    btn.classList.remove('fa-plus', 'decklist-card-button-btn');
     btn.setAttribute('title', `Remove ${cut.name} from the deck`);
     wireRemove(btn, cut, ctx, cell);
     const wrap = el('div', { class: 'd-inline-flex flex-row flex-nowrap gap-1 align-items-center' }, [btn]);
@@ -280,8 +292,18 @@ function nativeRemove(cardId) {
   return new Promise((resolve) => {
     const dp = document.querySelector('.deck-preview');
     if (!dp) return resolve(false);
+    const wasExpanded = dp.classList.contains('expanded');
+    // Collapse the preview again if WE expanded it for the removal (so the minus doesn't leave the
+    // Deck Preview panel open). Re-query live nodes — the panel re-renders on mutation.
+    const done = (ok) => {
+      if (!wasExpanded) {
+        const live = document.querySelector('.deck-preview');
+        if (live && live.classList.contains('expanded')) { const b = live.querySelector('a'); if (b) b.click(); }
+      }
+      resolve(ok);
+    };
     const bar = dp.querySelector('a');
-    if (bar && !dp.classList.contains('expanded')) bar.click(); // expand so rows render
+    if (bar && !wasExpanded) bar.click(); // expand so rows render
     let tries = 0;
     const findRow = setInterval(() => {
       const row = dp.querySelector(`li[data-hash="${cardId}"]`);
@@ -300,13 +322,13 @@ function nativeRemove(cardId) {
             // Confirm Moxfield applied it: its Deck Preview row disappears (local state updates
             // immediately; Moxfield persists the removal itself). Avoids racing a server re-read.
             let t3 = 0;
-            const confirm = setInterval(() => {
-              if (!dp.querySelector(`li[data-hash="${cardId}"]`)) { clearInterval(confirm); resolve(true); }
-              else if (++t3 > 30) { clearInterval(confirm); resolve(false); }
+            const confirmed = setInterval(() => {
+              if (!document.querySelector(`.deck-preview li[data-hash="${cardId}"]`)) { clearInterval(confirmed); done(true); }
+              else if (++t3 > 30) { clearInterval(confirmed); done(false); }
             }, 80);
-          } else if (++t2 > 25) { clearInterval(findRemove); resolve(false); }
+          } else if (++t2 > 25) { clearInterval(findRemove); done(false); }
         }, 80);
-      } else if (++tries > 30) { clearInterval(findRow); resolve(false); }
+      } else if (++tries > 30) { clearInterval(findRow); done(false); }
     }, 100);
   });
 }

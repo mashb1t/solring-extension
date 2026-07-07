@@ -15,7 +15,7 @@ export async function readDeck(publicId) {
     const out = {};
     for (const [entryId, c] of Object.entries((d.boards[b] && d.boards[b].cards) || {})) {
       const name = c.card && c.card.name;
-      if (name) out[frontKey(name)] = { entryId, cardId: c.card.id, name, image: cardImage(c.card), quantity: c.quantity || 1 };
+      if (name) out[frontKey(name)] = { entryId, cardId: c.card.id, name, ...cardImages(c.card), quantity: c.quantity || 1 };
     }
     return out;
   };
@@ -29,12 +29,16 @@ export async function readDeck(publicId) {
 
 export const frontKey = (name) => String(name).split(' // ')[0].toLowerCase().trim();
 
-// Moxfield card art URL. Single-faced: card-{id}; double-faced: the front face uses
-// card-face-{frontFaceId} (the plain card-{id} URL 404s for DFC/MDFC).
+// Moxfield card art URLs. `image` (card-{id}) works for single-physical-card layouts — normal,
+// adventure, split, aftermath, flip — while a true double-faced FRONT (transform / modal_dfc)
+// 404s on it. `imageAlt` is the front-face image (card-face-{frontFaceId}) used as an on-error
+// fallback only when the card actually has faces. This avoids wrongly using the face image for
+// adventures (e.g. Virtue of Courage // Embereth Blaze), which do have card_faces but one image.
 const ASSETS = 'https://assets.moxfield.net/cards';
-function cardImage(card) {
+function cardImages(card) {
   const faces = card.card_faces || [];
-  return faces.length
-    ? `${ASSETS}/card-face-${faces[0].id}-normal.webp`
-    : `${ASSETS}/card-${card.id}-normal.webp`;
+  return {
+    image: `${ASSETS}/card-${card.id}-normal.webp`,
+    imageAlt: faces.length ? `${ASSETS}/card-face-${faces[0].id}-normal.webp` : null,
+  };
 }
