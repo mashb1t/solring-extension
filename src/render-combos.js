@@ -168,21 +168,30 @@ export function renderSpellbookNearMiss(slot, data) {
   if (!combos.length) return;
   const byCard = new Map();
   for (const c of combos) { if (!byCard.has(c.add)) byCard.set(c.add, []); byCard.get(c.add).push(c); }
-  const kids = [el('div', { class: 'solring-pl-h2', text: `One card away (${byCard.size})` })];
+  // Divider + header separating the deck's existing combos (above) from the near-misses.
+  const kids = [
+    el('div', { class: 'solring-combo-divider', attrs: { 'aria-hidden': 'true' } }),
+    el('div', { class: 'solring-combo-h', text: `One card away · ${byCard.size} card${byCard.size === 1 ? '' : 's'}` }),
+  ];
   for (const [card, list] of byCard) {
     const top = list[0]; // most popular (combos are pre-sorted popularity desc)
     const produces = top.produces && top.produces.length ? top.produces[0] : 'a combo';
-    const extra = list.length > 1 ? ` (+${list.length - 1} more)` : '';
-    const row = el('div', { class: 'solring-nearmiss-row' }, [
-      el('span', { class: 'solring-nearmiss-add' }, [cardRefs([card], { chip: false })[0]]),
-      top.bracketTag ? el('span', { class: 'solring-bracket-chip', attrs: { title: 'Commander Spellbook bracket tag' }, text: top.bracketTag }) : null,
-      el('span', { class: 'solring-nearmiss-produces', text: `→ ${produces}${extra}` }),
+    const extra = list.length > 1 ? ` · +${list.length - 1} more combo${list.length - 1 === 1 ? '' : 's'}` : '';
+    // Same card shape as an existing combo: "Add <card>" as the pieces line, stats + link in
+    // the meta, and a produces sub-line — so both categories read alike.
+    const pieces = el('div', { class: 'solring-combo-pieces' });
+    pieces.append('Add ');
+    pieces.append(cardRefs([card], { chip: false })[0]);
+    const meta = el('div', { class: 'solring-combo-meta' }, [
+      top.bracketTag ? stat('bracket', top.bracketTag) : null,
       top.id ? el('a', {
-        class: 'solring-nearmiss-link', text: '↗',
-        attrs: { href: `https://commanderspellbook.com/combo/${top.id}/`, target: '_blank', rel: 'noopener', title: 'View combo on Commander Spellbook' },
+        class: 'solring-combo-link', text: 'Spellbook ↗',
+        attrs: { href: `https://commanderspellbook.com/combo/${top.id}/`, target: '_blank', rel: 'noopener' },
       }) : null,
     ]);
-    kids.push(row);
+    const head = el('div', { class: 'solring-combo-head' }, [pieces, meta]);
+    const sub = el('div', { class: 'solring-combo-produces', text: `${produces}${extra}` });
+    kids.push(el('div', { class: 'solring-combo' }, [head, sub]));
   }
   slot.append(...kids);
 }
