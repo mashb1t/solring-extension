@@ -163,9 +163,24 @@ function extractCards(p) {
   const details = p.details || {};
   const comboList = g(details, 'combos', 'list') || [];
   const idToCard = buildIdToCard(cards); // anchor id to { name, image } for synergy chips
+  // One representative face per physical card, grouped by containerId. Normally that's the front
+  // (dropping the back avoids double-counting a DFC's two faces), but if the front is an empty
+  // placeholder while another face carries the stats, keep that face: CommanderSalt sometimes
+  // models a single-faced card as the "back" of a DFC (e.g. a Wheel of Fortune reprint filed under
+  // a "Naktamun Lorespinner" container), and a blind drop-back rule would lose the only real face.
+  const hasStats = (c) => (parseFloat(c.salt) || 0) > 0
+    || (g(c, 'categories', 'total') || 0) > 0
+    || Object.keys(g(c, 'categories', 'stats') || {}).length > 0
+    || (Array.isArray(c.power) && c.power.length > 0);
+  const byContainer = {};
   for (const c of Object.values(cards)) {
     if (!c || !c.name) continue;
-    if (c.isFrontFace === false) continue; // skip DFC/MDFC/adventure back faces (same physical card as the front)
+    const key = c.containerId || c.id || c.name;
+    (byContainer[key] || (byContainer[key] = [])).push(c);
+  }
+  for (const faces of Object.values(byContainer)) {
+    let c = faces.find((f) => f.isFrontFace !== false) || faces[0]; // the front (or a single-face card)
+    if (faces.length > 1 && !hasStats(c)) c = faces.find(hasStats) || c; // front is empty → keep the face with data
     const stats = g(c, 'categories', 'stats') || {};
     const tags = Object.keys(stats).filter((k) => stats[k]).map(prettifyTag);
     out[c.name.toLowerCase().trim()] = {
