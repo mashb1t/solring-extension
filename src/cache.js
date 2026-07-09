@@ -17,7 +17,9 @@ export const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // centricity, anti-pattern score cap, per-card name + top threats.
 // 12 adds top-level commanders[] (partner/background EDHREC slugs).
 // 13 drops non-front-face (DFC/MDFC/adventure back) entries from the per-card map.
-export const SCHEMA_VERSION = 13;
+// 14 keeps one face per containerId, preferring the face with stats over an empty front
+//    (fixes single-faced cards CommanderSalt mis-files as a DFC back, e.g. Wheel of Fortune).
+export const SCHEMA_VERSION = 14;
 
 const inFlight = new Map();
 
