@@ -13,6 +13,7 @@ import { num } from './format.js';
 import { flagChips, tagChips } from './components.js';
 import { prettifyStat } from './labels.js';
 import { normName } from './render-cards.js';
+import { readDeck, frontKey } from './moxfield-edit.js';
 import { powerMark, saltMark, deckAvgPower } from './ratings.js';
 import { onPrefChange } from './prefs.js';
 
@@ -105,6 +106,25 @@ function chips(items, cls) {
 // ---- hover preview: show a synergy anchor's exact deck print on hover ----
 // A single body-level fixed popover (escapes the panel's overflow:hidden) driven by
 // delegated hover. The image loads only on first hover. Installed once, lazily.
+// The deck's SELECTED printing per card (front-face key → Moxfield image URL). The
+// synthesized card-<id> deck-print URL respects the chosen printing for single-faced cards
+// but 404s for double-faced fronts (Moxfield serves card-face-<frontFaceId> instead), so a
+// DFC would fall back to CommanderSalt's DEFAULT print — wrong art when the deck picked an
+// alternate. readDeck's cardImages already resolves the face URL, so prime it once per deck
+// and prefer it on hover. Public GET (no token); fail-silent.
+let moxPrints = null;
+let moxPrimed = null;
+function primeMoxPrints() {
+  const id = (location.pathname.match(/\/decks\/([A-Za-z0-9_-]+)/) || [])[1];
+  if (!id || moxPrimed === id) return;
+  moxPrimed = id;
+  readDeck(id).then((d) => {
+    const m = {};
+    for (const b of Object.values(d.boards || {})) for (const [k, c] of Object.entries(b)) if (c.image) m[k] = c.image;
+    moxPrints = m;
+  }).catch(() => {});
+}
+
 let hoverPop = null;
 let hoverInstalled = false;
 function installCardHover() {
@@ -123,7 +143,10 @@ function installCardHover() {
       document.body.appendChild(hoverPop);
     }
     const img = hoverPop.querySelector('img');
-    const primary = chip.dataset.img;
+    // Prefer the deck's selected printing (correct DFC face URL) when we have it; else the
+    // synthesized deck-print URL, with the CommanderSalt default print as the 404 fallback.
+    const mox = moxPrints && moxPrints[frontKey(chip.textContent || '')];
+    const primary = mox || chip.dataset.img;
     const fallback = chip.dataset.imgCs; // CommanderSalt print, used if the deck print 404s (e.g. DFCs)
     if (img.getAttribute('src') !== primary) {
       // The synthesized deck-print URL (card-<id>-normal.webp) doesn't exist for
@@ -229,6 +252,7 @@ function deckPrintMap() {
 // otherwise an inline card-name style for prose lists.
 export function cardRefs(items, opts = {}) {
   installCardHover();
+  primeMoxPrints();
   const prints = deckPrintMap();
   const cls = opts.chip ? 'solring-tag solring-syn-chip' : 'solring-syn-chip solring-cardname';
   return (items || []).map((it) => {

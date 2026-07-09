@@ -49,7 +49,7 @@ export async function readDeck(publicId) {
     editId: d.id,
     name: d.name,
     commanders: Object.values((d.boards.commanders && d.boards.commanders.cards) || {}).map((c) => c.card && c.card.name).filter(Boolean),
-    boards: { mainboard: board('mainboard'), sideboard: board('sideboard'), maybeboard: board('maybeboard') },
+    boards: { commanders: board('commanders'), mainboard: board('mainboard'), sideboard: board('sideboard'), maybeboard: board('maybeboard') },
   };
 }
 
