@@ -43,7 +43,7 @@ export function buildRuleZeroText(fields, title) {
   if (Array.isArray(f.combos)) {
     let combos = `Combos: ${f.combos.length}`;
     if (f.combos.length && f.combos[0] && Array.isArray(f.combos[0].pieces) && f.combos[0].pieces.length) {
-      combos += ` (${f.combos[0].pieces.join(' + ')})`;
+      combos += ` (${f.combos[0].pieces.map((p) => (typeof p === 'string' ? p : p.name)).join(' + ')})`;
     }
     l3.push(combos);
   }

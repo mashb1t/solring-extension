@@ -220,14 +220,19 @@ const buildIdToCard = (cards) => buildIdMap(cards, (c) => ({
 const buildIdToName = (cards) => buildIdMap(cards, (c) => c.name);
 
 // The deck's combos (details.combos.list, Commander Spellbook), shaped for display.
-function extractCombos(p) {
+function extractCombos(p, idToCard) {
   const list = g(p, 'details', 'combos', 'list') || [];
-  const idToName = buildIdToName(p.cards);
+  idToCard = idToCard || buildIdToCard(p.cards);
   return list.map((c) => {
     const cx = c.complexity || {};
     const lines = (sec) => ((g(cx, sec, 'lines')) || []).map((l) => l.parsed).filter(Boolean);
     return {
-      pieces: (c.cards || []).map((id) => idToName[id] || titleCase(id)),
+      // { name, image } per piece so the hover preview has a CommanderSalt-print fallback when
+      // the synthesized deck-print URL 404s (double-faced fronts use a face-keyed URL).
+      pieces: (c.cards || []).map((id) => {
+        const cc = idToCard[id];
+        return { name: (cc && cc.name) || titleCase(id), image: (cc && cc.image) || null };
+      }),
       score: c.score,
       complexity: g(cx, 'bias', 'final'), // 0 to 1
       extraMana: cx.additionalCmcValue,
@@ -499,10 +504,10 @@ function manabase(dt) {
 
 /** Full deck payload to DeckFields. */
 export function extractDeck(p) {
-  const combos = extractCombos(p);
   const dt = p.details || {};
   const idToName = buildIdToName(p.cards);
   const idToCard = buildIdToCard(p.cards); // id to { name, image } for hover previews
+  const combos = extractCombos(p, idToCard);
   const cards = extractCards(p);
   return {
     combos,

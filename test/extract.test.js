@@ -74,7 +74,9 @@ test('extractDeck shapes the deck combo list for display', () => {
   const d = extractDeck(deck);
   assert.equal(d.combos.length, 1);
   const c = d.combos[0];
-  assert.ok(c.pieces.includes('Pyrohemia'), `pieces: ${c.pieces}`);
+  const pieceNames = c.pieces.map((p) => p.name);
+  assert.ok(pieceNames.includes('Pyrohemia'), `pieces: ${pieceNames}`);
+  assert.ok(c.pieces.every((p) => 'image' in p), 'each piece carries an image field (hover fallback)');
   assert.equal(c.score, 25);
   assert.equal(Math.round(c.complexity * 100), 46); // bias.final
   assert.equal(c.extraMana, 1);
