@@ -10,6 +10,19 @@ window.addEventListener('message', (e) => {
 });
 export const hasToken = () => !!token;
 
+// READ-ONLY GET with the captured bearer token (ToS-adjacent, same note as above: this only reads
+// what the logged-in user can already see; no write is ever issued here). Used for endpoints that
+// 401 on the cookie alone (e.g. /v1/collections/search). Waits briefly for the token to be relayed.
+// Returns parsed JSON, or null on no token / non-2xx / any failure (never throws).
+export async function authedGet(url) {
+  try {
+    for (let i = 0; !token && i < 20; i++) await new Promise((r) => setTimeout(r, 150));
+    if (!token) return null;
+    const r = await fetch(url, { method: 'GET', credentials: 'include', headers: { Authorization: token } });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
 const V2 = 'https://api2.moxfield.com/v2/decks';
 const V3 = 'https://api2.moxfield.com/v3/decks/all';
 const ASSETS = 'https://assets.moxfield.net/cards';

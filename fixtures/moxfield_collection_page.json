@@ -1,0 +1,26 @@
+{
+ "pageNumber": 1,
+ "pageSize": 50,
+ "totalResults": 3,
+ "totalPages": 2,
+ "data": [
+  {
+   "card": {
+    "name": "Abrade"
+   }
+  },
+  {
+   "card": {
+    "name": "Abrade"
+   }
+  },
+  {
+   "card": {
+    "name": "Ojer Axonil, Deepest Might // Temple of Power"
+   }
+  },
+  {
+   "card": {}
+  }
+ ]
+}
