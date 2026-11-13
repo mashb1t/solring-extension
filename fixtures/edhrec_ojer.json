@@ -176,7 +176,414 @@
         "rank": 204,
         "rank_ma": 235
       }
-    }
+    },
+    "taglinks": [
+      {
+        "count": 1512,
+        "slug": "burn",
+        "value": "Burn"
+      },
+      {
+        "count": 342,
+        "slug": "spellslinger",
+        "value": "Spellslinger"
+      },
+      {
+        "count": 231,
+        "slug": "aggro",
+        "value": "Aggro"
+      },
+      {
+        "count": 227,
+        "slug": "group-slug",
+        "value": "Group Slug"
+      },
+      {
+        "count": 140,
+        "slug": "pingers",
+        "value": "Pingers"
+      },
+      {
+        "count": 66,
+        "slug": "stax",
+        "value": "Stax"
+      },
+      {
+        "count": 61,
+        "slug": "voltron",
+        "value": "Voltron"
+      },
+      {
+        "count": 60,
+        "slug": "storm",
+        "value": "Storm"
+      },
+      {
+        "count": 53,
+        "slug": "combo",
+        "value": "Combo"
+      },
+      {
+        "count": 47,
+        "slug": "commander-matters",
+        "value": "Commander Matters"
+      },
+      {
+        "count": 38,
+        "slug": "equipment",
+        "value": "Equipment"
+      },
+      {
+        "count": 27,
+        "slug": "midrange",
+        "value": "Midrange"
+      },
+      {
+        "count": 16,
+        "slug": "enchantress",
+        "value": "Enchantress"
+      },
+      {
+        "count": 15,
+        "slug": "chaos",
+        "value": "Chaos"
+      },
+      {
+        "count": 15,
+        "slug": "ramp",
+        "value": "Ramp"
+      },
+      {
+        "count": 15,
+        "slug": "treasure",
+        "value": "Treasure"
+      },
+      {
+        "count": 13,
+        "slug": "activated-abilities",
+        "value": "Activated Abilities"
+      },
+      {
+        "count": 13,
+        "slug": "card-draw",
+        "value": "Card Draw"
+      },
+      {
+        "count": 13,
+        "slug": "glass-cannon",
+        "value": "Glass Cannon"
+      },
+      {
+        "count": 13,
+        "slug": "planeswalkers",
+        "value": "Planeswalkers"
+      },
+      {
+        "count": 12,
+        "slug": "hatebears",
+        "value": "Hatebears"
+      },
+      {
+        "count": 12,
+        "slug": "prison",
+        "value": "Prison"
+      },
+      {
+        "count": 12,
+        "slug": "tokens",
+        "value": "Tokens"
+      },
+      {
+        "count": 12,
+        "slug": "wheels",
+        "value": "Wheels"
+      },
+      {
+        "count": 11,
+        "slug": "artifacts",
+        "value": "Artifacts"
+      },
+      {
+        "count": 10,
+        "slug": "cantrips",
+        "value": "Cantrips"
+      },
+      {
+        "count": 10,
+        "slug": "control",
+        "value": "Control"
+      },
+      {
+        "count": 10,
+        "slug": "goblins",
+        "value": "Goblins"
+      },
+      {
+        "count": 10,
+        "slug": "triggered-abilities",
+        "value": "Triggered Abilities"
+      },
+      {
+        "count": 9,
+        "slug": "devotion",
+        "value": "Devotion"
+      },
+      {
+        "count": 9,
+        "slug": "tempo",
+        "value": "Tempo"
+      },
+      {
+        "count": 8,
+        "slug": "impulse-draw",
+        "value": "Impulse Draw"
+      },
+      {
+        "count": 8,
+        "slug": "land-destruction",
+        "value": "Land Destruction"
+      },
+      {
+        "count": 7,
+        "slug": "dragons-approach",
+        "value": "Dragon's Approach"
+      },
+      {
+        "count": 6,
+        "slug": "plus-1-plus-1-counters",
+        "value": "+1/+1 Counters"
+      },
+      {
+        "count": 6,
+        "slug": "auras",
+        "value": "Auras"
+      },
+      {
+        "count": 6,
+        "slug": "lands-matter",
+        "value": "Lands Matter"
+      },
+      {
+        "count": 5,
+        "slug": "discard",
+        "value": "Discard"
+      },
+      {
+        "count": 5,
+        "slug": "good-stuff",
+        "value": "Good Stuff"
+      },
+      {
+        "count": 5,
+        "slug": "historic",
+        "value": "Historic"
+      },
+      {
+        "count": 4,
+        "slug": "legends",
+        "value": "Legends"
+      },
+      {
+        "count": 4,
+        "slug": "power",
+        "value": "Power"
+      },
+      {
+        "count": 4,
+        "slug": "power-matters",
+        "value": "Power Matters"
+      },
+      {
+        "count": 4,
+        "slug": "self-damage",
+        "value": "Self-Damage"
+      },
+      {
+        "count": 4,
+        "slug": "spell-copy",
+        "value": "Spell Copy"
+      },
+      {
+        "count": 4,
+        "slug": "tap-untap",
+        "value": "Tap / Untap"
+      },
+      {
+        "count": 3,
+        "slug": "big-mana",
+        "value": "Big Mana"
+      },
+      {
+        "count": 3,
+        "slug": "coin-flip",
+        "value": "Coin Flip"
+      },
+      {
+        "count": 3,
+        "slug": "exile",
+        "value": "Exile"
+      },
+      {
+        "count": 3,
+        "slug": "gods",
+        "value": "Gods"
+      },
+      {
+        "count": 3,
+        "slug": "group-hug",
+        "value": "Group Hug"
+      },
+      {
+        "count": 3,
+        "slug": "landfall",
+        "value": "Landfall"
+      },
+      {
+        "count": 2,
+        "slug": "affinity",
+        "value": "Affinity"
+      },
+      {
+        "count": 2,
+        "slug": "aristocrats",
+        "value": "Aristocrats"
+      },
+      {
+        "count": 2,
+        "slug": "attack-triggers",
+        "value": "Attack Triggers"
+      },
+      {
+        "count": 2,
+        "slug": "etb",
+        "value": "ETB"
+      },
+      {
+        "count": 2,
+        "slug": "extra-combats",
+        "value": "Extra Combats"
+      },
+      {
+        "count": 2,
+        "slug": "prowess",
+        "value": "Prowess"
+      },
+      {
+        "count": 2,
+        "slug": "self-discard",
+        "value": "Self-Discard"
+      },
+      {
+        "count": 2,
+        "slug": "snow",
+        "value": "Snow"
+      },
+      {
+        "count": 2,
+        "slug": "toolbox",
+        "value": "Toolbox"
+      },
+      {
+        "count": 2,
+        "slug": "unnatural",
+        "value": "Unnatural"
+      },
+      {
+        "count": 1,
+        "slug": "aikido",
+        "value": "Aikido"
+      },
+      {
+        "count": 1,
+        "slug": "cascade",
+        "value": "Cascade"
+      },
+      {
+        "count": 1,
+        "slug": "cycling",
+        "value": "Cycling"
+      },
+      {
+        "count": 1,
+        "slug": "defenders",
+        "value": "Defenders"
+      },
+      {
+        "count": 1,
+        "slug": "devils",
+        "value": "Devils"
+      },
+      {
+        "count": 1,
+        "slug": "dinosaurs",
+        "value": "Dinosaurs"
+      },
+      {
+        "count": 1,
+        "slug": "extra-turns",
+        "value": "Extra Turns"
+      },
+      {
+        "count": 1,
+        "slug": "forced-combat",
+        "value": "Forced Combat"
+      },
+      {
+        "count": 1,
+        "slug": "go-wide",
+        "value": "Go Wide"
+      },
+      {
+        "count": 1,
+        "slug": "keywords",
+        "value": "Keywords"
+      },
+      {
+        "count": 1,
+        "slug": "proliferate",
+        "value": "Proliferate"
+      },
+      {
+        "count": 1,
+        "slug": "sacrifice",
+        "value": "Sacrifice"
+      },
+      {
+        "count": 1,
+        "slug": "stompy",
+        "value": "Stompy"
+      },
+      {
+        "count": 1,
+        "slug": "theft",
+        "value": "Theft"
+      },
+      {
+        "count": 1,
+        "slug": "tron",
+        "value": "Tron"
+      },
+      {
+        "count": 1,
+        "slug": "turbo",
+        "value": "Turbo"
+      },
+      {
+        "count": 1,
+        "slug": "unblockable",
+        "value": "Unblockable"
+      },
+      {
+        "count": 1,
+        "slug": "x-spells",
+        "value": "X Spells"
+      },
+      {
+        "count": 1,
+        "slug": "zoo",
+        "value": "Zoo"
+      }
+    ]
   },
   "container": {
     "title": "Ojer Axonil, Deepest Might (Commander)",

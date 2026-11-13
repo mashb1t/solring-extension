@@ -1,0 +1,104 @@
+{
+ "header": "Group Hug",
+ "container": {
+  "json_dict": {
+   "cardlists": [
+    {
+     "header": "New Commanders",
+     "cardviews": [
+      {
+       "name": "Elda, Conjurer of Spectacle",
+       "num_decks": 111,
+       "potential_decks": 6894
+      },
+      {
+       "name": "Dack Fayden, Helping Hand",
+       "num_decks": 100,
+       "potential_decks": 4480
+      },
+      {
+       "name": "Zagorka, Mother of Sanctum",
+       "num_decks": 58,
+       "potential_decks": 6894
+      },
+      {
+       "name": "Yume, Chronicler of Valor",
+       "num_decks": 51,
+       "potential_decks": 6894
+      },
+      {
+       "name": "Itazura, Lingering Wick",
+       "num_decks": 48,
+       "potential_decks": 6894
+      }
+     ]
+    },
+    {
+     "header": "Top Commanders",
+     "cardviews": [
+      {
+       "name": "Ms. Bumbleflower",
+       "num_decks": 2956,
+       "potential_decks": 20972
+      },
+      {
+       "name": "Kynaios and Tiro of Meletis",
+       "num_decks": 1632,
+       "potential_decks": 20972
+      },
+      {
+       "name": "Gluntch, the Bestower",
+       "num_decks": 803,
+       "potential_decks": 20972
+      },
+      {
+       "name": "Xyris, the Writhing Storm",
+       "num_decks": 649,
+       "potential_decks": 20972
+      },
+      {
+       "name": "Kwain, Itinerant Meddler",
+       "num_decks": 644,
+       "potential_decks": 20972
+      }
+     ]
+    },
+    {
+     "header": "Top Cards",
+     "cardviews": [
+      {
+       "name": "Swords to Plowshares",
+       "synergy": 0.019643471795785294,
+       "num_decks": 8831,
+       "potential_decks": 14001
+      },
+      {
+       "name": "Selvala, Explorer Returned",
+       "synergy": 0.44792971241657664,
+       "num_decks": 4328,
+       "potential_decks": 8977
+      },
+      {
+       "name": "Rites of Flourishing",
+       "synergy": 0.44806675936229357,
+       "num_decks": 5748,
+       "potential_decks": 12209
+      },
+      {
+       "name": "Kwain, Itinerant Meddler",
+       "synergy": 0.4322478415151018,
+       "num_decks": 4425,
+       "potential_decks": 9586
+      },
+      {
+       "name": "Path to Exile",
+       "synergy": -0.02626472696156451,
+       "num_decks": 6357,
+       "potential_decks": 14001
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

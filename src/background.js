@@ -9,6 +9,7 @@ import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH
 import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
 import { fetchRecs } from './sources/edhrec-recs.js';
+import { fetchEdhrecPage, themesOf, themeCards, topCommanders, cardSlug } from './sources/edhrec-build.js';
 import { md5Hex } from './md5.js';
 
 async function fetchAndCacheDeck(md5) {
@@ -139,7 +140,39 @@ async function getEnrichment({ source, md5 }) {
 // edhrec.com/api/recs stopped serving ACAO, so the deck-specific recs POST runs here (host grant).
 const getRecs = ({ commanders, cards }) => fetchRecs(commanders, cards);
 
-const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment, getRecs };
+// Guided Deck Builder: EDHREC page JSON per path, cached TTL-only (ebuild:<path>).
+async function buildPage(path) {
+  const key = `ebuild:${path}`;
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
+    const json = await fetchEdhrecPage(path);
+    if (!json) return null;
+    return setEntry(key, json);
+  });
+  return entry && entry.data ? entry.data : null;
+}
+
+async function getBuildData({ op, commanders, theme, card }) {
+  let path = null; let shape = null;
+  if (op === 'themes') {
+    const slug = commanderSlug(commanders);
+    if (slug) { path = `commanders/${slug}`; shape = (j) => ({ themes: themesOf(j) }); }
+  } else if (op === 'theme') {
+    const slug = commanderSlug(commanders);
+    if (slug && theme) { path = `commanders/${slug}/${theme}`; shape = (j) => ({ cards: themeCards(j) }); }
+  } else if (op === 'byTheme') {
+    if (theme) { path = `tags/${theme}`; shape = (j) => ({ commanders: topCommanders(j) }); }
+  } else if (op === 'byCard') {
+    const slug = card && cardSlug(card);
+    if (slug) { path = `cards/${slug}`; shape = (j) => ({ commanders: topCommanders(j) }); }
+  }
+  if (!path) return { miss: true };
+  const json = await buildPage(path);
+  return json ? shape(json) : { miss: true };
+}
+
+const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment, getRecs, getBuildData };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = msg && HANDLERS[msg.type];

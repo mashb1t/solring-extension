@@ -1,0 +1,172 @@
+{
+ "header": "Ojer Axonil, Deepest Might (Commander) - Spellslinger",
+ "container": {
+  "json_dict": {
+   "cardlists": [
+    {
+     "header": "New Cards",
+     "cardviews": [
+      {
+       "name": "Koth, the Geomancer",
+       "synergy": 0.24486399667778144,
+       "num_decks": 27,
+       "potential_decks": 88
+      },
+      {
+       "name": "Master of Barbs",
+       "synergy": 0.09084289126760876,
+       "num_decks": 9,
+       "potential_decks": 92
+      },
+      {
+       "name": "Encounter the Unknown",
+       "synergy": 0.07473825503355705,
+       "num_decks": 2,
+       "potential_decks": 25
+      },
+      {
+       "name": "Pyre Rhymer",
+       "synergy": 0.012469006876503846,
+       "num_decks": 7,
+       "potential_decks": 88
+      },
+      {
+       "name": "Tomik, Izzet Sparkmage",
+       "synergy": 0.017111203299250838,
+       "num_decks": 5,
+       "potential_decks": 86
+      }
+     ]
+    },
+    {
+     "header": "Top Cards",
+     "cardviews": [
+      {
+       "name": "Firebrand Archer",
+       "synergy": 0.812754460933129,
+       "num_decks": 307,
+       "potential_decks": 342
+      },
+      {
+       "name": "Thermo-Alchemist",
+       "synergy": 0.7854561167528086,
+       "num_decks": 289,
+       "potential_decks": 342
+      },
+      {
+       "name": "Kessig Flamebreather",
+       "synergy": 0.7585874199098619,
+       "num_decks": 282,
+       "potential_decks": 342
+      },
+      {
+       "name": "Ruby Medallion",
+       "synergy": 0.24232717295540296,
+       "num_decks": 277,
+       "potential_decks": 342
+      },
+      {
+       "name": "Tectonic Hazard",
+       "synergy": 0.7498829227217216,
+       "num_decks": 268,
+       "potential_decks": 342
+      }
+     ]
+    },
+    {
+     "header": "High Lift Cards",
+     "cardviews": [
+      {
+       "name": "Sunshot Militia",
+       "synergy": 0.08661068095692956,
+       "num_decks": 32,
+       "potential_decks": 342
+      },
+      {
+       "name": "Flame Fusillade",
+       "synergy": 0.05244307018117786,
+       "num_decks": 19,
+       "potential_decks": 342
+      },
+      {
+       "name": "Spear Spewer",
+       "synergy": 0.3495961219622723,
+       "num_decks": 129,
+       "potential_decks": 342
+      },
+      {
+       "name": "Rain of Embers",
+       "synergy": 0.14116685159770925,
+       "num_decks": 50,
+       "potential_decks": 342
+      },
+      {
+       "name": "Blisterspit Gremlin",
+       "synergy": 0.25794530796530524,
+       "num_decks": 93,
+       "potential_decks": 342
+      }
+     ]
+    },
+    {
+     "header": "Creatures",
+     "cardviews": [
+      {
+       "name": "Erebor Flamesmith",
+       "synergy": 0.6343086684918722,
+       "num_decks": 233,
+       "potential_decks": 342
+      },
+      {
+       "name": "Unruly Catapult",
+       "synergy": 0.5945014994463249,
+       "num_decks": 213,
+       "potential_decks": 342
+      },
+      {
+       "name": "Razorkin Needlehead",
+       "synergy": 0.5295768696352501,
+       "num_decks": 206,
+       "potential_decks": 342
+      },
+      {
+       "name": "Urabrask",
+       "synergy": 0.4362381527223175,
+       "num_decks": 167,
+       "potential_decks": 342
+      },
+      {
+       "name": "Neheb, the Eternal",
+       "synergy": 0.25298861787483484,
+       "num_decks": 144,
+       "potential_decks": 342
+      }
+     ]
+    },
+    {
+     "header": "Planeswalkers",
+     "cardviews": [
+      {
+       "name": "Chandra, Torch of Defiance",
+       "synergy": 0.21634339623254673,
+       "num_decks": 112,
+       "potential_decks": 342
+      },
+      {
+       "name": "Chandra, Dressed to Kill",
+       "synergy": 0.12313482646944822,
+       "num_decks": 54,
+       "potential_decks": 342
+      },
+      {
+       "name": "Koth, Fire of Resistance",
+       "synergy": -0.031219439811665056,
+       "num_decks": 18,
+       "potential_decks": 342
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

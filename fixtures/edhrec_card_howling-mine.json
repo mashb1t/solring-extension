@@ -1,0 +1,99 @@
+{
+ "header": "Howling Mine (Card)",
+ "container": {
+  "json_dict": {
+   "cardlists": [
+    {
+     "header": "New Commanders",
+     "cardviews": [
+      {
+       "name": "Whtz, the Bibliophile",
+       "num_decks": 2255,
+       "potential_decks": 7562
+      },
+      {
+       "name": "Zagorka, Mother of Sanctum",
+       "num_decks": 286,
+       "potential_decks": 1189
+      },
+      {
+       "name": "Cmdr. Troi, Outgoing Empath",
+       "num_decks": 247,
+       "potential_decks": 590
+      },
+      {
+       "name": "Jean-Luc Picard, Luminary",
+       "num_decks": 215,
+       "potential_decks": 1029
+      },
+      {
+       "name": "Kuroki, Thief of Talents",
+       "num_decks": 212,
+       "potential_decks": 771
+      }
+     ]
+    },
+    {
+     "header": "Top Commanders",
+     "cardviews": [
+      {
+       "name": "Nekusar, the Mindrazer",
+       "num_decks": 22282,
+       "potential_decks": 32878
+      },
+      {
+       "name": "Kynaios and Tiro of Meletis",
+       "num_decks": 9456,
+       "potential_decks": 17309
+      },
+      {
+       "name": "Xyris, the Writhing Storm",
+       "num_decks": 9079,
+       "potential_decks": 19961
+      },
+      {
+       "name": "Sheoldred, the Apocalypse",
+       "num_decks": 8714,
+       "potential_decks": 12370
+      },
+      {
+       "name": "Urza, Lord High Artificer",
+       "num_decks": 7103,
+       "potential_decks": 21053
+      }
+     ]
+    },
+    {
+     "header": "Top Cards",
+     "cardviews": [
+      {
+       "name": "Swords to Plowshares",
+       "num_decks": 51081,
+       "potential_decks": 80415
+      },
+      {
+       "name": "Rites of Flourishing",
+       "num_decks": 35934,
+       "potential_decks": 62775
+      },
+      {
+       "name": "Counterspell",
+       "num_decks": 74398,
+       "potential_decks": 137759
+      },
+      {
+       "name": "Selvala, Explorer Returned",
+       "num_decks": 18362,
+       "potential_decks": 35463
+      },
+      {
+       "name": "Arcane Denial",
+       "num_decks": 70895,
+       "potential_decks": 137759
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

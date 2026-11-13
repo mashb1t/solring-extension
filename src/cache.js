@@ -77,9 +77,9 @@ export function isFreshTtl(entry, ttl) {
   return !!entry && Date.now() - entry.fetchedAt < ttl;
 }
 
-// Cached analyses + enrichment: deck:* / search:* / edhrec:* (not prefs:* / sync:*).
+// Cached analyses + enrichment: deck:* / search:* / edhrec:* / sbook:* / ebuild:* (deck-builder EDHREC pages; not prefs:* / sync:*).
 function isCacheKey(k) {
-  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:');
+  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:') || k.startsWith('ebuild:');
 }
 
 /** Total storage footprint of cached analyses → { bytes, count }. */
