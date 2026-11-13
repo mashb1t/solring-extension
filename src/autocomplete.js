@@ -34,6 +34,12 @@ export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity 
   const cur = current || { cards: ctx.deckKeys.size, lands: 0 };
   let nonLandSlots = Math.max(0, size - lands - (cur.cards - cur.lands));
   let landSlots = Math.max(0, lands - cur.lands);
+  // A deck already past one target (> lands lands, or > size - lands non-lands) leaves fewer
+  // free slots than the two targets suggest: clamp so cur.cards + total never exceeds size.
+  // Only one side can be over at a time, so shrinking whichever slot count overflows is exact.
+  const room = Math.max(0, size - cur.cards);
+  landSlots = Math.min(landSlots, room);
+  nonLandSlots = Math.min(nonLandSlots, room - landSlots);
   const startSpent = ctx.spent;
   const picks = [];
   const rejections = [];
@@ -95,7 +101,7 @@ export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity 
   }
 
   const total = picks.reduce((n, p) => n + p.qty, 0);
-  const shortfall = size - (cur.cards + total);
+  const shortfall = Math.max(0, size - (cur.cards + total));
   let binding = null;
   if (shortfall > 0 && rejections.length) {
     const groups = new Map();

@@ -105,3 +105,28 @@ test('basics use the budget at their info price; absent basics are free', () => 
   assert.equal(r.picks.find((p) => p.name === 'Forest').qty, 3);
   assert.equal(r.cost, 3);
 });
+
+test('over-target non-lands: land slots shrink so the deck never exceeds size', () => {
+  const ctx = mk();
+  // 70 non-lands + 20 lands = 90 cards: only 10 slots left, all of them lands.
+  const r = proposeFill({ tiers: tiersOf(ctx, [...spells(90), ...landCards(10)]), ctx, colorIdentity: CI, current: { cards: 90, lands: 20 } });
+  assert.equal(sum(r), 10);
+  assert.equal(sum(r, (p) => p.tier === 'land'), 10);
+  assert.equal(r.shortfall, 0);
+});
+
+test('over-target lands: non-land slots shrink so the deck never exceeds size', () => {
+  const ctx = mk();
+  // 50 lands + 40 non-lands = 90 cards: 10 slots left, none of them lands.
+  const r = proposeFill({ tiers: tiersOf(ctx, [...spells(90), ...landCards(10)]), ctx, colorIdentity: CI, current: { cards: 90, lands: 50 } });
+  assert.equal(sum(r), 10);
+  assert.equal(sum(r, (p) => p.tier === 'land'), 0);
+  assert.equal(r.shortfall, 0);
+});
+
+test('deck already over size: nothing proposed, shortfall never negative', () => {
+  const ctx = mk();
+  const r = proposeFill({ tiers: tiersOf(ctx, [...spells(90), ...landCards(10)]), ctx, colorIdentity: CI, current: { cards: 105, lands: 20 } });
+  assert.equal(r.total, 0);
+  assert.equal(r.shortfall, 0);
+});
