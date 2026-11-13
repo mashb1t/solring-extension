@@ -752,3 +752,78 @@ html.solring-wide .container { max-width: unset !important; }
 }
 /* Removal toast reuses Moxfield's own .autosave-notification class for styling (see toast() in
    recommendations.js) — no custom rules needed. */
+
+/* ---- Guided Deck Builder: commander + playstyle picker (render-picker.js) ----
+   Lives inside Moxfield's "Create New Deck" modal and next to the deck view's
+   "Pick a Commander" alert. Tokens only; follows Moxfield's --bs-* theme. */
+.modal-dialog.solring-picker-wide { --bs-modal-width: min(860px, calc(100vw - 2rem)); max-width: var(--bs-modal-width); }
+.solring-picker-entry { display: block; white-space: normal; }
+span.solring-picker-entry { display: inline; }
+.solring-picker-link {
+  display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.4rem; padding: 0;
+  border: 0; background: none; color: var(--solring-accent); font-weight: 600; font-size: 0.875rem;
+  cursor: pointer; white-space: normal; text-align: left;
+}
+.solring-picker-link:hover { text-decoration: underline; }
+.solring-picker-link:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 2px; border-radius: 3px; }
+.solring-picker-link-inline { margin: 0 0 0 0.75rem; }
+.solring-picker-msg { margin-top: 0.35rem; font-size: 0.8rem; color: var(--solring-text-2); white-space: normal; }
+.solring-picker-msg[hidden] { display: none; }
+
+.solring-picker-panel {
+  margin: 0.5rem 0 1rem; padding: 0.75rem; border: 1px solid var(--solring-border); border-radius: 8px;
+  background: var(--solring-surface-2); color: var(--solring-text); font-size: 0.875rem;
+}
+.solring-picker-panel[hidden] { display: none; }
+.solring-picker-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.6rem;
+}
+.solring-picker-modes { display: inline-flex; border: 1px solid var(--solring-border); border-radius: 999px; overflow: hidden; }
+.solring-picker-mode {
+  border: 0; background: transparent; color: var(--solring-text-2); font-size: 0.75rem; padding: 0.25rem 0.65rem; cursor: pointer;
+}
+.solring-picker-mode.solring-on { background: var(--solring-accent); color: var(--bs-white, #fff); }
+.solring-picker-mode:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
+.solring-picker-cols { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.25rem; }
+.solring-picker-col { flex: 1 1 260px; min-width: 0; max-height: 340px; overflow-y: auto; }
+.solring-picker-colh {
+  margin: 0.5rem 0 0.35rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--solring-text-2);
+}
+.solring-picker-empty { padding: 0.5rem 0; color: var(--solring-text-2); }
+.solring-picker-cmd {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem; border: 1px solid transparent;
+  border-radius: 6px; cursor: pointer;
+}
+.solring-picker-cmd:hover { background: var(--bs-modal-bg, var(--solring-surface)); }
+.solring-picker-cmd.solring-on { border-color: var(--solring-accent); background: var(--bs-modal-bg, var(--solring-surface)); }
+.solring-picker-cmd:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
+.solring-picker-art {
+  flex: none; width: 34px; height: 46px; border-radius: 4px; object-fit: cover; object-position: center 18%;
+  background: var(--solring-border);
+}
+.solring-picker-cmdtext { min-width: 0; }
+.solring-picker-name { font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.solring-picker-meta { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--solring-text-2); }
+.solring-picker-pips { display: inline-flex; gap: 2px; }
+.solring-picker-pip { font-size: 0.8rem; margin: 0 !important; }
+.solring-picker-pip-plain {
+  display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%;
+  border: 1px solid var(--solring-border); background: var(--solring-surface); font-size: 0.55rem; font-weight: 700;
+}
+.solring-picker-play {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;
+  margin-bottom: 0.35rem; padding: 0.4rem 0.6rem; border: 1px solid var(--solring-border); border-radius: 6px;
+  background: var(--bs-modal-bg, var(--solring-surface)); color: var(--solring-text); text-align: left; cursor: pointer;
+}
+.solring-picker-play.solring-on { border-color: var(--solring-accent); box-shadow: inset 3px 0 0 var(--solring-accent); }
+.solring-picker-play:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
+.solring-picker-play small { flex: none; color: var(--solring-text-2); }
+.solring-picker-playtext { flex: 1; min-width: 0; }
+.solring-picker-bar { display: block; height: 4px; margin-top: 0.25rem; border-radius: 2px; background: var(--solring-border); overflow: hidden; }
+.solring-picker-bar i { display: block; height: 100%; background: var(--solring-mark-synergy); }
+.solring-picker-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+  margin-top: 0.6rem; font-size: 0.8rem; color: var(--solring-text-2);
+}
+.solring-picker-use { white-space: normal; text-align: left; }
