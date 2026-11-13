@@ -1,0 +1,187 @@
+// Guided Deck Builder build view: pure view-model helpers for render-builder.js (deck
+// composition, rule chips, auto-complete preview grouping/totals, power verdict). No DOM.
+import { frontFace } from './sources/scryfall.js';
+import { checkCard, addToCtx } from './build-rules.js';
+
+export const DECK_SIZE = 100;
+export const LAND_TARGET = 36;
+
+/**
+ * What counts toward the 100 (commanders + mainboard) from a moxfield-edit shapeDeck() result.
+ * `names` repeats each name by quantity (so the rules ctx counts basics' and copies' budget);
+ * `unique` has one entry per card; `cards`/`lands` are the copy totals autocomplete needs.
+ */
+export function deckComposition(deck) {
+  const names = [];
+  const unique = [];
+  let cards = 0;
+  let lands = 0;
+  for (const b of ['commanders', 'mainboard']) {
+    for (const e of Object.values((deck && deck.boards && deck.boards[b]) || {})) {
+      const q = Math.max(1, e.quantity || 1);
+      unique.push(e.name);
+      for (let i = 0; i < q; i++) names.push(e.name);
+      cards += q;
+      if (e.isLand) lands += q;
+    }
+  }
+  return { names, unique, current: { cards, lands } };
+}
+
+/** getCardData({op:'flags'}) → Sets for makeCtx. A miss/error/missing list → empty Set. */
+export function flagSets(res) {
+  const set = (k) => new Set(res && Array.isArray(res[k]) ? res[k] : []);
+  return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial') };
+}
+
+/** Same commander set, compared by lowercased front face (order-insensitive). */
+export function commanderMatches(a, b) {
+  const ka = new Set((a || []).filter(Boolean).map(frontFace));
+  const kb = new Set((b || []).filter(Boolean).map(frontFace));
+  return ka.size > 0 && ka.size === kb.size && [...ka].every((k) => kb.has(k));
+}
+
+/** Unique names to fetch card info for in ONE batch: the deck, theme candidates, combo pieces. */
+export function infoNames({ deckNames = [], themeCards = [], comboResults = null }) {
+  const out = new Map();
+  const put = (n) => { if (n && !out.has(frontFace(n))) out.set(frontFace(n), n); };
+  deckNames.forEach(put);
+  (themeCards || []).forEach((c) => put(c && c.name));
+  for (const combo of (comboResults && comboResults.almostIncluded) || []) {
+    for (const u of combo.uses || []) put(u && u.card && u.card.name);
+  }
+  return [...out.values()];
+}
+
+export const usd = (n) => (typeof n === 'number' ? `$${n.toFixed(2)}` : 'no price');
+const dollars = (n) => `$${Math.round(n)}`;
+
+/**
+ * ruleUsage(ctx) → chips: { key, text, pct (0–1 meter fill, or null), warn, hint }.
+ * `warn` = the limit is reached (the next card of that kind is blocked).
+ */
+export function ruleChips(usage) {
+  return (usage || []).map((u) => {
+    if (u.key === 'gc') {
+      if (u.max === Infinity) return { key: 'gc', text: `Game Changers ${u.used} / no cap`, pct: null, warn: false };
+      return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
+    }
+    if (u.key === 'budget') {
+      return { key: 'budget', text: `Budget ${dollars(u.used)} / ${dollars(u.max)}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
+    }
+    if (u.key === 'power') return { key: 'power', text: u.label, pct: null, warn: false, hint: 'target' };
+    return { key: u.key, text: u.label, pct: null, warn: false };
+  });
+}
+
+/**
+ * Combo tile state: the pieces still to add, checked in sequence against a running ctx (all of
+ * them must fit, like autocomplete's all-or-nothing combos). → { add, ok, reason }.
+ */
+export function comboCheck(combo, ctx) {
+  const add = ((combo && combo.add) || []).filter((n) => !ctx.deckKeys.has(frontFace(n)));
+  let run = ctx;
+  for (const n of add) {
+    const c = checkCard(n, run);
+    if (!c.ok) return { add, ok: false, reason: `${n}: ${c.reason}` };
+    run = addToCtx(run, n);
+  }
+  return { add, ok: add.length > 0, reason: add.length ? null : 'Already in deck' };
+}
+
+const TIER_LABEL = { key: 'Key cards', theme: 'Theme cards', land: 'Lands' };
+
+/** proposeFill picks → [{ tier, label, rows:[{ i, name, qty, usd }] }] in key/theme/land order. */
+export function groupPicks(picks) {
+  const groups = [];
+  for (const tier of ['key', 'theme', 'land']) {
+    const rows = [];
+    (picks || []).forEach((p, i) => { if (p.tier === tier) rows.push({ i, name: p.name, qty: p.qty, usd: p.usd }); });
+    if (rows.length) groups.push({ tier, label: TIER_LABEL[tier], rows, count: rows.reduce((n, r) => n + r.qty, 0) });
+  }
+  return groups;
+}
+
+/**
+ * Totals for the ticked preview rows against the current deck + rules.
+ * → { count, cost, gcAdded, landsAdded, deckAfter, landsAfter, gcAfter, spentAfter }
+ */
+export function previewTotals({ picks, ticked, ctx, current }) {
+  let count = 0; let cost = 0; let gcAdded = 0; let landsAdded = 0;
+  (picks || []).forEach((p, i) => {
+    if (!ticked.has(i)) return;
+    count += p.qty;
+    cost += (p.usd || 0) * p.qty;
+    if (p.tier === 'land') landsAdded += p.qty;
+    const key = frontFace(p.name);
+    if (ctx.flags.gameChangers.has(key) || (ctx.info[key] && ctx.info[key].gameChanger)) gcAdded += p.qty;
+  });
+  return {
+    count, cost, gcAdded, landsAdded,
+    deckAfter: current.cards + count,
+    landsAfter: current.lands + landsAdded,
+    gcAfter: ctx.gcUsed + gcAdded,
+    spentAfter: ctx.spent + cost,
+  };
+}
+
+/** The preview's one-line summary under the title. */
+export function previewSummary(t, rules, gcCap) {
+  const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${LAND_TARGET}`, `Bracket ${rules.bracket}`];
+  parts.push(gcCap === Infinity ? `Game Changers ${t.gcAfter}` : `Game Changers ${t.gcAfter} / ${gcCap}`);
+  if (rules.budget != null) parts.push(`${usd(t.spentAfter)} / ${dollars(rules.budget)}`);
+  else parts.push(`adds ${usd(t.cost)}`);
+  return parts.join(' · ');
+}
+
+/** "Short by N cards — <binding rule>" when autocomplete couldn't reach the target size. */
+export function shortfallText(fill) {
+  if (!fill || !(fill.shortfall > 0)) return null;
+  const n = fill.shortfall;
+  const head = `Short by ${n} card${n === 1 ? '' : 's'}`;
+  return fill.binding ? `${head}: ${fill.binding} is the binding rule.` : `${head}: not enough suggestions fit the rules.`;
+}
+
+/**
+ * importDeck() result vs the soft Power target {min,max} → the status line.
+ * Stub / miss / error / no number → unavailable (CommanderSalt can't import private decks).
+ */
+export function powerVerdict(res, target) {
+  const p = res && res.fields && typeof res.fields.power === 'number' ? res.fields.power : null;
+  if (p == null) return 'Power check unavailable (private deck)';
+  const v = (Math.round(p * 10) / 10).toFixed(1);
+  const range = `${target.min}–${target.max}`;
+  if (p > target.max) return `Power ${v} — above target ${range}`;
+  if (p < target.min) return `Power ${v} — below target ${range}`;
+  return `Power ${v} — within target`;
+}
+
+/**
+ * The "+ rule" form values → a rules patch, or { error }. Blank fields clear a rule.
+ * Inputs are strings (form values); bracket 1–5, GC cap ≥ 0, power 1–10 with min ≤ max, budget > 0.
+ */
+export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }) {
+  const num = (s) => (String(s ?? '').trim() === '' ? null : Number(s));
+  const b = Number(bracket);
+  if (!(Number.isInteger(b) && b >= 1 && b <= 5)) return { error: 'Bracket must be 1–5' };
+  const cap = num(gcCap);
+  if (cap != null && !(Number.isInteger(cap) && cap >= 0)) return { error: 'Game Changer cap must be a whole number ≥ 0' };
+  const lo = num(powerMin); const hi = num(powerMax);
+  let power = null;
+  if (lo != null || hi != null) {
+    if (lo == null || hi == null || !(lo >= 1 && hi <= 10 && lo <= hi)) return { error: 'Power target needs min ≤ max within 1–10' };
+    power = { min: lo, max: hi };
+  }
+  const bud = num(budget);
+  if (bud != null && !(bud > 0)) return { error: 'Budget must be more than $0' };
+  return { rules: { bracket: b, gameChangerCap: cap, power, budget: bud } };
+}
+
+export const NOT_OWNED = 'Not in your collection';
+
+/** With "Only cards I own" active, not-owned suggestions are filtered out (not greyed). → { shown, hidden } */
+export function ownedFilter(list, ownedOnly) {
+  if (!ownedOnly) return { shown: list || [], hidden: 0 };
+  const shown = (list || []).filter((s) => !(s.check && !s.check.ok && s.check.reason === NOT_OWNED));
+  return { shown, hidden: (list || []).length - shown.length };
+}

@@ -41,6 +41,12 @@ export function setPendingBuild({ commanders, theme }) {
   return enqueue(() => setPref(PENDING_KEY, { commanders, theme, at: Date.now() }));
 }
 
+/** Read the pending build WITHOUT consuming it (so a deck page can check the commander first). */
+export async function peekPendingBuild() {
+  const p = await getPref(PENDING_KEY, null);
+  return p && Date.now() - p.at < PENDING_MAX_AGE_MS ? { commanders: p.commanders, theme: p.theme } : null;
+}
+
 /** Consume the pending build once. Null if absent or stale (a stale entry is removed too). */
 export function takePendingBuild() {
   return enqueue(async () => {

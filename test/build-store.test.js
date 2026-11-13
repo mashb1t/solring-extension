@@ -66,3 +66,15 @@ test('pending older than 10 minutes is ignored and removed', async () => {
   assert.equal(await takePendingBuild(), null);
   assert.equal('build:pending' in store, false);
 });
+
+test('peekPendingBuild reads without consuming; stale reads as null', async () => {
+  const { setPendingBuild, peekPendingBuild, takePendingBuild, store } = await load();
+  assert.equal(await peekPendingBuild(), null);
+  await setPendingBuild({ commanders: ['A'], theme: 't' });
+  assert.deepEqual(await peekPendingBuild(), { commanders: ['A'], theme: 't' });
+  assert.equal('build:pending' in store, true);
+  assert.deepEqual(await takePendingBuild(), { commanders: ['A'], theme: 't' });
+  await setPendingBuild({ commanders: ['A'], theme: 't' });
+  store['build:pending'].at -= 10 * 60 * 1000 + 1;
+  assert.equal(await peekPendingBuild(), null);
+});

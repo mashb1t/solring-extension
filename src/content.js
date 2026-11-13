@@ -11,7 +11,7 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
@@ -21,8 +21,9 @@
       import(u('sync.js')),
       import(u('recommendations.js')),
       import(u('render-picker.js')),
+      import(u('render-builder.js')),
     ]);
-    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker };
+    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder };
     return mods;
   }
 
@@ -52,7 +53,7 @@
 
   async function route() {
     const m = await load();
-    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker } = m;
+    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder } = m;
     wideLayout.installWideToggle(); // idempotent global header toggle, applies on every page
     dom.disposeAll(); // first: disconnect every observer/listener from the previous route
     dom.guard('teardown', () => dom.teardown());
@@ -67,8 +68,11 @@
     // "Pick a Commander" alert: the picker watches for both on every route (self-detecting).
     picker.teardownPicker();
     picker.installPicker({ waitFor }).catch((e) => console.warn('[solring] picker', e));
+    builder.teardownBuilder(); // the Guided Builder build view (deck pages only)
     const type = moxfield.pageType(location.href);
     if (type === 'deck') {
+      // Not awaited: the build view (Commander decks only, self-checked) loads alongside the report card.
+      builder.installBuilder({ waitFor }).catch((e) => console.warn('[solring] builder', e));
       await renderDeck.mount({ ...m, waitFor });
     } else if (type === 'user' || type === 'personal') {
       let username = listUsername(moxfield);
