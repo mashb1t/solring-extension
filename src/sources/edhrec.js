@@ -3,7 +3,7 @@
 // host_permissions; the GET must be a SIMPLE request (no custom headers) or EDHREC's
 // CORS preflight answers 403.
 
-const BASICS = new Set([
+export const BASICS = new Set([
   'plains', 'island', 'swamp', 'mountain', 'forest', 'wastes',
   'snow-covered plains', 'snow-covered island', 'snow-covered swamp',
   'snow-covered mountain', 'snow-covered forest',
