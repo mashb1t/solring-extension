@@ -25,7 +25,7 @@
 }
 /* Only the rating ramp needs explicit dark values (brighter on dark); the
    surfaces/text/borders above already follow Moxfield's --bs-* vars. */
-[data-bs-theme='dark'], .solring-dark {
+[data-bs-theme='dark'], .darkmode, .solring-dark {
   --solring-rating-a: #ff6b6b;
   --solring-rating-b: #f0883e;
   --solring-rating-c: #e3b341;
@@ -831,3 +831,148 @@ span.solring-picker-entry { display: inline; }
   margin-top: 0.6rem; font-size: 0.8rem; color: var(--solring-text-2);
 }
 .solring-picker-use { white-space: normal; text-align: left; }
+
+/* ---- Guided Deck Builder: build view (render-builder.js, Layout A "Inline tiers") ----
+   Panel above Moxfield's decklist, decklist row checkboxes + selection bar, Auto-complete preview
+   modal, write toast. Tokens only; dark mode follows Moxfield's --bs-* vars (+ .darkmode). */
+.solring-builder { margin: 0 0 0.75rem; }
+/* Not overflow:hidden like the report card: the rules bar is sticky inside the panel. */
+.solring-builder-panel { overflow: visible; margin: 0; }
+.solring-builder-panel .solring-panel-bar { border-radius: 8px 8px 0 0; }
+.solring-builder-panel:not(.solring-open) .solring-panel-bar { border-radius: 8px; }
+.solring-builder-body { border-radius: 0 0 8px 8px; }
+.solring-builder-label {
+  margin: 0 0 0.4rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--solring-text-2);
+}
+.solring-builder-rules .solring-builder-label, .solring-builder-head .solring-builder-label { margin: 0; }
+.solring-builder-rules {
+  position: sticky; top: var(--solring-builder-top, 0px); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  margin: -0.85rem -0.85rem 0.75rem; padding: 0.6rem 0.85rem;
+  background: var(--solring-surface); border-bottom: 1px solid var(--solring-border);
+}
+.solring-builder-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0.6rem;
+  border: 1px solid var(--solring-border); border-radius: 999px; background: var(--solring-surface-2);
+  color: var(--solring-text); font-size: 0.78rem; line-height: 1.5; white-space: nowrap;
+}
+.solring-builder-chip small { color: var(--solring-text-2); }
+.solring-builder-chip .form-check-input { margin: 0; float: none; }
+.solring-builder-owned { cursor: pointer; }
+.solring-builder-owned.solring-disabled { cursor: not-allowed; color: var(--solring-text-2); }
+.solring-builder-rulebtn { cursor: pointer; }
+.solring-builder-rulebtn:hover { border-color: var(--solring-accent); }
+.solring-builder-rulebtn:focus-visible, .solring-builder-pick:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: 1px; }
+.solring-builder-meter { display: inline-block; width: 46px; height: 5px; border-radius: 3px; background: var(--solring-border); overflow: hidden; }
+.solring-builder-meter i { display: block; height: 100%; background: var(--solring-rating-d); }
+.solring-builder-meter.solring-warn i { background: var(--solring-rating-b); }
+.solring-builder-spacer { flex: 1 1 auto; }
+.solring-builder-ac { white-space: nowrap; }
+
+.solring-builder-ruleform {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem 1rem; margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem; border: 1px solid var(--solring-border); border-radius: 6px; background: var(--solring-surface-2);
+}
+.solring-builder-field { display: flex; flex-direction: column; gap: 0.2rem; margin: 0; font-size: 0.75rem; color: var(--solring-text-2); }
+.solring-builder-field .form-control, .solring-builder-field .form-select { width: auto; min-width: 7rem; }
+.solring-builder-range { display: inline-flex; align-items: center; gap: 0.3rem; }
+.solring-builder-range .form-control { min-width: 0; width: 4.5rem; }
+.solring-builder-formfoot { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
+.solring-builder-err { color: var(--solring-rating-a); font-size: 0.8rem; }
+.solring-builder-power {
+  margin: 0 0 0.75rem; padding: 0.35rem 0.6rem; border-left: 3px solid var(--solring-mark-power);
+  background: var(--solring-surface-2); border-radius: 0 6px 6px 0; font-size: 0.85rem;
+}
+.solring-builder-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.solring-builder-head .form-select.solring-builder-theme { width: auto; max-width: 100%; display: inline-block; }
+.solring-builder-note { color: var(--solring-text-2); font-size: 0.82rem; }
+.solring-builder-hidden { margin: -0.4rem 0 0.75rem; }
+.solring-builder-tier { margin-bottom: 1rem; }
+.solring-builder-tier:last-child { margin-bottom: 0; }
+.solring-builder-landnote { margin-bottom: 0.5rem; white-space: normal; }
+.solring-builder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.5rem; }
+.solring-builder-more { margin-top: 0.4rem; }
+
+.solring-builder-tile {
+  position: relative; display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--solring-border); border-radius: 8px; background: var(--solring-surface); overflow: hidden;
+}
+.solring-builder-art { display: block; width: 100%; aspect-ratio: 488 / 680; object-fit: cover; background: var(--solring-surface-2); }
+.solring-builder-noart { display: flex; align-items: flex-end; padding: 0.4rem; font-size: 0.75rem; font-weight: 600; overflow-wrap: anywhere; }
+.solring-builder-name {
+  padding: 0.3rem 0.4rem 0; font-size: 0.75rem; font-weight: 600; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.solring-builder-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; padding: 0.2rem 0.4rem 0.35rem; font-size: 0.7rem; color: var(--solring-text-2); }
+.solring-builder-syn { color: var(--solring-mark-synergy); font-weight: 600; }
+.solring-builder-gc { color: var(--solring-rating-b); font-weight: 700; }
+.solring-builder-price { margin-left: auto; font-variant-numeric: tabular-nums; }
+.solring-builder-add {
+  position: absolute; top: 0.35rem; right: 0.35rem; z-index: 1; width: 1.75rem; height: 1.75rem; padding: 0;
+  border-radius: 50%; font-weight: 700; line-height: 1; box-shadow: 0 1px 3px color-mix(in srgb, #000 35%, transparent);
+}
+.solring-builder-tile.solring-blocked > :not(.solring-builder-why) { opacity: 0.45; }
+.solring-builder-tile.solring-blocked .solring-builder-add { display: none; }
+.solring-builder-why {
+  position: absolute; top: 0.35rem; left: 0.35rem; right: 0.35rem; z-index: 1; padding: 0.15rem 0.3rem;
+  border-radius: 4px; background: var(--solring-rating-a); color: var(--bs-white, #fff); font-size: 0.66rem; line-height: 1.25;
+}
+.solring-builder-combo {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--solring-mark-power) 14%, transparent), color-mix(in srgb, var(--solring-accent) 10%, transparent));
+}
+.solring-builder-combohead { padding: 0.4rem 0.4rem 0; font-size: 0.66rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--solring-text-2); }
+.solring-builder-combo.solring-blocked .solring-builder-combohead { margin-top: 2.2rem; }
+.solring-builder-pieces { flex: 1; margin: 0; padding: 0.3rem 0.4rem; list-style: none; font-size: 0.75rem; line-height: 1.3; }
+.solring-builder-pieces li { padding: 0.1rem 0; color: var(--solring-text-2); }
+.solring-builder-pieces li.solring-missing { color: var(--solring-text); font-weight: 600; }
+.solring-builder-combo .solring-builder-add { position: static; width: auto; height: auto; margin-left: auto; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.72rem; }
+.solring-builder-combo.solring-blocked .solring-builder-add { display: none; }
+
+/* Decklist checkboxes + selection bar */
+.solring-builder-pick { flex: none; margin: 0 0.45rem 0 0; float: none; vertical-align: middle; cursor: pointer; }
+li.solring-builder-sel { background: color-mix(in srgb, var(--solring-rating-a) 12%, transparent); }
+.solring-builder-selbar {
+  position: sticky; top: var(--solring-builder-top, 0px); z-index: 4; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin: 0 0 0.5rem; padding: 0.35rem 0.6rem; border: 1px solid var(--solring-border); border-radius: 6px;
+  background: var(--solring-surface); color: var(--solring-text); font-size: 0.8rem;
+}
+.solring-builder-selbar[hidden] { display: none; }
+.solring-builder-selbar.solring-on { background: color-mix(in srgb, var(--solring-rating-a) 8%, var(--solring-surface)); }
+.solring-builder-selbar [hidden] { display: none; }
+.solring-builder-all { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; cursor: pointer; color: var(--solring-text-2); }
+.solring-builder-all .form-check-input { margin: 0; float: none; }
+.solring-builder-count { font-weight: 600; }
+
+/* Auto-complete preview modal */
+.solring-builder-modal-back {
+  position: fixed; inset: 0; z-index: 1060; display: flex; align-items: center; justify-content: center; padding: 1rem;
+  background: color-mix(in srgb, #000 45%, transparent);
+}
+.solring-builder-modal {
+  display: flex; flex-direction: column; width: min(720px, 100%); max-height: 85vh; overflow: auto; padding: 1rem 1rem 0;
+  border: 1px solid var(--solring-border); border-radius: 10px;
+  background: var(--bs-modal-bg, var(--solring-surface)); color: var(--solring-text); font-size: 0.875rem;
+}
+.solring-builder-modal h3 { margin: 0 0 0.25rem; font-size: 1.15rem; font-weight: 600; }
+.solring-builder-pvsum { margin-bottom: 0.6rem; font-size: 0.78rem; color: var(--solring-text-2); }
+.solring-builder-short {
+  margin-bottom: 0.6rem; padding: 0.4rem 0.6rem; border-left: 3px solid var(--solring-rating-b); border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--solring-rating-b) 12%, transparent);
+}
+.solring-builder-pvgroup { margin-bottom: 0.6rem; }
+.solring-builder-pv {
+  display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.25rem 0;
+  border-bottom: 1px solid var(--solring-border); cursor: pointer;
+}
+.solring-builder-pv .form-check-input { margin: 0; float: none; flex: none; }
+.solring-builder-pvname { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.solring-builder-pvfoot {
+  position: sticky; bottom: 0; display: flex; justify-content: space-between; gap: 0.5rem;
+  margin-top: auto; padding: 0.75rem 0; border-top: 1px solid var(--solring-border); background: inherit;
+}
+
+/* Write toast: Moxfield's .autosave-notification look; own class so it survives route teardowns. */
+.solring-builder-toast { opacity: 0; transition: opacity 0.2s; }
+.solring-builder-toast.solring-on { opacity: 1; }
+.solring-builder-toast.solring-builder-toast-err { background: var(--solring-rating-a); }
+@media (prefers-reduced-motion: reduce) { .solring-builder-toast { transition: none; } }
