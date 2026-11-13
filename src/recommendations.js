@@ -12,10 +12,10 @@
 
 import { el, registerDisposable } from './dom.js';
 import { getOptions, getCardPrefs, getCardSortView, onPrefChange } from './prefs.js';
-import { fetchRecs, cutRecs } from './sources/edhrec-recs.js';
+import { cutRecs } from './sources/edhrec-recs.js';
 import { readDeck, frontKey, hasToken, setCardQuantity, removeCard } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
-import { getDeck, getEnrichment } from './messaging.js';
+import { getDeck, getEnrichment, getRecs } from './messaging.js';
 import { annotate } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCardSidebar } from './render-card-sidebar.js';
@@ -64,7 +64,7 @@ export async function installRecommendations({ waitFor }) {
 
   // Load EDHREC recs once (used by both tabs): deck read → recs POST.
   const deck = await readDeck(publicId).catch(() => null);
-  const json = deck ? await fetchRecs(deck.commanders, Object.values(deck.boards.mainboard).map((e) => e.name)) : null;
+  const json = deck ? await getRecs(deck.commanders, Object.values(deck.boards.mainboard).map((e) => e.name)).catch(() => null) : null;
   const inScore = new Map();
   for (const r of (json && json.inRecs) || []) if (r && r.name && typeof r.score === 'number') inScore.set(frontKey(r.name), r.score);
   const cuts = deck

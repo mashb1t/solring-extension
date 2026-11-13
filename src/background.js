@@ -8,6 +8,7 @@ import { extractDeck, extractHit, isStub } from './extract.js';
 import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS, SBOOK_TTL_MS, recordPowerPoint } from './cache.js';
 import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
+import { fetchRecs } from './sources/edhrec-recs.js';
 import { md5Hex } from './md5.js';
 
 async function fetchAndCacheDeck(md5) {
@@ -135,7 +136,10 @@ async function getEnrichment({ source, md5 }) {
   return { error: `unknown enrichment source: ${source}` };
 }
 
-const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment };
+// edhrec.com/api/recs stopped serving ACAO, so the deck-specific recs POST runs here (host grant).
+const getRecs = ({ commanders, cards }) => fetchRecs(commanders, cards);
+
+const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment, getRecs };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = msg && HANDLERS[msg.type];

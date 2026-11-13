@@ -1,8 +1,8 @@
 // EDHREC "recs" cut recommendations (the edhrec.com/recs tool). Worker-only. Unlike the
 // commander-page JSON (json.edhrec.com), this is a deck-specific POST — it takes the whole
 // decklist and returns `outRecs`: the deck's OWN cards ranked by how strongly EDHREC suggests
-// cutting them. edhrec.com/api/recs serves ACAO:* (with an Origin present), so no
-// host_permissions are needed. Moxfield's native EDHREC integration only shows cards to ADD,
+// cutting them. edhrec.com/api/recs no longer serves ACAO, so this runs in the
+// worker under an edhrec.com host grant. Moxfield's native EDHREC integration only shows cards to ADD,
 // so cuts are the unique value here.
 
 const RECS_URL = 'https://edhrec.com/api/recs/';

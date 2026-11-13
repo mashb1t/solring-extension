@@ -11,9 +11,9 @@ through any Solring backend — all data is fetched straight from the third-part
   idempotent and guarded; `dom.disposeAll()` tears down the previous route's observers/listeners first.
 - **`src/background.js`** — the **only** code that fetches `api.commandersalt.com` / `backend.commanderspellbook.com`
   (both need `host_permissions` — neither serves CORS). Content scripts talk to it via `messaging.js`
-  (`getDeck`, `importDeck`, `getEnrichment(source, md5)`); responses may carry `{error}` / `{miss}`.
+  (`getDeck`, `importDeck`, `getEnrichment(source, md5)`, `getRecs`); responses may carry `{error}` / `{miss}`.
 - **`src/sources/`** — worker-only pure fetch+shape helpers: `edhrec.js` (commander page, `json.edhrec.com`, ACAO:\*),
-  `edhrec-recs.js` (`edhrec.com/api/recs` cuts, ACAO:\*), `spellbook.js` (`find-my-combos`).
+  `edhrec-recs.js` (`edhrec.com/api/recs` cuts, no ACAO → `getRecs` message), `spellbook.js` (`find-my-combos`).
 - **`src/cache.js`** — `chrome.storage.local` cache. Prefixes `deck:` / `search:` / `edhrec:` / `sbook:`; TTL-gated
   enrichment (`isFreshTtl`), schema-gated deck data (`isFresh`), `dedupe(key, fn)` for in-flight coalescing.
 - **Renderers** — `render-deck.js` (deck report-card panel + tiles), `render-panels.js` (expandable detail panels +
@@ -33,7 +33,8 @@ through any Solring backend — all data is fetched straight from the third-part
 - **Idempotent + disposable**: injectors check for their own marker before adding; observers/listeners register via
   `dom.registerDisposable()` so the router can drain them on nav.
 - **CORS drives `host_permissions`**: only hosts that DON'T serve permissive CORS are declared
-  (`api.commandersalt.com`, `backend.commanderspellbook.com`). EDHREC + `api2.moxfield.com` serve ACAO, so no grant.
+  (`api.commandersalt.com`, `backend.commanderspellbook.com`, `edhrec.com` for the recs POST). `json.edhrec.com` +
+  `api2.moxfield.com` serve ACAO, so no grant.
 - All third-party text goes in via `textContent` / `el(...)`, never `innerHTML`.
 - `el(tag, {class, text, attrs}, children)` from `dom.js` is the DOM builder. Numbers are formatted via `format.js`
   (`num`, `exact`); identifiers humanized via `labels.js`.

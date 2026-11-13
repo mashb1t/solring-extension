@@ -10,7 +10,7 @@
     "128": "icons/128.png"
   },
   "permissions": ["storage"],
-  "host_permissions": ["https://api.commandersalt.com/*", "https://backend.commanderspellbook.com/*"],
+  "host_permissions": ["https://api.commandersalt.com/*", "https://backend.commanderspellbook.com/*", "https://edhrec.com/*"],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
