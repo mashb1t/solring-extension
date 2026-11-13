@@ -80,6 +80,7 @@ export function isFreshTtl(entry, ttl) {
 }
 
 // Cached analyses + enrichment: deck:* / search:* / edhrec:* / sbook:* / ebuild:* (deck-builder EDHREC pages) / scry:* (deck-builder Scryfall card info + flag lists; not prefs:* / sync:*).
+// build:* (deck-builder per-deck playstyle/rules + pending handoff) is user state, NOT in isCacheKey, so clearing the cache never wipes it.
 function isCacheKey(k) {
   return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:') || k.startsWith('ebuild:') || k.startsWith('scry:');
 }
