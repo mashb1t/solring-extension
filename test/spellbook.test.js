@@ -73,3 +73,25 @@ test('nearMissCombos: empty/absent results → []', () => {
   assert.deepEqual(nearMissCombos({}, ['x']), []);
   assert.deepEqual(nearMissCombos({ almostIncluded: [] }, ['x']), []);
 });
+
+import { keyCombos } from '../src/sources/spellbook.js';
+
+test('keyCombos: 1-2 missing, bracket-filtered, popularity desc, capped', () => {
+  const results = { almostIncluded: [
+    combo('one', ['A', 'B'], [], 10, { bracketTag: 'C' }),
+    combo('two', ['A', 'X', 'Y'], [], 50, { bracketTag: 'S' }),
+    combo('three', ['X', 'Y', 'Z'], [], 99, { bracketTag: 'C' }),
+    combo('ruthless', ['A', 'Q'], [], 90, { bracketTag: 'R' }),
+    combo('p4', ['A', 'P'], [], 5, { bracketTag: 'C' }),
+    combo('p5', ['A', 'P2'], [], 4, { bracketTag: 'C' }),
+  ] };
+  const out = keyCombos(results, ['A', 'Island'], 3, 3);
+  assert.deepEqual(out.map((c) => c.id), ['two', 'one', 'p4']);
+  assert.deepEqual(out[1].pieces, [{ name: 'A', missing: false }, { name: 'B', missing: true }]);
+  assert.deepEqual(out[0].add, ['X', 'Y']);
+  assert.equal(out[0].bracketTag, 'S');
+  assert.equal(out[0].popularity, 50);
+  assert.ok(!keyCombos(results, ['A'], 3).some((c) => c.id === 'ruthless'));
+  assert.ok(keyCombos(results, ['A'], 4, 10).some((c) => c.id === 'ruthless'));
+  assert.deepEqual(keyCombos(null, [], 3), []);
+});

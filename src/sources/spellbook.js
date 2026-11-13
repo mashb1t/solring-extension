@@ -2,6 +2,8 @@
 // worker). backend.commanderspellbook.com does NOT serve permissive CORS for us, so the
 // worker fetch relies on the host_permissions entry in the manifest (unlike Scryfall/EDHREC).
 
+import { comboAllowed } from '../build-rules.js';
+
 const FIND_MY_COMBOS_URL = 'https://backend.commanderspellbook.com/find-my-combos';
 
 // Front-face, lowercased — the form we match combo pieces against the deck by. Deck names
@@ -54,6 +56,25 @@ export function nearMissCombos(results, deckNames, cap = 25) {
       prerequisites: [...lines(combo.easyPrerequisites), ...lines(combo.notablePrerequisites)],
       steps: lines(combo.description),
     });
+  }
+  return out.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, cap);
+}
+
+// Combos worth building toward in the guided builder: 1-2 pieces missing from the in-progress
+// deck, allowed at the chosen bracket, most popular first, capped (never more than `cap`).
+export function keyCombos(results, deckNames, bracket, cap = 3) {
+  const have = new Set((deckNames || []).map(norm));
+  const out = [];
+  for (const combo of (results && results.almostIncluded) || []) {
+    const pieces = (combo.uses || [])
+      .map((u) => u && u.card)
+      .filter((c) => c && c.name)
+      .map((c) => ({ name: c.name, missing: !have.has(norm(c.name)) }));
+    const add = pieces.filter((p) => p.missing).map((p) => p.name);
+    if (add.length < 1 || add.length > 2) continue;
+    const bracketTag = combo.bracketTag || null;
+    if (!comboAllowed(bracketTag, bracket)) continue;
+    out.push({ id: combo.id, pieces, add, bracketTag, popularity: typeof combo.popularity === 'number' ? combo.popularity : null });
   }
   return out.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, cap);
 }

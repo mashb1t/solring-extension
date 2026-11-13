@@ -154,7 +154,25 @@ async function buildPage(path) {
   return entry && entry.data ? entry.data : null;
 }
 
-async function getBuildData({ op, commanders, theme, card }) {
+// Raw Spellbook find-my-combos results for an arbitrary in-progress deck (content scripts
+// compute keyCombos from them). Cached by a hash of the sorted card list, like spellbookEnrichment.
+async function buildCombos(commanders, cards) {
+  const cmds = (commanders || []).filter(Boolean);
+  const names = (cards || []).filter(Boolean);
+  if (!cmds.length) return { miss: true };
+  const key = `sbook:${md5Hex([...cmds, ...names].sort().join('|'))}`;
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, SBOOK_TTL_MS)) return cached;
+    const results = await fetchMyCombos(cmds.map((card) => ({ card, quantity: 1 })), names.map((card) => ({ card, quantity: 1 })));
+    if (!results) return null;
+    return setEntry(key, results);
+  });
+  return entry && entry.data ? { results: entry.data } : { miss: true };
+}
+
+async function getBuildData({ op, commanders, theme, card, cards }) {
+  if (op === 'combos') return buildCombos(commanders, cards);
   let path = null; let shape = null;
   if (op === 'themes') {
     const slug = commanderSlug(commanders);
