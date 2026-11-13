@@ -68,6 +68,8 @@ export function isFresh(entry, ttl = TTL_MS) {
 }
 
 export const ENRICH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const SCRY_INFO_TTL_MS = 24 * 60 * 60 * 1000; // 1 day (prices move)
+export const SCRY_FLAGS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const SBOOK_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (combo data changes slowly)
 
 // Freshness for enrichment entries: TTL only, NO schema-version gate. Enrichment shape is
@@ -77,9 +79,9 @@ export function isFreshTtl(entry, ttl) {
   return !!entry && Date.now() - entry.fetchedAt < ttl;
 }
 
-// Cached analyses + enrichment: deck:* / search:* / edhrec:* / sbook:* / ebuild:* (deck-builder EDHREC pages; not prefs:* / sync:*).
+// Cached analyses + enrichment: deck:* / search:* / edhrec:* / sbook:* / ebuild:* (deck-builder EDHREC pages) / scry:* (deck-builder Scryfall card info + flag lists; not prefs:* / sync:*).
 function isCacheKey(k) {
-  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:') || k.startsWith('ebuild:');
+  return k.startsWith('deck:') || k.startsWith('search:') || k.startsWith('edhrec:') || k.startsWith('sbook:') || k.startsWith('ebuild:') || k.startsWith('scry:');
 }
 
 /** Total storage footprint of cached analyses → { bytes, count }. */

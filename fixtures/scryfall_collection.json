@@ -1,0 +1,87 @@
+{
+ "object": "list",
+ "not_found": [],
+ "data": [
+  {
+   "name": "Rhystic Study",
+   "type_line": "Enchantment",
+   "color_identity": [
+    "U"
+   ],
+   "game_changer": true,
+   "prices": {
+    "usd": "67.93"
+   },
+   "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/9/f/9f37c5b6-a59c-45cd-9a99-e9357fe9ea1b.jpg?1783919146",
+    "normal": "https://cards.scryfall.io/normal/front/9/f/9f37c5b6-a59c-45cd-9a99-e9357fe9ea1b.jpg?1783919146"
+   }
+  },
+  {
+   "name": "Sol Ring",
+   "type_line": "Artifact",
+   "color_identity": [],
+   "game_changer": false,
+   "prices": {
+    "usd": "1.17"
+   },
+   "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/f/c/fc817e07-c1f3-469f-9cf7-0945dea7400f.jpg?1793021181",
+    "normal": "https://cards.scryfall.io/normal/front/f/c/fc817e07-c1f3-469f-9cf7-0945dea7400f.jpg?1793021181"
+   }
+  },
+  {
+   "name": "Ojer Axonil, Deepest Might // Temple of Power",
+   "type_line": "Legendary Creature — God // Land",
+   "color_identity": [
+    "R"
+   ],
+   "game_changer": false,
+   "prices": {
+    "usd": "25.14"
+   },
+   "card_faces": [
+    {
+     "name": "Ojer Axonil, Deepest Might",
+     "image_uris": {
+      "small": "https://cards.scryfall.io/small/front/5/0/50f8e2b6-98c7-4f28-bb39-e1fbe841f1ee.jpg?1783913761",
+      "normal": "https://cards.scryfall.io/normal/front/5/0/50f8e2b6-98c7-4f28-bb39-e1fbe841f1ee.jpg?1783913761"
+     }
+    },
+    {
+     "name": "Temple of Power",
+     "image_uris": {
+      "small": "https://cards.scryfall.io/small/back/5/0/50f8e2b6-98c7-4f28-bb39-e1fbe841f1ee.jpg?1783913761",
+      "normal": "https://cards.scryfall.io/normal/back/5/0/50f8e2b6-98c7-4f28-bb39-e1fbe841f1ee.jpg?1783913761"
+     }
+    }
+   ]
+  },
+  {
+   "name": "Black Lotus",
+   "type_line": "Artifact",
+   "color_identity": [],
+   "game_changer": false,
+   "prices": {
+    "usd": null
+   },
+   "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1783939332",
+    "normal": "https://cards.scryfall.io/normal/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1783939332"
+   }
+  },
+  {
+   "name": "Command Tower",
+   "type_line": "Land",
+   "color_identity": [],
+   "game_changer": false,
+   "prices": {
+    "usd": "0.38"
+   },
+   "image_uris": {
+    "small": "https://cards.scryfall.io/small/front/a/7/a73297d2-580c-4174-a427-265f6916d09f.jpg?1793021256",
+    "normal": "https://cards.scryfall.io/normal/front/a/7/a73297d2-580c-4174-a427-265f6916d09f.jpg?1793021256"
+   }
+  }
+ ]
+}

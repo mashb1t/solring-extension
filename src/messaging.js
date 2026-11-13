@@ -11,3 +11,4 @@ export const importDeck = (canonicalUrl, md5, oldDeckId) => send({ type: 'import
 export const getEnrichment = (source, md5) => send({ type: 'getEnrichment', source, md5 });
 export const getRecs = (commanders, cards) => send({ type: 'getRecs', commanders, cards });
 export const getBuildData = (payload) => send({ type: 'getBuildData', ...payload });
+export const getCardData = (payload) => send({ type: 'getCardData', ...payload });

@@ -5,11 +5,12 @@
 
 import { getDeckById, searchByAuthor, importByUrl } from './api.js';
 import { extractDeck, extractHit, isStub } from './extract.js';
-import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS, SBOOK_TTL_MS, recordPowerPoint } from './cache.js';
+import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH_TTL_MS, SBOOK_TTL_MS, SCRY_INFO_TTL_MS, SCRY_FLAGS_TTL_MS, recordPowerPoint } from './cache.js';
 import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
 import { fetchRecs } from './sources/edhrec-recs.js';
 import { fetchEdhrecPage, themesOf, themeCards, topCommanders, cardSlug } from './sources/edhrec-build.js';
+import { searchCommanders, fetchCardInfo, fetchFlagSets } from './sources/scryfall.js';
 import { md5Hex } from './md5.js';
 
 async function fetchAndCacheDeck(md5) {
@@ -172,7 +173,54 @@ async function getBuildData({ op, commanders, theme, card }) {
   return json ? shape(json) : { miss: true };
 }
 
-const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment, getRecs, getBuildData };
+// Guided Deck Builder: Scryfall data. Card info is cached per front-face key (scry:<key>, 1 day);
+// only uncached names hit the network. Flag lists are cached whole (scry:flags, 7 days) and go
+// over the wire as arrays.
+const frontKey = (n) => String(n).split(' // ')[0].toLowerCase().trim();
+
+async function cardInfo(names) {
+  const info = {};
+  const missing = [];
+  for (const name of (names || [])) {
+    const key = frontKey(name);
+    const cached = await getEntry(`scry:${key}`);
+    if (isFreshTtl(cached, SCRY_INFO_TTL_MS)) info[key] = cached.data;
+    else missing.push(name);
+  }
+  if (missing.length) {
+    const fetched = await fetchCardInfo(missing);
+    for (const [key, card] of Object.entries(fetched)) {
+      info[key] = card;
+      await setEntry(`scry:${key}`, card);
+    }
+  }
+  return info;
+}
+
+async function flagLists() {
+  const key = 'scry:flags';
+  const entry = await dedupe(key, async () => {
+    const cached = await getEntry(key);
+    if (isFreshTtl(cached, SCRY_FLAGS_TTL_MS)) return cached;
+    const sets = await fetchFlagSets();
+    if (!sets) return null;
+    return setEntry(key, {
+      gameChangers: [...sets.gameChangers],
+      extraTurns: [...sets.extraTurns],
+      massLandDenial: [...sets.massLandDenial],
+    });
+  });
+  return entry && entry.data ? entry.data : { miss: true };
+}
+
+async function getCardData({ op, q, names }) {
+  if (op === 'search') return { commanders: q && String(q).trim() ? await searchCommanders(String(q).trim()) : [] };
+  if (op === 'info') return { info: await cardInfo(names) };
+  if (op === 'flags') return flagLists();
+  return { miss: true };
+}
+
+const HANDLERS = { getDeck, getUserDecks, importDeck, getEnrichment, getRecs, getBuildData, getCardData };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   const handler = msg && HANDLERS[msg.type];

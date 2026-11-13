@@ -1,0 +1,108 @@
+// Scryfall data for the Guided Deck Builder. Worker-only (imported by the background service
+// worker). api.scryfall.com serves ACAO:* so no host_permissions. Etiquette: requests are
+// sequential and at least 100 ms apart. Fail-silent: failures yield []/{}/null, never throw.
+
+const API = 'https://api.scryfall.com';
+const BATCH = 75;
+const DELAY_MS = 100;
+
+const frontFace = (name) => String(name).split(' // ')[0].toLowerCase().trim();
+const sleep = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
+
+const imageOf = (c) => {
+  const i = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris);
+  return (i && (i.normal || i.small)) || null;
+};
+
+async function getJson(url) {
+  let r;
+  try { r = await fetch(url); } catch { return null; }
+  if (!r.ok) return null;
+  const json = await r.json().catch(() => null);
+  return json && typeof json === 'object' ? json : null;
+}
+
+// Commander picker search: first page, EDHREC-popularity order. [] on failure.
+export async function searchCommanders(q) {
+  const query = `is:commander ${q}`;
+  const json = await getJson(`${API}/cards/search?q=${encodeURIComponent(query)}&order=edhrec`);
+  return ((json && json.data) || []).map((c) => ({
+    name: c.name,
+    colorIdentity: c.color_identity || [],
+    image: imageOf(c),
+  }));
+}
+
+// /cards/collection response → { frontKey: {name, usd, gameChanger, colorIdentity, typeLine, image} }.
+export function shapeCards(json) {
+  const out = {};
+  for (const c of (json && Array.isArray(json.data) ? json.data : [])) {
+    if (!c || !c.name) continue;
+    const usd = c.prices && c.prices.usd != null ? Number(c.prices.usd) : NaN;
+    out[frontFace(c.name)] = {
+      name: c.name,
+      usd: Number.isFinite(usd) ? usd : null,
+      gameChanger: c.game_changer === true,
+      colorIdentity: c.color_identity || [],
+      typeLine: c.type_line || '',
+      image: imageOf(c),
+    };
+  }
+  return out;
+}
+
+// Price / Game Changer / colors for card names, in sequential batches of 75. A failed batch
+// is skipped (its cards are simply absent). opts.delayMs overrides the inter-batch pause.
+export async function fetchCardInfo(names, { delayMs = DELAY_MS } = {}) {
+  const out = {};
+  const list = [...new Set((names || []).filter(Boolean))];
+  for (let i = 0; i < list.length; i += BATCH) {
+    if (i > 0) await sleep(delayMs);
+    const identifiers = list.slice(i, i + BATCH).map((name) => ({ name }));
+    let json = null;
+    try {
+      const r = await fetch(`${API}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifiers }),
+      });
+      if (r.ok) json = await r.json().catch(() => null);
+    } catch { /* skip batch */ }
+    Object.assign(out, shapeCards(json));
+  }
+  return out;
+}
+
+const FLAG_QUERIES = {
+  gameChangers: 'is:gamechanger',
+  extraTurns: 'otag:extra-turn',
+  massLandDenial: 'otag:mass-land-denial',
+};
+
+// Front-face keys for every result of a search, following next_page. null if any page fails.
+async function searchAllKeys(q, delayMs) {
+  const keys = new Set();
+  let url = `${API}/cards/search?q=${encodeURIComponent(q)}`;
+  for (let pages = 0; url && pages < 20; pages++) {
+    if (pages > 0) await sleep(delayMs);
+    const json = await getJson(url);
+    if (!json) return null;
+    for (const c of (json.data || [])) if (c && c.name) keys.add(frontFace(c.name));
+    url = json.has_more ? json.next_page : null;
+  }
+  return keys;
+}
+
+// Bracket flag lists. Returns null if any query fails, so callers never cache a partial list.
+export async function fetchFlagSets({ delayMs = DELAY_MS } = {}) {
+  const out = {};
+  let first = true;
+  for (const [name, q] of Object.entries(FLAG_QUERIES)) {
+    if (!first) await sleep(delayMs);
+    first = false;
+    const keys = await searchAllKeys(q, delayMs);
+    if (!keys) return null;
+    out[name] = keys;
+  }
+  return out;
+}
