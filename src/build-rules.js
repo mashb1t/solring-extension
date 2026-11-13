@@ -25,10 +25,12 @@ export function comboAllowed(bracketTag, bracket) {
 }
 
 const isGc = (key, ctx) => ctx.flags.gameChangers.has(key) || !!(ctx.info[key] && ctx.info[key].gameChanger);
-// Absent from info counts as unknown price (null), never free.
+// Absent from info counts as unknown price (null), never free; except basics, which are $0
+// when info has no entry for them (a basic that IS in info uses its price).
 const priceOf = (key, ctx) => {
   const usd = ctx.info[key] && ctx.info[key].usd;
-  return typeof usd === 'number' ? usd : null;
+  if (typeof usd === 'number') return usd;
+  return BASICS.has(key) && !ctx.info[key] ? 0 : null;
 };
 
 function count(ctx, name) {

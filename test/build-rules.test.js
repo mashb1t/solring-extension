@@ -106,3 +106,16 @@ test('ruleUsage', () => {
   assert.ok(u.power);
   assert.equal(ruleUsage(ctxOf()).some((r) => r.key === 'budget'), false);
 });
+
+test('budget: basics absent from info count as $0, basics in info use their price', () => {
+  const rules = { ...RULES_DEFAULT, budget: 10 };
+  const ctx = ctxOf({ rules, info: { island: { name: 'Island', usd: 3 } } });
+  assert.deepEqual(checkCard('Forest', ctx), { ok: true });
+  assert.deepEqual(checkCard('Snow-Covered Swamp', ctx), { ok: true });
+  assert.deepEqual(checkCard('Island', ctx), { ok: true });
+  assert.equal(addToCtx(ctx, 'Forest').spent, 0);
+  assert.equal(addToCtx(ctx, 'Island').spent, 3);
+  const tight = ctxOf({ rules: { ...RULES_DEFAULT, budget: 2 }, info: { island: { name: 'Island', usd: 3 } } });
+  assert.equal(checkCard('Island', tight).ok, false);
+  assert.equal(checkCard('Nonbasic', ctx).reason, 'No price (budget set)');
+});
