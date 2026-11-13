@@ -12,7 +12,7 @@ import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
 import { getOptions } from './prefs.js';
 import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild } from './build-store.js';
-import { makeCtx, ruleUsage, effectiveGcCap } from './build-rules.js';
+import { makeCtx, ruleUsage, effectiveGcCap, RULES_DEFAULT } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
@@ -109,6 +109,9 @@ export async function installBuilder({ waitFor }) {
   // One retry: right after a Bulk Edit save the read (or the token relay) can transiently fail.
   if (!deck && live()) { await new Promise((r) => setTimeout(r, 1200)); deck = live() ? await readDeckAny(publicId) : null; }
   if (!live() || !deck || deck.format !== 'commander' || !deck.commanders.length) return;
+  const build = await getDeckBuild(publicId).catch(() => ({ theme: null, rules: { ...RULES_DEFAULT } }));
+  // Last await before inserting: re-check, so an overlapping mount can't insert an orphan root.
+  if (!live()) return;
   deckview = document.querySelector('section.deckview');
   if (!deckview || !deckview.isConnected) return;
   // We are the live mount (the token is ours), so any builder DOM still here belongs to a dead one.
@@ -116,7 +119,7 @@ export async function installBuilder({ waitFor }) {
 
   // ---- state -------------------------------------------------------------------------------
   const S = {
-    build: await getDeckBuild(publicId).catch(() => ({ theme: null, rules: {} })),
+    build,
     themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), info: {},
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
@@ -124,6 +127,8 @@ export async function installBuilder({ waitFor }) {
   };
   const selected = new Map(); // front-face key → mainboard name (decklist checkboxes)
   let syncPicks = () => {}; // set by installRowPicks: re-applies checkbox state to the rows
+  let modalKey = null; // the open preview's Escape listener (closeModal removes it)
+  let themeSeq = 0; // playstyle-switch sequence: a slower earlier switch must not win
 
   // ---- skeleton ------------------------------------------------------------------------------
   const body = el('div', { class: 'solring-panel-body solring-builder-body' });
@@ -143,6 +148,9 @@ export async function installBuilder({ waitFor }) {
   setOpen(!!bulkEditLink()); // open on decks you can edit; collapsed (one click away) otherwise
   body.replaceChildren(el('div', { class: 'solring-msg', text: 'Loading suggestions…' }));
   const alive = () => live() && root.isConnected;
+  own(() => closeModal());
+  // A later abort of a mount that lost its token removes the root it inserted (no orphan panel).
+  const abandon = () => { if (mountToken !== token) root.remove(); };
 
   // ---- data ----------------------------------------------------------------------------------
   // R4: a build started in Moxfield's New-deck dialog lands here; adopt its playstyle only when
@@ -153,7 +161,7 @@ export async function installBuilder({ waitFor }) {
       const took = await takePendingBuild().catch(() => null);
       if (took && took.theme) { S.build.theme = took.theme; await setDeckBuild(publicId, { theme: took.theme }).catch(() => {}); }
     }
-    if (!alive()) return;
+    if (!alive()) return abandon();
   }
 
   const mainNames = () => Object.values(deck.boards.mainboard).map((e) => e.name);
@@ -189,7 +197,7 @@ export async function installBuilder({ waitFor }) {
   }
 
   await loadAll();
-  if (!alive()) return;
+  if (!alive()) return abandon();
   S.loading = false;
   recompute();
   render();
@@ -202,15 +210,20 @@ export async function installBuilder({ waitFor }) {
 
   // Re-read the deck after a write that did NOT remount us (e.g. Bulk Edit was already open).
   async function refreshDeck() {
-    const fresh = await readDeckAny(publicId);
-    if (!alive() || !fresh) return;
-    deck = fresh;
-    S.comp = V.deckComposition(deck);
-    S.comboResults = await loadCombos();
-    await loadInfo();
-    if (!alive()) return;
-    selected.clear();
-    recompute(); render(); syncPicks();
+    let fresh = await readDeckAny(publicId);
+    // Same transient-failure retry as the mount path (read right after a Bulk Edit save).
+    if (!fresh && alive()) { await new Promise((r) => setTimeout(r, 1200)); fresh = alive() ? await readDeckAny(publicId) : null; }
+    if (!alive()) return abandon();
+    if (fresh) {
+      deck = fresh;
+      S.comp = V.deckComposition(deck);
+      S.comboResults = await loadCombos();
+      await loadInfo();
+      if (!alive()) return abandon();
+      selected.clear();
+      recompute();
+    }
+    render(); syncPicks(); // always leave the busy state, even if the re-read failed
   }
 
   // ---- writes --------------------------------------------------------------------------------
@@ -251,7 +264,7 @@ export async function installBuilder({ waitFor }) {
     const url = canonicalDeckUrl(publicId);
     const md5 = deckMd5(url);
     const res = await importDeck(url, md5, md5).catch((e) => ({ error: String(e) })); // single attempt
-    if (!alive()) return;
+    if (!alive()) return abandon();
     S.power = V.powerVerdict(res, target); render();
   }
 
@@ -259,7 +272,7 @@ export async function installBuilder({ waitFor }) {
   async function saveRules(patch) {
     S.build.rules = { ...S.build.rules, ...patch };
     await setDeckBuild(publicId, { rules: patch }).catch(() => {});
-    if (!alive()) return;
+    if (!alive()) return abandon();
     recompute(); render();
   }
 
@@ -267,25 +280,29 @@ export async function installBuilder({ waitFor }) {
     if (!on) { S.ownedState = S.ownedState === 'unavailable' ? 'unavailable' : 'idle'; return saveRules({ ownedOnly: false }); }
     S.ownedState = 'loading'; render();
     const set = await ownedNames().catch(() => null);
-    if (!alive()) return;
+    if (!alive()) return abandon();
     if (!set) { S.owned = null; S.ownedState = 'unavailable'; return saveRules({ ownedOnly: false }); }
     S.owned = set; S.ownedState = 'ready';
     return saveRules({ ownedOnly: true });
   }
 
   async function setTheme(slug) {
+    const seq = ++themeSeq; // a slower earlier switch must not overwrite a newer one
     S.theme = slug; S.build.theme = slug; S.loading = true; render();
     await setDeckBuild(publicId, { theme: slug }).catch(() => {});
-    S.themeCards = await loadThemeCards(slug);
+    const cards = await loadThemeCards(slug);
+    if (seq !== themeSeq) return;
+    S.themeCards = cards;
     await loadInfo();
-    if (!alive()) return;
+    if (!alive()) return abandon();
+    if (seq !== themeSeq) return;
     S.loading = false; S.showAllTheme = false; S.showAllLands = false;
     recompute(); render();
   }
 
   // ---- render --------------------------------------------------------------------------------
   function render() {
-    if (!alive()) return;
+    if (!alive()) return abandon();
     barInfo.textContent = `${S.comp.current.cards} / ${V.DECK_SIZE} cards · ${S.comp.current.lands} / ${V.LAND_TARGET} lands`;
     if (S.loading || !S.ctx) { body.replaceChildren(rulesBar(), el('div', { class: 'solring-msg', text: 'Loading suggestions…' })); return; }
     const kids = [rulesBar()];
@@ -439,7 +456,10 @@ export async function installBuilder({ waitFor }) {
   }
 
   // ---- Auto-complete preview -----------------------------------------------------------------
-  function closeModal() { document.querySelectorAll('.solring-builder-modal-back').forEach((n) => n.remove()); }
+  function closeModal() {
+    if (modalKey) { document.removeEventListener('keydown', modalKey); modalKey = null; }
+    document.querySelectorAll('.solring-builder-modal-back').forEach((n) => n.remove());
+  }
 
   function openPreview() {
     if (!S.ctx || S.busy) return;
@@ -481,9 +501,8 @@ export async function installBuilder({ waitFor }) {
     ]);
     const back = el('div', { class: 'solring-builder-modal-back' }, [dialog]);
     back.addEventListener('click', (e) => { if (e.target === back) closeModal(); });
-    const onKey = (e) => { if (e.key === 'Escape') closeModal(); };
-    document.addEventListener('keydown', onKey);
-    own(() => document.removeEventListener('keydown', onKey));
+    modalKey = (e) => { if (e.key === 'Escape') closeModal(); };
+    document.addEventListener('keydown', modalKey);
     update();
     document.body.appendChild(back);
     confirm.focus();
@@ -520,7 +539,7 @@ export async function installBuilder({ waitFor }) {
       remove.disabled = !!S.busy;
     }
     function decorate() {
-      if (!alive()) return;
+      if (!alive()) return abandon();
       for (const link of rows()) {
         const ent = entryOf(link);
         if (!ent) continue;
