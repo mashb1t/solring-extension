@@ -11,7 +11,7 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
@@ -20,8 +20,9 @@
       import(u('render-user.js')),
       import(u('sync.js')),
       import(u('recommendations.js')),
+      import(u('render-picker.js')),
     ]);
-    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations };
+    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker };
     return mods;
   }
 
@@ -51,7 +52,7 @@
 
   async function route() {
     const m = await load();
-    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations } = m;
+    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker } = m;
     wideLayout.installWideToggle(); // idempotent global header toggle, applies on every page
     dom.disposeAll(); // first: disconnect every observer/listener from the previous route
     dom.guard('teardown', () => dom.teardown());
@@ -62,6 +63,10 @@
     // The /decks/{id}/recommendations route isn't pageType 'deck' (parseDeckId rejects the
     // suffix), so install the cuts tab unconditionally — it self-guards to that route.
     recommendations.installRecommendations({ waitFor }).catch((e) => console.warn('[solring] cuts', e));
+    // Moxfield opens its "Create New Deck" dialog from many routes, and commander-less decks show a
+    // "Pick a Commander" alert: the picker watches for both on every route (self-detecting).
+    picker.teardownPicker();
+    picker.installPicker({ waitFor }).catch((e) => console.warn('[solring] picker', e));
     const type = moxfield.pageType(location.href);
     if (type === 'deck') {
       await renderDeck.mount({ ...m, waitFor });
