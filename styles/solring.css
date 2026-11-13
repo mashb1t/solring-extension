@@ -782,7 +782,11 @@ span.solring-picker-entry { display: inline; }
 .solring-picker-mode {
   border: 0; background: transparent; color: var(--solring-text-2); font-size: 0.75rem; padding: 0.25rem 0.65rem; cursor: pointer;
 }
-.solring-picker-mode.solring-on { background: var(--solring-accent); color: var(--bs-white, #fff); }
+/* Tinted accent + body text rather than solid accent + white: Moxfield's dark-mode accent is a
+   light purple, where white text would be unreadable. */
+.solring-picker-mode.solring-on {
+  background: color-mix(in srgb, var(--solring-accent) 22%, transparent); color: var(--solring-text); font-weight: 600;
+}
 .solring-picker-mode:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
 .solring-picker-cols { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.25rem; }
 .solring-picker-col { flex: 1 1 260px; min-width: 0; max-height: 340px; overflow-y: auto; }
