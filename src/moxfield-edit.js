@@ -5,9 +5,12 @@
 // absolute quantity; DELETE .../cards/{board}/{cardId} removes the card entirely.
 
 let token = null;
-window.addEventListener('message', (e) => {
-  if (e.source === window && e.data && typeof e.data.__solringMoxToken === 'string') token = e.data.__solringMoxToken;
-});
+// Guarded so the pure shaping below (shapeDeck) can be imported by node tests.
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (e) => {
+    if (e.source === window && e.data && typeof e.data.__solringMoxToken === 'string') token = e.data.__solringMoxToken;
+  });
+}
 export const hasToken = () => !!token;
 
 // READ-ONLY GET with the captured bearer token (ToS-adjacent, same note as above: this only reads
@@ -45,26 +48,56 @@ function cardImages(card) {
 
 export const frontKey = (name) => String(name).split(' // ')[0].toLowerCase().trim();
 
-// Read the deck (public GET). Each board maps a card's front-face key → { entryId, cardId, name,
-// quantity, image, faces }.
-export async function readDeck(publicId) {
-  const r = await fetch(`${V3}/${publicId}`, { credentials: 'include' });
-  if (!r.ok) throw new Error(`moxfield read ${r.status}`);
-  const d = await r.json();
+// Front face of a type line is a land ("Land", "Basic Land — Forest", "Artifact Land"). A
+// modal DFC with a land back ("Instant // Land") counts as a spell, as deck builders do.
+const isLandType = (typeLine) => /\bland\b/i.test(String(typeLine || '').split(' // ')[0]);
+
+/**
+ * Shape a /v3/decks/all/{id} JSON. Each board maps a card's front-face key → { entryId, cardId,
+ * name, quantity, isLand, image, faces }. `colorIdentity` is the union of the commanders' colour
+ * identities (the deck-level field can include off-colour cards); `format` is Moxfield's string
+ * (e.g. 'commander').
+ */
+export function shapeDeck(d) {
+  const boards = (d && d.boards) || {};
   const board = (b) => {
     const out = {};
-    for (const [entryId, c] of Object.entries((d.boards[b] && d.boards[b].cards) || {})) {
-      const name = c.card && c.card.name;
-      if (name) out[frontKey(name)] = { entryId, cardId: c.card.id, name, quantity: c.quantity || 1, ...cardImages(c.card) };
+    for (const [entryId, c] of Object.entries((boards[b] && boards[b].cards) || {})) {
+      const name = c && c.card && c.card.name;
+      if (name) {
+        out[frontKey(name)] = {
+          entryId, cardId: c.card.id, name, quantity: c.quantity || 1, isLand: isLandType(c.card.type_line), ...cardImages(c.card),
+        };
+      }
     }
     return out;
   };
+  const cmdCards = Object.values((boards.commanders && boards.commanders.cards) || {}).map((c) => c && c.card).filter((c) => c && c.name);
+  const ci = new Set();
+  for (const c of cmdCards) for (const x of c.color_identity || []) ci.add(x);
   return {
     editId: d.id,
     name: d.name,
-    commanders: Object.values((d.boards.commanders && d.boards.commanders.cards) || {}).map((c) => c.card && c.card.name).filter(Boolean),
+    format: d.format || null,
+    colorIdentity: cmdCards.length ? ['W', 'U', 'B', 'R', 'G'].filter((x) => ci.has(x)) : (d.colorIdentity || []),
+    commanders: cmdCards.map((c) => c.name),
     boards: { commanders: board('commanders'), mainboard: board('mainboard'), sideboard: board('sideboard'), maybeboard: board('maybeboard') },
   };
+}
+
+// Read the deck (public, cookie GET). Throws on a non-2xx (e.g. 404 for a private deck).
+export async function readDeck(publicId) {
+  const r = await fetch(`${V3}/${publicId}`, { credentials: 'include' });
+  if (!r.ok) throw new Error(`moxfield read ${r.status}`);
+  return shapeDeck(await r.json());
+}
+
+// readDeck, falling back to the token-authenticated read-only GET for private decks the user can
+// see (the cookie GET 404s on those). Same shape; null when neither works. Never throws.
+export async function readDeckAny(publicId) {
+  try { return await readDeck(publicId); } catch { /* fall through */ }
+  const d = await authedGet(`${V3}/${publicId}`);
+  return d && d.boards ? shapeDeck(d) : null;
 }
 
 async function write(url, opts) {
