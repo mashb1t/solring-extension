@@ -6,7 +6,7 @@ const API = 'https://api.scryfall.com';
 const BATCH = 75;
 const DELAY_MS = 100;
 
-const frontFace = (name) => String(name).split(' // ')[0].toLowerCase().trim();
+export const frontFace = (name) => String(name).split(' // ')[0].toLowerCase().trim();
 const sleep = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
 
 const imageOf = (c) => {
@@ -51,26 +51,55 @@ export function shapeCards(json) {
   return out;
 }
 
-// Price / Game Changer / colors for card names, in sequential batches of 75. A failed batch
-// is skipped (its cards are simply absent). opts.delayMs overrides the inter-batch pause.
-export async function fetchCardInfo(names, { delayMs = DELAY_MS } = {}) {
-  const out = {};
+// Pure: map one successful /cards/collection response back onto the REQUESTED names.
+// Returns { info: {requestedKey: card}, notFound: [requestedKey] }. A requested name whose
+// returned name differs (renamed / alt spelling) is matched by full lowercase name; names that
+// resolve neither way are left out of both (unknown, so callers must not cache them).
+export function resolveRequested(requested, json) {
+  const shaped = shapeCards(json);
+  const nf = new Set(((json && json.not_found) || []).map((i) => i && i.name && frontFace(i.name)).filter(Boolean));
+  const byFull = {};
+  for (const c of Object.values(shaped)) byFull[String(c.name).toLowerCase().trim()] = c;
+  const info = {};
+  const notFound = [];
+  for (const name of requested) {
+    const key = frontFace(name);
+    const hit = shaped[key] || byFull[String(name).toLowerCase().trim()];
+    if (hit) info[key] = hit;
+    else if (nf.has(key)) notFound.push(key);
+  }
+  return { info, notFound };
+}
+
+// Price / Game Changer / colors for card names, in sequential batches of 75, keyed by the
+// REQUESTED front-face key. Also reports `notFound` keys (Scryfall said so). A failed batch
+// contributes to neither (network error, not "not found"). opts.delayMs overrides the pause.
+export async function fetchCardLookup(names, { delayMs = DELAY_MS } = {}) {
+  const info = {};
+  const notFound = [];
   const list = [...new Set((names || []).filter(Boolean))];
   for (let i = 0; i < list.length; i += BATCH) {
     if (i > 0) await sleep(delayMs);
-    const identifiers = list.slice(i, i + BATCH).map((name) => ({ name }));
+    const batch = list.slice(i, i + BATCH);
     let json = null;
     try {
       const r = await fetch(`${API}/cards/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifiers }),
+        body: JSON.stringify({ identifiers: batch.map((name) => ({ name })) }),
       });
       if (r.ok) json = await r.json().catch(() => null);
     } catch { /* skip batch */ }
-    Object.assign(out, shapeCards(json));
+    if (!json) continue;
+    const res = resolveRequested(batch, json);
+    Object.assign(info, res.info);
+    notFound.push(...res.notFound);
   }
-  return out;
+  return { info, notFound };
+}
+
+export async function fetchCardInfo(names, opts) {
+  return (await fetchCardLookup(names, opts)).info;
 }
 
 const FLAG_QUERIES = {

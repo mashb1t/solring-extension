@@ -10,7 +10,7 @@ import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchE
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
 import { fetchRecs } from './sources/edhrec-recs.js';
 import { fetchEdhrecPage, themesOf, themeCards, topCommanders, cardSlug } from './sources/edhrec-build.js';
-import { searchCommanders, fetchCardInfo, fetchFlagSets } from './sources/scryfall.js';
+import { searchCommanders, fetchCardLookup, fetchFlagSets, frontFace } from './sources/scryfall.js';
 import { md5Hex } from './md5.js';
 
 async function fetchAndCacheDeck(md5) {
@@ -176,23 +176,23 @@ async function getBuildData({ op, commanders, theme, card }) {
 // Guided Deck Builder: Scryfall data. Card info is cached per front-face key (scry:<key>, 1 day);
 // only uncached names hit the network. Flag lists are cached whole (scry:flags, 7 days) and go
 // over the wire as arrays.
-const frontKey = (n) => String(n).split(' // ')[0].toLowerCase().trim();
 
 async function cardInfo(names) {
   const info = {};
   const missing = [];
   for (const name of (names || [])) {
-    const key = frontKey(name);
+    const key = frontFace(name);
     const cached = await getEntry(`scry:${key}`);
-    if (isFreshTtl(cached, SCRY_INFO_TTL_MS)) info[key] = cached.data;
-    else missing.push(name);
+    if (!isFreshTtl(cached, SCRY_INFO_TTL_MS)) missing.push(name);
+    else if (!cached.data.notFound) info[key] = cached.data; // negative entries stay absent
   }
   if (missing.length) {
-    const fetched = await fetchCardInfo(missing);
-    for (const [key, card] of Object.entries(fetched)) {
+    const { info: found, notFound } = await fetchCardLookup(missing);
+    for (const [key, card] of Object.entries(found)) {
       info[key] = card;
       await setEntry(`scry:${key}`, card);
     }
+    for (const key of notFound) await setEntry(`scry:${key}`, { notFound: true });
   }
   return info;
 }

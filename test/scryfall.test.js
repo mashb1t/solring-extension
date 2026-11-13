@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { shapeCards, fetchCardInfo, searchCommanders, fetchFlagSets } from '../src/sources/scryfall.js';
+import { shapeCards, resolveRequested, fetchCardLookup, fetchCardInfo, searchCommanders, fetchFlagSets } from '../src/sources/scryfall.js';
 
 const collection = JSON.parse(readFileSync(new URL('../fixtures/scryfall_collection.json', import.meta.url)));
 const jsonRes = (body, ok = true) => ({ ok, json: async () => body });
@@ -97,4 +97,23 @@ test('fetchFlagSets: follows next_page, sets of front keys', async () => {
 test('fetchFlagSets: any failed query → null (no partial lists)', async () => {
   const stub = async (u) => (decodeURIComponent(u).includes('extra-turn') ? jsonRes({}, false) : jsonRes({ data: [{ name: 'X' }] }));
   assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
+});
+
+test('resolveRequested: maps to requested keys, reports not_found, leaves unknowns out', () => {
+  const json = {
+    data: [{ name: 'Fire // Ice', prices: {}, color_identity: ['R', 'U'] }, { name: 'Rhystic Study', prices: {}, color_identity: ['U'] }],
+    not_found: [{ name: 'Nope Card' }],
+  };
+  const res = resolveRequested(['Fire // Ice', 'rhystic study', 'Nope Card', 'Mystery'], json);
+  assert.deepEqual(Object.keys(res.info).sort(), ['fire', 'rhystic study']);
+  assert.deepEqual(res.notFound, ['nope card']);
+});
+
+test('fetchCardLookup: not_found reported; failed batch reports nothing', async () => {
+  const ok = async () => jsonRes({ data: [{ name: 'A', prices: {}, color_identity: [] }], not_found: [{ name: 'B' }] });
+  const res = await withFetch(ok, () => fetchCardLookup(['A', 'B'], { delayMs: 0 }));
+  assert.deepEqual(Object.keys(res.info), ['a']);
+  assert.deepEqual(res.notFound, ['b']);
+  const bad = async () => { throw new Error('net'); };
+  assert.deepEqual(await withFetch(bad, () => fetchCardLookup(['A', 'B'], { delayMs: 0 })), { info: {}, notFound: [] });
 });
