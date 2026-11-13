@@ -12,6 +12,12 @@
 //   already filled (sampled every 20–30 ms: no empty frame on SPA nav or hard load).
 // - Save: `button` with text "Save" in the bulk-edit form → saves and returns to /decks/{id}.
 //   ("Save & Continue Editing" = `data-testid="deck-bulk-edit-page-save"`, stays on /edit; unused.)
+//   `button` "Cancel" → back to /decks/{id}; while the text differs from the loaded list it first
+//   raises a native confirm("You have unsaved changes…"), so restore the text before cancelling.
+//   A refused Save (unknown card) stays on /edit and shows `.invalid-feedback` "Error on line N of
+//   mainboard: Could not find card "X". (1 X)".
+// - Ownership: the "More" menu (`#subheader-more`) of a deck you own adds "Change Authors",
+//   "Change Commander", "Settings", "Delete"; a logged-in non-owner's menu has none of them.
 // - Commanders: Bulk Edit has NO commander board (Other → Attraction/Contraption/Sticker/Planar/
 //   Schemes only), and commanders are not listed in the Main Deck text. Moxfield's own path is the
 //   "Change Commander" dialog: deck view `#subheader-more` ("More") → dropdown item
@@ -126,6 +132,47 @@ const deckPath = () => /^\/decks\/([\w-]+)(\/edit)?\/?$/.exec(location.pathname)
 const loggedOut = () => !!findByText('a', /^sign in$/i) || !!document.querySelector('a[href^="/account/signin"]');
 const bulkEditLink = () => findByText('a[href$="/edit"]', /^bulk\s*edit$/i);
 const visibleModal = () => [...document.querySelectorAll('.modal.show[role="dialog"]')].pop() || null;
+const moreButton = () => document.getElementById('subheader-more') || findByText('a, button', /^more$/i);
+const onDeckView = () => { const p = deckPath(); return !!(p && !p[2]); };
+// Items only the deck's owner gets in the deck view's "More" menu (LIVE-VERIFY: a non-owner's menu
+// stops at "Add to Wish List"; the owner's adds Change Authors / Change Commander / Settings / Delete).
+const OWNER_ITEM_RE = /^(change authors|change commander|settings|delete)$/i;
+
+const menuOpen = () => !!document.querySelector('.dropdown-menu.show');
+// Toggle Moxfield's dropdown shut; it closes asynchronously (LIVE-VERIFY), so wait for it.
+async function closeMenu(more) {
+  if (more && menuOpen()) { more.click(); await waitFor(() => !menuOpen(), 1000); }
+}
+
+// Open the "More" menu, report whether it holds owner-only items, close it again.
+// true = owner, false = menu opened without owner items, null = no menu / it didn't open.
+async function ownerMenuSignal() {
+  const more = moreButton();
+  if (!more) return null;
+  if (!menuOpen()) more.click();
+  const items = await waitFor(() => {
+    const list = [...document.querySelectorAll('.dropdown-menu.show a, .dropdown-menu.show button')];
+    return list.length ? list : null;
+  }, 2000);
+  const owner = items ? items.some((n) => OWNER_ITEM_RE.test(text(n))) : null;
+  await closeMenu(more);
+  return owner;
+}
+
+// Can the current user edit the deck in the deck view? Resolves to 'ok' (Bulk Edit link present),
+// NOT_EDITABLE (logged out, or logged in with a non-owner "More" menu) or UI_CHANGED (owner-looking
+// page without our anchors, or no recognisable deck view). Logged out short-circuits immediately;
+// once the deck subheader ("More") has rendered, the link would be there too, so no full wait.
+async function editAccess() {
+  const seen = await waitFor(() => (bulkEditLink() && 'link') || (loggedOut() && 'out') || (moreButton() && 'nolink'));
+  if (seen === 'link') return 'ok';
+  if (seen === 'out' || loggedOut()) return NOT_EDITABLE;
+  if (!seen) return UI_CHANGED;
+  const owner = await ownerMenuSignal();
+  if (owner === false) return NOT_EDITABLE;
+  // Owner (or unreadable menu): give a late-rendering link a moment, else the UI moved.
+  return (await waitFor(bulkEditLink, owner ? 2000 : 0)) ? 'ok' : UI_CHANGED;
+}
 
 // Type `name` into one of Moxfield's commander typeaheads and pick the suggestion whose front face
 // equals `name`'s (case-insensitive). true once the suggestion was clicked and the list closed.
@@ -139,7 +186,7 @@ async function pickCommander(input, name) {
     return [...list.querySelectorAll('[role="option"], [data-testid^="commander-search-result-"]')]
       .find((o) => frontFace(text(o)) === want) || null;
   });
-  if (!option) return false;
+  if (!option) { setNativeValue(input, ''); return false; }
   option.click();
   return !!(await waitFor(() => input.getAttribute('aria-expanded') !== 'true' && frontFace(input.value) === want, 2000));
 }
@@ -156,28 +203,32 @@ function viewMainCount() {
 }
 
 // From the deck view, follow Moxfield's own "Bulk Edit" link (an in-app SPA route,
-// /decks/{id}/edit). Returns { ok, expected } where `expected` is the deck view's mainboard count.
+// /decks/{id}/edit). Returns { ok, expected, navigated } where `expected` is the deck view's
+// mainboard count and `navigated` says we left the deck view (so a failure must bring the user back).
 async function openBulkEdit() {
   const p = deckPath();
   if (!p) return NOT_EDITABLE;
-  if (p[2]) return { ok: true, expected: null };
-  const link = await waitFor(bulkEditLink);
-  if (!link) return loggedOut() || document.getElementById('subheader-more') || viewMainCount() ? NOT_EDITABLE : UI_CHANGED;
+  if (p[2]) return { ok: true, expected: null, navigated: false };
+  const access = await editAccess();
+  if (access !== 'ok') return access;
   const expected = await waitFor(viewMainCount, 2000);
+  const link = bulkEditLink();
+  if (!link) return UI_CHANGED;
   link.click();
-  return { ok: true, expected };
+  return { ok: true, expected, navigated: true };
 }
 
 // Wait for the bulk editor's Main Deck textarea and make sure it holds the full list before we
 // rewrite it (saving a partially loaded list would delete cards). Moxfield mounts the textarea
 // already filled (LIVE-VERIFY: no empty frame, SPA or hard load), but we still cross-check the
 // parsed quantity sum against the deck view's count and Moxfield's own "Main Deck (N)" label.
+const boardTextarea = () => document.querySelector('textarea[data-testid="deck-bulk-edit-page-board"], textarea#board');
 async function readyMainboard(expected) {
   const tab = await waitFor(() => findByText('a.nav-link', /^main deck$/i));
   if (!tab) return null;
   if (!tab.classList.contains('active')) { tab.click(); if (!(await waitFor(() => tab.classList.contains('active'), 2000))) return null; }
   return waitFor(() => {
-    const board = document.querySelector('textarea[data-testid="deck-bulk-edit-page-board"], textarea#board');
+    const board = boardTextarea();
     if (!board || board.disabled || board.readOnly) return null;
     const label = document.querySelector('label[for="board"]');
     const m = /^main deck\s*\((\d+)\)/i.exec(text(label));
@@ -188,30 +239,79 @@ async function readyMainboard(expected) {
   });
 }
 
-export async function applyBulkEdit({ add = [], remove = [] } = {}) {
+// Undo our edit and leave the bulk editor without saving: put the original text back (Moxfield's
+// Cancel raises a native "unsaved changes" confirm() while the text differs — LIVE-VERIFY), then
+// click Moxfield's own Cancel (falls back to history.back()) and wait for the deck view.
+async function leaveBulkEdit(board, original) {
   try {
-    const opened = await openBulkEdit();
-    if (!opened.ok) return opened;
-    const board = await readyMainboard(opened.expected);
-    if (!board) return UI_CHANGED;
-    const next = editBulkText(board.value, { add, remove });
-    if (next !== board.value) {
-      setNativeValue(board, next);
-      if (!(await waitFor(() => board.value === next, 1000))) return UI_CHANGED;
+    if (board && board.isConnected && original != null && board.value !== original) {
+      setNativeValue(board, original);
+      await waitFor(() => board.value === original, 1000);
+      await sleep(100);
     }
-    const form = board.closest('form') || document;
-    const save = findByText('button', /^save$/i, form);
-    if (!save) return UI_CHANGED;
+    if (onDeckView()) return;
+    const cancel = findByText('button', /^cancel$/i);
+    if (cancel) cancel.click(); else history.back();
+    await waitFor(onDeckView, 3000);
+  } catch { /* best effort: never throw into the page */ }
+}
+
+// Moxfield's own validation message under the textarea after a refused Save, e.g.
+// 'Error on line 11 of mainboard: Could not find card "Zzzz". (1 Zzzz)' (LIVE-VERIFY).
+const bulkError = () => [...document.querySelectorAll('.invalid-feedback')].map(text).find(Boolean) || null;
+
+/**
+ * Add/remove mainboard cards through Moxfield's own Bulk Edit page and let Moxfield save.
+ * Call from the deck view (or the bulk editor). Never throws.
+ * @returns {Promise<{ok:true} | {ok:false, reason:'not-editable'|'ui-changed'|'rejected', message?:string}>}
+ *   - 'not-editable': not a deck page, logged out, or logged in but not the deck's owner.
+ *   - 'ui-changed':   Moxfield's UI no longer matches our anchors (Bulk Edit link / textarea / Save
+ *                     missing, list never fully loaded) or the Save didn't finish within 10 s.
+ *   - 'rejected':     Moxfield refused the text (e.g. unknown card names); `message` is its error.
+ *   On every failure before or at Save (incl. 'rejected') the original text is restored and the
+ *   user is returned to the deck view if we navigated away from it; nothing is saved. After a Save
+ *   timeout the page is left as is.
+ */
+export async function applyBulkEdit({ add = [], remove = [] } = {}) {
+  let opened = null;
+  let board = null;
+  let original = null;
+  const fail = async (result) => {
+    if (opened && opened.navigated) await leaveBulkEdit(board, original);
+    else if (board && original != null && board.isConnected && board.value !== original) setNativeValue(board, original);
+    return result;
+  };
+  try {
+    opened = await openBulkEdit();
+    if (!opened.ok) return opened;
+    board = await readyMainboard(opened.expected);
+    if (!board) return await fail(UI_CHANGED);
+    original = board.value;
+    const next = editBulkText(original, { add, remove });
+    if (next !== original) {
+      setNativeValue(board, next);
+      if (!(await waitFor(() => board.value === next, 1000))) return await fail(UI_CHANGED);
+    }
+    const save = findByText('button', /^save$/i, board.closest('form') || document);
+    if (!save) return await fail(UI_CHANGED);
     save.click();
-    // Moxfield's "Save" returns to the deck view; staying on /edit means it rejected the text.
-    return (await waitFor(() => { const p = deckPath(); return p && !p[2]; }, SAVE_WAIT_MS)) ? { ok: true } : UI_CHANGED;
-  } catch {
+    // Moxfield's "Save" returns to the deck view; a validation error keeps it on /edit.
+    const outcome = await waitFor(() => (onDeckView() && 'saved') || (bulkError() && 'rejected'), SAVE_WAIT_MS);
+    if (outcome === 'saved') return { ok: true };
+    if (outcome === 'rejected') {
+      const message = bulkError();
+      return await fail({ ok: false, reason: 'rejected', message });
+    }
     return UI_CHANGED;
+  } catch {
+    try { return await fail(UI_CHANGED); } catch { return UI_CHANGED; }
   }
 }
 
 // Pre-fill Moxfield's "Create New Deck" dialog (already open). Name only if empty; format →
 // Commander; commander picked from Moxfield's own typeahead. Never clicks Create.
+// Returns false when the dialog, the commander input or a matching suggestion doesn't show up in
+// time (the typed commander text is cleared again; a Name we filled stays).
 export async function prefillNewDeck({ name, commander } = {}) {
   try {
     const nameInput = await waitFor(() => {
@@ -235,20 +335,29 @@ export async function prefillNewDeck({ name, commander } = {}) {
 
 // Set the commander(s) of the deck currently open in the deck view through Moxfield's own
 // "Change Commander" dialog (More menu, or the "Pick a Commander" alert on commander-less decks).
-// Bulk Edit has no commander board (LIVE-VERIFY 2026-11-13), hence this path.
+// Bulk Edit has no commander board (LIVE-VERIFY 2026-11-13), hence this path. Existing decks only.
+/**
+ * @param {string[]} commanders  one name, or two for partners
+ * @returns {Promise<{ok:true} | {ok:false, reason:'not-editable'|'ui-changed'}>}
+ *   'not-editable' = not on a deck view, logged out, or not the deck's owner; 'ui-changed' = the
+ *   menu item / dialog / suggestion / Save wasn't found (dialog closed unsaved) or Save timed out.
+ */
 export async function setCommanderViaBulk(commanders = []) {
   try {
     const names = (commanders || []).filter(Boolean);
     if (!names.length) return UI_CHANGED;
     const p = deckPath();
     if (!p || p[2]) return NOT_EDITABLE;
-    if (!(await waitFor(bulkEditLink))) return loggedOut() || document.getElementById('subheader-more') ? NOT_EDITABLE : UI_CHANGED;
+    const access = await editAccess();
+    if (access !== 'ok') return access;
 
     let item = null;
-    const more = document.getElementById('subheader-more') || findByText('a', /^more$/i);
+    const more = moreButton();
     if (more) {
-      more.click();
+      if (!menuOpen()) more.click();
       item = await waitFor(() => findByText('.dropdown-menu.show a, .dropdown-menu.show button', /^change commander$/i), 2000);
+      // Not in the menu: close it again before trying the alert link / giving up.
+      if (!item) await closeMenu(more);
     }
     if (!item) item = findByText('a.alert-link', /^pick a commander$/i);
     if (!item) return UI_CHANGED;
