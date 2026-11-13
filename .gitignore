@@ -5,4 +5,5 @@ dist/
 *.log
 .playwright-mcp/
 .idea
-docs/.superpowers/
+docs/
+.superpowers/
