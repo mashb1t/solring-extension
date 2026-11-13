@@ -26,11 +26,12 @@ export function comboAllowed(bracketTag, bracket) {
 
 const isGc = (key, ctx) => ctx.flags.gameChangers.has(key) || !!(ctx.info[key] && ctx.info[key].gameChanger);
 // Absent from info counts as unknown price (null), never free; except basics, which are $0
-// when info has no entry for them (a basic that IS in info uses its price).
+// whenever no price is known (absent from info, or Scryfall's usd is null as it often is for a
+// basic's default printing). A basic with a known price uses it.
 const priceOf = (key, ctx) => {
   const usd = ctx.info[key] && ctx.info[key].usd;
   if (typeof usd === 'number') return usd;
-  return BASICS.has(key) && !ctx.info[key] ? 0 : null;
+  return BASICS.has(key) ? 0 : null;
 };
 
 function count(ctx, name) {

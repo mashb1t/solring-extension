@@ -119,3 +119,11 @@ test('budget: basics absent from info count as $0, basics in info use their pric
   assert.equal(checkCard('Island', tight).ok, false);
   assert.equal(checkCard('Nonbasic', ctx).reason, 'No price (budget set)');
 });
+
+test('budget: a basic in info with no price (Scryfall usd null) counts as $0, not blocked', () => {
+  const rules = { ...RULES_DEFAULT, budget: 10 };
+  const ctx = ctxOf({ rules, info: { forest: { name: 'Forest', usd: null }, nonbasic: { name: 'Nonbasic', usd: null } } });
+  assert.deepEqual(checkCard('Forest', ctx), { ok: true });
+  assert.equal(addToCtx(ctx, 'Forest').spent, 0);
+  assert.equal(checkCard('Nonbasic', ctx).reason, 'No price (budget set)');
+});
