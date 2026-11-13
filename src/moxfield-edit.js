@@ -15,6 +15,7 @@ export const hasToken = () => !!token;
 // 401 on the cookie alone (e.g. /v1/collections/search). Waits briefly for the token to be relayed.
 // Returns parsed JSON, or null on no token / non-2xx / any failure (never throws).
 export async function authedGet(url) {
+  if (typeof url !== 'string' || !url.startsWith('https://api2.moxfield.com/')) return null; // never send the token elsewhere
   try {
     for (let i = 0; !token && i < 20; i++) await new Promise((r) => setTimeout(r, 150));
     if (!token) return null;

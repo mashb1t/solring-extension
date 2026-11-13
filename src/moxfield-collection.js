@@ -29,9 +29,12 @@ export function shapeCollectionPage(json) {
 const url = (n) => `${BASE}?q=+&pageNumber=${n}&pageSize=${PAGE_SIZE}&sortType=cardName&sortDirection=ascending`;
 
 let memo = null;
+let failedAt = 0;
+const NEG_TTL = 60000; // logged-out/failed: don't re-wait for the token on every call
 
 // Set of lowercased front-face names the user owns, or null (logged out / any failure).
 export function ownedNames() {
+  if (!memo && Date.now() - failedAt < NEG_TTL) return Promise.resolve(null);
   if (!memo) {
     memo = (async () => {
       try {
@@ -51,7 +54,8 @@ export function ownedNames() {
         return out;
       } catch { return null; }
     })();
-    memo.then((v) => { if (v === null) memo = null; }); // don't memoize failures (token may arrive later)
+    const p = memo;
+    p.then((v) => { if (v === null && memo === p) { memo = null; failedAt = Date.now(); } }); // failures cached 60s only (token may arrive later)
   }
   return memo;
 }
