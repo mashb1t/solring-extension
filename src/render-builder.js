@@ -461,7 +461,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   // A combo as a card-sized tile: the pieces fanned like cards on top (missing ones outlined in
-  // the accent with a "+ add" badge, ones already in the deck muted), then what it produces, the
+  // the accent with a "missing" marker, ones already in the deck muted), then what it produces, the
   // piece names as hoverable card refs, and the bracket label + add pill as the footer.
   function comboTile(combo) {
     const st = V.comboCheck(combo, S.ctx);
@@ -478,24 +478,24 @@ export async function installBuilder({ waitFor, rebuild = false }) {
         p.image
           ? el('img', { class: 'solring-builder-fanimg', attrs: { src: p.image, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' } })
           : el('span', { class: 'solring-builder-fanimg solring-builder-noart', text: p.name }),
-        el('span', { class: 'solring-builder-fanbadge', text: p.missing ? '+ add' : 'in deck' }),
+        el('span', { class: 'solring-builder-fanbadge', text: p.missing ? 'missing' : 'in deck' }),
       ]);
       piece.style.setProperty('--i', String(idx));
       piece.style.setProperty('--n', String(shown.length));
       return piece;
     }));
     const refs = cardRefs(pieces.map((p) => ({ name: p.name, image: p.image, resolve: true })), {});
-    const list = el('ul', { class: 'solring-builder-pieces' }, pieces.map((p, idx) => el('li', { class: p.missing ? 'solring-missing' : 'solring-indeck' }, [
-      refs[idx],
-      el('span', { class: 'solring-builder-piecestate', text: p.missing ? 'add' : 'in deck' }),
-    ])));
+    const list = el('ul', { class: 'solring-builder-pieces' }, pieces.map((p, idx) => {
+      refs[idx].title = p.name;
+      return el('li', { class: p.missing ? 'solring-missing' : 'solring-indeck' }, [refs[idx]]);
+    }));
     const bracket = comboBracketLabel(combo.bracketTag);
-    const produces = (combo.produces || []).slice(0, 2).join(' · ');
+    const produces = (combo.produces || []).join(' · ');
     return el('div', { class: `solring-builder-tile solring-builder-combo${st.ok ? '' : ' solring-blocked'}` }, [
       fan,
       !st.ok ? el('span', { class: 'solring-builder-why', text: st.reason }) : null,
       el('div', { class: 'solring-builder-combohead', text: 'Combo · Spellbook' }),
-      produces ? el('div', { class: 'solring-builder-produces', text: produces, title: (combo.produces || []).join(' · ') }) : null,
+      produces ? el('div', { class: 'solring-builder-produces', text: produces, title: produces }) : null,
       list,
       el('div', { class: 'solring-builder-meta' }, [
         el('span', { class: 'solring-builder-bracket', text: bracket ? bracket.text : 'Combo', title: bracket && bracket.title }),

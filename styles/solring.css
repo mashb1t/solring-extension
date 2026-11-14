@@ -934,12 +934,13 @@ span.solring-picker-entry { display: inline; }
 /* Combo tile: pieces fanned like cards on top (missing = accent outline + "+ add" badge, in-deck =
    muted), then produces, the piece refs, and the bracket label + add pill. Fan height keeps the
    tile close to a card tile's footprint. */
-.solring-builder-fan { position: relative; flex: none; aspect-ratio: 488 / 520; margin: 0.4rem 0.4rem 0; }
+.solring-builder-fan { position: relative; flex: none; aspect-ratio: 488 / 640; margin: 0.4rem 0.4rem 0; }
 .solring-builder-fanpiece {
-  --gap: calc((100% - 62%) / max(var(--n) - 1, 1));
-  position: absolute; top: calc(var(--i) * 4%); left: calc(var(--i) * var(--gap)); width: 62%;
-  transform: rotate(calc((var(--i) - (var(--n) - 1) / 2) * 6deg)); transform-origin: 50% 100%;
+  --gap: calc((100% - 70%) / max(var(--n) - 1, 1));
+  position: absolute; top: calc(var(--i) * 18% / max(var(--n) - 1, 1)); left: calc(var(--i) * var(--gap)); width: 70%;
+  transform: rotate(calc((var(--i) - (var(--n) - 1) / 2) * 5deg)); transform-origin: 50% 100%;
 }
+.solring-builder-fanpiece:hover { z-index: 2; }
 .solring-builder-fanimg {
   display: block; width: 100%; aspect-ratio: 488 / 680; object-fit: cover; border-radius: 5px;
   background: var(--solring-surface-2); box-shadow: 0 1px 4px color-mix(in srgb, #000 35%, transparent);
@@ -948,26 +949,24 @@ span.solring-picker-entry { display: inline; }
 .solring-builder-fanpiece.solring-missing .solring-builder-fanimg { outline: 2px solid var(--solring-accent); outline-offset: -1px; }
 .solring-builder-fanpiece.solring-indeck .solring-builder-fanimg { opacity: 0.55; filter: grayscale(0.4); }
 .solring-builder-fanbadge {
-  position: absolute; left: 50%; bottom: 0.25rem; transform: translateX(-50%); padding: 0 0.35rem; border-radius: 999px;
+  position: absolute; left: 50%; top: 0.25rem; transform: translateX(-50%); padding: 0 0.35rem; border-radius: 999px;
   font-size: 0.6rem; font-weight: 700; line-height: 1.5; white-space: nowrap;
 }
-.solring-missing > .solring-builder-fanbadge { background: var(--solring-accent); color: var(--bs-white, #fff); }
+.solring-missing > .solring-builder-fanbadge { background: var(--solring-surface); color: var(--solring-accent); border: 1px solid var(--solring-accent); }
 .solring-indeck > .solring-builder-fanbadge { background: var(--solring-surface); color: var(--solring-text-2); border: 1px solid var(--solring-border); }
 .solring-builder-combohead { padding: 0.35rem 0.4rem 0; font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--solring-text-2); }
 .solring-builder-produces {
   padding: 0.05rem 0.4rem 0; font-size: 0.75rem; font-weight: 600; line-height: 1.2; color: var(--solring-text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
 }
 .solring-builder-pieces { margin: 0; padding: 0.15rem 0.4rem 0; list-style: none; font-size: 0.7rem; line-height: 1.3; }
 .solring-builder-pieces li { display: flex; align-items: baseline; gap: 0.3rem; min-width: 0; }
-.solring-builder-pieces .solring-cardname { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.solring-builder-pieces .solring-cardname { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .solring-builder-pieces li.solring-missing .solring-cardname { color: var(--solring-text); font-weight: 600; }
 .solring-builder-pieces li.solring-indeck .solring-cardname { color: var(--solring-text-2); }
 .solring-builder-pieces .solring-cardname[data-resolve]:hover,
 .solring-builder-pieces .solring-cardname[data-href]:hover { color: var(--solring-accent); text-decoration: underline; }
-.solring-builder-piecestate { flex: none; margin-left: auto; font-size: 0.6rem; color: var(--solring-text-2); }
-li.solring-missing .solring-builder-piecestate { color: var(--solring-accent); font-weight: 700; }
-.solring-builder-combo .solring-builder-meta { margin-top: auto; padding-top: 0.3rem; }
+li.solring-missing .solring-builder-combo .solring-builder-meta { margin-top: auto; padding-top: 0.3rem; }
 .solring-builder-bracket { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 .solring-builder-combo .solring-builder-add { position: static; flex: none; width: auto; height: auto; margin-left: auto; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.72rem; }
 .solring-builder-combo.solring-blocked .solring-builder-add { display: none; }
