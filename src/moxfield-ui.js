@@ -146,6 +146,9 @@ const deckPath = () => /^\/decks\/([\w-]+)(\/edit)?\/?$/.exec(location.pathname)
 // Logged out: Moxfield renders a "Sign in" link in the navbar instead of the account menu.
 const loggedOut = () => !!findByText('a', /^sign in$/i) || !!document.querySelector('a[href^="/account/signin"]');
 const bulkEditLink = () => findByText('a[href$="/edit"]', /^bulk\s*edit$/i);
+/** Can the current user edit the open deck? Moxfield shows the deck view's "Bulk Edit" link only
+ *  to its logged-in owner (LIVE-VERIFY above). Synchronous: false until the subheader renders. */
+export const canEdit = () => !!bulkEditLink();
 const visibleModal = () => [...document.querySelectorAll('.modal.show[role="dialog"]')].pop() || null;
 const moreButton = () => document.getElementById('subheader-more') || findByText('a, button', /^more$/i);
 const onDeckView = () => { const p = deckPath(); return !!(p && !p[2]); };

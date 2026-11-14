@@ -18,7 +18,7 @@ import { keyCombos } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
 import { proposeFill } from './autocomplete.js';
 import { getBuildData, getCardData, importDeck } from './messaging.js';
-import { applyBulkEdit } from './moxfield-ui.js';
+import { applyBulkEdit, canEdit } from './moxfield-ui.js';
 import { ownedNames } from './moxfield-collection.js';
 import { readDeckAny } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
@@ -65,7 +65,6 @@ function fixedTopBottom() {
 
 const send = (fn) => fn().catch(() => null);
 const ok = (res) => res && !res.error && !res.miss;
-const bulkEditLink = () => [...document.querySelectorAll('a[href$="/edit"]')].find((a) => /^\s*bulk\s*edit\s*$/i.test(a.textContent || '')) || null;
 
 const FAIL_TEXT = {
   'not-editable': 'Open the deck in edit mode (logged in) to add cards',
@@ -110,6 +109,10 @@ export async function installBuilder({ waitFor }) {
   if (!deck && live()) { await new Promise((r) => setTimeout(r, 1200)); deck = live() ? await readDeckAny(publicId) : null; }
   if (!live() || !deck || deck.format !== 'commander' || !deck.commanders.length) return;
   const build = await getDeckBuild(publicId).catch(() => ({ theme: null, rules: { ...RULES_DEFAULT } }));
+  // Owner signal (Bulk Edit link) once the deck subheader has rendered; a late link gets a moment.
+  await waitFor(`#subheader-more, a[href="/decks/${publicId}/edit"]`, 3000);
+  for (let i = 0; !canEdit() && i < 8 && live(); i++) await new Promise((r) => setTimeout(r, 100));
+  const editable = canEdit();
   // Last await before inserting: re-check, so an overlapping mount can't insert an orphan root.
   if (!live()) return;
   deckview = document.querySelector('section.deckview');
@@ -141,12 +144,12 @@ export async function installBuilder({ waitFor }) {
   const panel = el('div', { class: `solring-panel solring-builder-panel${isDark() ? ' solring-dark' : ''}` }, [bar, body]);
   const root = el('div', { class: 'solring-builder', attrs: { 'data-solring-root': '' } }, [panel]);
   const setOpen = (open) => { panel.classList.toggle('solring-open', open); bar.setAttribute('aria-expanded', String(open)); };
-  const toggle = () => setOpen(!panel.classList.contains('solring-open'));
+  // Decks you can't edit start collapsed and fetch nothing until the first expand (start()).
+  const toggle = () => { const open = !panel.classList.contains('solring-open'); setOpen(open); if (open) start(); };
   bar.addEventListener('click', toggle);
   bar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   deckview.parentElement.insertBefore(root, deckview);
-  setOpen(!!bulkEditLink()); // open on decks you can edit; collapsed (one click away) otherwise
-  body.replaceChildren(el('div', { class: 'solring-msg', text: 'Loading suggestions…' }));
+  setOpen(editable); // open on decks you can edit; collapsed (one click away) otherwise
   const alive = () => live() && root.isConnected;
   own(() => closeModal());
   // A later abort of a mount that lost its token removes the root it inserted (no orphan panel).
@@ -196,17 +199,24 @@ export async function installBuilder({ waitFor }) {
     await loadInfo();
   }
 
-  await loadAll();
-  if (!alive()) return abandon();
-  S.loading = false;
-  recompute();
-  render();
-  installRowPicks();
-  if (S.build.rules.ownedOnly) setOwnedOnly(true); // persisted: load the collection now (loading state)
-  if (afterWrite && afterWrite.publicId === publicId && Date.now() - afterWrite.at < AFTER_WRITE_MS) {
-    afterWrite = null;
-    powerCheck();
+  let started = false;
+  async function start() {
+    if (started || !alive()) return;
+    started = true;
+    body.replaceChildren(el('div', { class: 'solring-msg', text: 'Loading suggestions…' }));
+    await loadAll();
+    if (!alive()) return abandon();
+    S.loading = false;
+    recompute();
+    render();
+    if (editable) installRowPicks(); // row checkboxes + "Remove selected" only where you can write
+    if (S.build.rules.ownedOnly) setOwnedOnly(true); // persisted: load the collection now (loading state)
+    if (afterWrite && afterWrite.publicId === publicId && Date.now() - afterWrite.at < AFTER_WRITE_MS) {
+      afterWrite = null;
+      powerCheck();
+    }
   }
+  if (editable) await start();
 
   // Re-read the deck after a write that did NOT remount us (e.g. Bulk Edit was already open).
   async function refreshDeck() {
