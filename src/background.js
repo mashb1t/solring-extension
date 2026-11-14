@@ -141,15 +141,18 @@ async function getEnrichment({ source, md5 }) {
 // edhrec.com/api/recs stopped serving ACAO, so the deck-specific recs POST runs here (host grant).
 const getRecs = ({ commanders, cards }) => fetchRecs(commanders, cards);
 
-// Guided Deck Builder: EDHREC page JSON per path, cached TTL-only (ebuild:<path>).
-async function buildPage(path) {
-  const key = `ebuild:${path}`;
+// Guided Deck Builder: the SHAPED result of one EDHREC page per op, cached TTL-only
+// (ebuild:<op>:<path>). Raw pages run ~120 KB each and would crowd deck:* analyses out of the
+// storage quota; cache.js keeps display fields only. Old raw ebuild:<path> entries are never read
+// again and age out through eviction.
+async function buildPage(op, path, shape) {
+  const key = `ebuild:${op}:${path}`;
   const entry = await dedupe(key, async () => {
     const cached = await getEntry(key);
     if (isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
     const json = await fetchEdhrecPage(path);
     if (!json) return null;
-    return setEntry(key, json);
+    return setEntry(key, shape(json));
   });
   return entry && entry.data ? entry.data : null;
 }
@@ -187,8 +190,7 @@ async function getBuildData({ op, commanders, theme, card, cards }) {
     if (slug) { path = `cards/${slug}`; shape = (j) => ({ commanders: topCommanders(j) }); }
   }
   if (!path) return { miss: true };
-  const json = await buildPage(path);
-  return json ? shape(json) : { miss: true };
+  return (await buildPage(op, path, shape)) || { miss: true };
 }
 
 // Guided Deck Builder: Scryfall data. Card info is cached per front-face key (scry:<key>, 1 day);
