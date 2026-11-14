@@ -23,6 +23,8 @@ import { ownedNames } from './moxfield-collection.js';
 import { readDeckAny } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import * as V from './builder-view.js';
+import { cardRefs } from './render-card-modal.js';
+import { comboBracketLabel } from './labels.js';
 
 const ROW_SEL = 'li[data-row-key] a.table-deck-row-link[href^="/cards/"]';
 const THEME_SHOWN = 18;
@@ -471,16 +473,46 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     ]);
   }
 
+  // A combo as a card-sized tile: the pieces fanned like cards on top (missing ones outlined in
+  // the accent with a "+ add" badge, ones already in the deck muted), then what it produces, the
+  // piece names as hoverable card refs, and the bracket label + add pill as the footer.
   function comboTile(combo) {
     const st = V.comboCheck(combo, S.ctx);
     const label = st.add.length > 1 ? '+ both' : '+ add';
-    const pieces = el('ul', { class: 'solring-builder-pieces' }, combo.pieces.map((p) => el('li', { class: p.missing ? 'solring-missing' : '', text: p.name })));
+    const adding = new Set(st.add.map(frontFace));
+    const pieces = combo.pieces.map((p) => {
+      const i = S.info[frontFace(p.name)];
+      return { name: p.name, image: p.image || (i && i.image) || null, missing: adding.has(frontFace(p.name)) };
+    });
+    const shown = pieces.slice(0, 3);
+    const fan = el('div', { class: 'solring-builder-fan', attrs: { 'aria-hidden': 'true' } }, shown.map((p, idx) => {
+      const piece = el('span', { class: `solring-builder-fanpiece ${p.missing ? 'solring-missing' : 'solring-indeck'}` }, [
+        p.image
+          ? el('img', { class: 'solring-builder-fanimg', attrs: { src: p.image, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' } })
+          : el('span', { class: 'solring-builder-fanimg solring-builder-noart', text: p.name }),
+        el('span', { class: 'solring-builder-fanbadge', text: p.missing ? '+ add' : 'in deck' }),
+      ]);
+      piece.style.setProperty('--i', String(idx));
+      piece.style.setProperty('--n', String(shown.length));
+      return piece;
+    }));
+    const refs = cardRefs(pieces.map((p) => ({ name: p.name, image: p.image, resolve: true })), {});
+    const list = el('ul', { class: 'solring-builder-pieces' }, pieces.map((p, idx) => el('li', { class: p.missing ? 'solring-missing' : 'solring-indeck' }, [
+      refs[idx],
+      el('span', { class: 'solring-builder-piecestate', text: p.missing ? 'add' : 'in deck' }),
+    ])));
+    const bracket = comboBracketLabel(combo.bracketTag);
+    const produces = (combo.produces || []).slice(0, 2).join(' · ');
     return el('div', { class: `solring-builder-tile solring-builder-combo${st.ok ? '' : ' solring-blocked'}` }, [
-      el('div', { class: 'solring-builder-combohead', text: 'Combo · Spellbook' }),
+      fan,
       !st.ok ? el('span', { class: 'solring-builder-why', text: st.reason }) : null,
-      pieces,
-      el('div', { class: 'solring-builder-meta' }, [el('span', { text: combo.bracketTag ? `bracket tag ${combo.bracketTag}` : 'combo' }),
-        addBtn(label, `Add ${st.add.join(' + ')} via Moxfield`, !st.ok, () => write({ add: st.add.map((name) => ({ name, qty: 1 })) }, `Added ${st.add.join(' + ')}`, 'add'))]),
+      el('div', { class: 'solring-builder-combohead', text: 'Combo · Spellbook' }),
+      produces ? el('div', { class: 'solring-builder-produces', text: produces, title: (combo.produces || []).join(' · ') }) : null,
+      list,
+      el('div', { class: 'solring-builder-meta' }, [
+        el('span', { class: 'solring-builder-bracket', text: bracket ? bracket.text : 'Combo', title: bracket && bracket.title }),
+        addBtn(label, `Add ${st.add.join(' + ')} via Moxfield`, !st.ok, () => write({ add: st.add.map((name) => ({ name, qty: 1 })) }, `Added ${st.add.join(' + ')}`, 'add')),
+      ]),
     ]);
   }
 

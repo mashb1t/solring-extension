@@ -62,6 +62,7 @@ export function nearMissCombos(results, deckNames, cap = 25) {
 
 // Combos worth building toward in the guided builder: 1-2 pieces missing from the in-progress
 // deck, allowed at the chosen bracket, most popular first, capped (never more than `cap`).
+// Pieces keep their Spellbook image (tile art + hover preview); `produces` gives the tile's blurb.
 export function keyCombos(results, deckNames, bracket, cap = 3) {
   const have = new Set((deckNames || []).map(norm));
   const out = [];
@@ -69,12 +70,16 @@ export function keyCombos(results, deckNames, bracket, cap = 3) {
     const pieces = (combo.uses || [])
       .map((u) => u && u.card)
       .filter((c) => c && c.name)
-      .map((c) => ({ name: c.name, missing: !have.has(norm(c.name)) }));
+      .map((c) => ({ name: c.name, image: c.imageUriFrontNormal || c.imageUriFrontPng || null, missing: !have.has(norm(c.name)) }));
     const add = pieces.filter((p) => p.missing).map((p) => p.name);
     if (add.length < 1 || add.length > 2) continue;
     const bracketTag = combo.bracketTag || null;
     if (!comboAllowed(bracketTag, bracket)) continue;
-    out.push({ id: combo.id, pieces, add, bracketTag, popularity: typeof combo.popularity === 'number' ? combo.popularity : null });
+    out.push({
+      id: combo.id, pieces, add, bracketTag,
+      produces: (combo.produces || []).map((p) => (p && p.feature && p.feature.name) || (p && p.name)).filter(Boolean),
+      popularity: typeof combo.popularity === 'number' ? combo.popularity : null,
+    });
   }
   return out.sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, cap);
 }

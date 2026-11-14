@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { prettifyTag, humanizeId, humanizeLabel, humanizeValueMaybe } from '../src/labels.js';
+import { prettifyTag, humanizeId, humanizeLabel, humanizeValueMaybe, comboBracketLabel } from '../src/labels.js';
 
 test('prettifies known CommanderSalt stat flags', () => {
   assert.equal(prettifyTag('multipliers'), 'multiplier');
@@ -34,4 +34,14 @@ test('humanizeValueMaybe only rewrites identifier-shaped values', () => {
   assert.equal(humanizeValueMaybe('winconInconsistency'), 'wincon inconsistency');
   assert.equal(humanizeValueMaybe('none'), 'none'); // no capital → untouched
   assert.equal(humanizeValueMaybe(3), 3); // non-string → untouched
+});
+
+test('comboBracketLabel: Spellbook tag → readable label + blurb', () => {
+  assert.deepEqual(comboBracketLabel('R'), { text: 'Ruthless · Bracket 4+', title: 'competitive: infinite turns, mass denial, control' });
+  assert.equal(comboBracketLabel('C').text, 'Core · Bracket 2+');
+  assert.equal(comboBracketLabel('E').text, 'Exhibition · Bracket 1');
+  assert.equal(comboBracketLabel('B').text, 'Banned in Commander');
+  assert.deepEqual(comboBracketLabel('Z'), { text: 'Bracket tag Z', title: null });
+  assert.equal(comboBracketLabel(null), null);
+  assert.equal(comboBracketLabel(''), null);
 });

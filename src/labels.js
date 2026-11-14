@@ -89,3 +89,26 @@ export function humanizeValueMaybe(v) {
   if (typeof v === 'string' && /^[A-Za-z]+$/.test(v) && /[A-Z]/.test(v)) return humanizeId(v).toLowerCase();
   return v;
 }
+
+// Commander Spellbook combo bracket tags → the official-Bracket number they suit + a blurb.
+// (From commanderspellbook.com syntax guide.) Shared by the deck's combo panel and the
+// Guided Deck Builder's combo tiles.
+export const COMBO_BRACKET_TAG = {
+  E: { name: 'Exhibition', bracket: '1', desc: 'casual / janky combo, fine in any deck' },
+  C: { name: 'Core', bracket: '2+', desc: 'fast two-card combo or extra-turn card' },
+  O: { name: 'Oddball', bracket: '2', desc: 'could be powerful but needs more cards / unclear' },
+  P: { name: 'Powerful', bracket: '3+', desc: 'game changers or strong two-card combos' },
+  S: { name: 'Spicy', bracket: '3', desc: 'could be ruthless but needs a third card / unclear' },
+  R: { name: 'Ruthless', bracket: '4+', desc: 'competitive: infinite turns, mass denial, control' },
+  B: { name: 'Banned', bracket: 'banned', desc: 'contains a card banned in Commander' },
+};
+
+/** A Spellbook bracket tag as a readable label: "R" → { text: 'Ruthless · Bracket 4+', title: desc }.
+    Unknown tags pass through as "Bracket tag X"; no tag → null. */
+export function comboBracketLabel(tag) {
+  if (!tag) return null;
+  const b = COMBO_BRACKET_TAG[tag];
+  if (!b) return { text: `Bracket tag ${tag}`, title: null };
+  if (b.bracket === 'banned') return { text: `${b.name} in Commander`, title: b.desc };
+  return { text: `${b.name} · Bracket ${b.bracket}`, title: b.desc };
+}

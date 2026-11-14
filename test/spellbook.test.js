@@ -87,11 +87,17 @@ test('keyCombos: 1-2 missing, bracket-filtered, popularity desc, capped', () => 
   ] };
   const out = keyCombos(results, ['A', 'Island'], 3, 3);
   assert.deepEqual(out.map((c) => c.id), ['two', 'one', 'p4']);
-  assert.deepEqual(out[1].pieces, [{ name: 'A', missing: false }, { name: 'B', missing: true }]);
+  assert.deepEqual(out[1].pieces, [{ name: 'A', image: 'img:A', missing: false }, { name: 'B', image: 'img:B', missing: true }]);
+  assert.deepEqual(out[1].produces, []);
   assert.deepEqual(out[0].add, ['X', 'Y']);
   assert.equal(out[0].bracketTag, 'S');
   assert.equal(out[0].popularity, 50);
   assert.ok(!keyCombos(results, ['A'], 3).some((c) => c.id === 'ruthless'));
   assert.ok(keyCombos(results, ['A'], 4, 10).some((c) => c.id === 'ruthless'));
   assert.deepEqual(keyCombos(null, [], 3), []);
+});
+
+test('keyCombos: keeps produces names', () => {
+  const results = { almostIncluded: [combo('u', ['A', 'B'], ['Infinite untaps', 'Infinite mana'], 1, { bracketTag: 'C' })] };
+  assert.deepEqual(keyCombos(results, ['A'], 3)[0].produces, ['Infinite untaps', 'Infinite mana']);
 });

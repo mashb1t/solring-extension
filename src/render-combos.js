@@ -4,6 +4,7 @@
 
 import { el, chevronSvg } from './dom.js';
 import { cardRefs } from './render-card-modal.js';
+import { COMBO_BRACKET_TAG } from './labels.js';
 
 const SECTION_LABELS = {
   easyPrerequisites: 'Easy prereqs',
@@ -162,21 +163,11 @@ export function buildCombosSection(combos, profile) {
 // "One card away": Commander Spellbook combos the deck is a single card short of, grouped by
 // the card to add (one card can complete several). Idempotent — clears the slot first;
 // renders nothing when empty. `data.nearMiss` = [{ id, add, produces, popularity, bracketTag }].
-// Commander Spellbook combo bracket tags → the official-Bracket number they suit + a blurb.
-// (From commanderspellbook.com syntax guide.) The chip shows the bracket (1 / 2+ / 2 / 3+ /
-// 3 / 4+); the tier name + blurb are the tooltip.
-const BRACKET_TAG = {
-  E: { name: 'Exhibition', bracket: '1', desc: 'casual / janky combo, fine in any deck' },
-  C: { name: 'Core', bracket: '2+', desc: 'fast two-card combo or extra-turn card' },
-  O: { name: 'Oddball', bracket: '2', desc: 'could be powerful but needs more cards / unclear' },
-  P: { name: 'Powerful', bracket: '3+', desc: 'game changers or strong two-card combos' },
-  S: { name: 'Spicy', bracket: '3', desc: 'could be ruthless but needs a third card / unclear' },
-  R: { name: 'Ruthless', bracket: '4+', desc: 'competitive: infinite turns, mass denial, control' },
-  B: { name: 'Banned', bracket: 'banned', desc: 'contains a card banned in Commander' },
-};
+// The chip shows the bracket (1 / 2+ / 2 / 3+ / 3 / 4+); the tier name + blurb are the tooltip.
+// The tag table lives in labels.js (shared with the Guided Deck Builder).
 function bracketStat(tag) {
   if (!tag) return null;
-  const b = BRACKET_TAG[tag];
+  const b = COMBO_BRACKET_TAG[tag];
   const s = stat('bracket', b ? b.bracket : tag);
   if (b) s.title = `${b.name} · ${b.desc}`;
   return s;
