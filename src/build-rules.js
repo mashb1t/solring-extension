@@ -80,6 +80,8 @@ export function checkCard(name, ctx) {
   if (isGc(key, ctx) && ctx.gcUsed + 1 > cap) {
     return { ok: false, reason: `Would be Game Changer #${ctx.gcUsed + 1} (cap ${cap})` };
   }
+  // Deliberately conservative: the official brackets only bar CHAINED extra turns at B1–3, but a
+  // builder can't tell a lone extra-turn card from a future chain, so every one is blocked there.
   if (rules.bracket <= 3) {
     if (ctx.flags.extraTurns.has(key)) return { ok: false, reason: `Not allowed at Bracket ${rules.bracket} (extra turn)` };
     if (ctx.flags.massLandDenial.has(key)) return { ok: false, reason: `Not allowed at Bracket ${rules.bracket} (mass land denial)` };

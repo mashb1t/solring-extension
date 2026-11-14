@@ -7,6 +7,14 @@ import { checkCard } from './build-rules.js';
 const LAND_LISTS = new Set(['Lands', 'Utility Lands']);
 const KEY_MIN_SYNERGY = 0.15;
 
+// Land or spell: Scryfall's type line (front face, so an "Instant // Land" MDFC is a spell) when
+// card info is loaded, else EDHREC's list header.
+function isLand(c, info) {
+  const t = info[frontFace(c.name)] && info[frontFace(c.name)].typeLine;
+  if (t) return /\bland\b/i.test(String(t).split(' // ')[0]);
+  return LAND_LISTS.has(c.list);
+}
+
 const isGcKey = (key, info, flags) => !!(flags && flags.gameChangers && flags.gameChangers.has(key)) || !!(info[key] && info[key].gameChanger);
 
 // Power stand-in (spec decision 3): synergy dominates, then popularity, GC and combo bonuses.
@@ -40,8 +48,8 @@ export function buildTiers({ themeCards, combos, ctx, keyCount = 15 }) {
   };
   const fresh = themeCards.filter((c) => c && c.name && !ctx.deckKeys.has(frontFace(c.name)));
   const byPct = (a, b) => (b.inclusionPct || 0) - (a.inclusionPct || 0);
-  const lands = fresh.filter((c) => LAND_LISTS.has(c.list));
-  const spells = fresh.filter((c) => !LAND_LISTS.has(c.list));
+  const lands = fresh.filter((c) => isLand(c, ctx.info));
+  const spells = fresh.filter((c) => !isLand(c, ctx.info));
   const cands = spells.filter((c) => (c.synergy || 0) >= KEY_MIN_SYNERGY)
     .map((c) => ({ c, s: keyScore(c, ctx.info, comboKeys, ctx.flags) }))
     .sort((a, b) => b.s - a.s)

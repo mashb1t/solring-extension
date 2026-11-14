@@ -67,3 +67,21 @@ test('buildTiers: land lists go to lands tier by inclusionPct', () => {
   assert.deepEqual(t.lands.map((s) => s.name), ['Scalding Tarn', 'Command Tower']);
   assert.ok(![...t.key, ...t.theme].some((s) => extra.some((e) => e.name === s.name)));
 });
+
+test('buildTiers: land vs spell by Scryfall typeLine (front face) when known, list header otherwise', () => {
+  const themeList = [
+    { name: 'Dryad Arbor', synergy: 0.5, inclusionPct: 30, list: 'Creatures' }, // "Land Creature" → land
+    { name: 'Emeria\'s Call // Emeria, Shattered Skyclave', synergy: 0.5, inclusionPct: 30, list: 'Lands' }, // MDFC spell front → spell
+    { name: 'Command Tower', synergy: 0, inclusionPct: 90, list: 'Lands' }, // no info → header
+    { name: 'Sol Ring', synergy: 0.5, inclusionPct: 90, list: 'Artifacts' },
+  ];
+  const info = {
+    'dryad arbor': { typeLine: 'Land Creature — Forest Dryad' },
+    "emeria's call": { typeLine: 'Sorcery // Land' },
+    'sol ring': { typeLine: 'Artifact' },
+  };
+  const t = buildTiers({ themeCards: themeList, combos: [], ctx: ctxOf({ info }) });
+  assert.deepEqual(t.lands.map((s) => s.name).sort(), ['Command Tower', 'Dryad Arbor']);
+  const spellNames = [...t.key, ...t.theme].map((s) => s.name).sort();
+  assert.deepEqual(spellNames, ["Emeria's Call // Emeria, Shattered Skyclave", 'Sol Ring']);
+});
