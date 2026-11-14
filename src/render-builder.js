@@ -488,6 +488,26 @@ export async function installBuilder({ waitFor }) {
     document.querySelectorAll('.solring-builder-modal-back').forEach((n) => n.remove());
   }
 
+  // Solring's own small confirm (preview modal styling) before a destructive write.
+  function confirmModal(title, okLabel, onOk) {
+    closeModal();
+    const cancel = el('button', { class: 'btn btn-outline-secondary btn-sm', text: 'Cancel', attrs: { type: 'button' } });
+    const okBtn = el('button', { class: 'btn btn-danger btn-sm', text: okLabel, attrs: { type: 'button' } });
+    cancel.addEventListener('click', closeModal);
+    okBtn.addEventListener('click', () => { closeModal(); onOk(); });
+    const dialog = el('div', { class: `solring-builder-modal solring-builder-confirm${isDark() ? ' solring-dark' : ''}`, attrs: { role: 'alertdialog', 'aria-modal': 'true', 'aria-label': title } }, [
+      el('h3', { text: title }),
+      el('div', { class: 'solring-builder-pvsum', text: 'Moxfield saves the deck without them. Nothing is removed until you confirm.' }),
+      el('div', { class: 'solring-builder-pvfoot' }, [cancel, okBtn]),
+    ]);
+    const back = el('div', { class: 'solring-builder-modal-back' }, [dialog]);
+    back.addEventListener('click', (e) => { if (e.target === back) closeModal(); });
+    modalKey = (e) => { if (e.key === 'Escape') closeModal(); };
+    document.addEventListener('keydown', modalKey);
+    document.body.appendChild(back);
+    cancel.focus();
+  }
+
   function openPreview() {
     if (!S.ctx || S.busy || addsPaused() || !S.flagsOk) return;
     closeModal();
@@ -595,8 +615,12 @@ export async function installBuilder({ waitFor }) {
     remove.addEventListener('click', () => {
       const names = [...selected.values()];
       if (!names.length || S.busy) return;
-      S.busy = 'rm'; syncBar();
-      write({ remove: names }, `Removed ${names.length} card${names.length === 1 ? '' : 's'}`, 'rm').then(() => { if (alive()) syncBar(); });
+      const what = `${names.length} card${names.length === 1 ? '' : 's'}`;
+      confirmModal(`Remove ${what} from this deck?`, 'Remove', () => {
+        if (S.busy || writing || !live()) return;
+        S.busy = 'rm'; syncBar();
+        write({ remove: names }, `Removed ${what}`, 'rm').then(() => { if (alive()) syncBar(); });
+      });
     });
     deckview.parentElement.insertBefore(selbar, deckview);
     let topRaf = 0;

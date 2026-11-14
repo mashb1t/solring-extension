@@ -954,6 +954,7 @@ li.solring-builder-sel { background: color-mix(in srgb, var(--solring-rating-a) 
   background: var(--bs-modal-bg, var(--solring-surface)); color: var(--solring-text); font-size: 0.875rem;
 }
 .solring-builder-modal h3 { margin: 0 0 0.25rem; font-size: 1.15rem; font-weight: 600; }
+.solring-builder-confirm { width: min(440px, 100%); }
 .solring-builder-pvsum { margin-bottom: 0.6rem; font-size: 0.78rem; color: var(--solring-text-2); }
 .solring-builder-short {
   margin-bottom: 0.6rem; padding: 0.4rem 0.6rem; border-left: 3px solid var(--solring-rating-b); border-radius: 0 6px 6px 0;
