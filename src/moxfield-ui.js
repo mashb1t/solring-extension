@@ -262,7 +262,9 @@ const bulkError = () => [...document.querySelectorAll('.invalid-feedback')].map(
 
 /**
  * Add/remove mainboard cards through Moxfield's own Bulk Edit page and let Moxfield save.
- * Call from the deck view (or the bulk editor). Never throws.
+ * Call from the deck view (or the bulk editor). Never throws. With `publicId`, the edit is bound to
+ * that deck: if the URL names another deck on entry, before Save, or when the view returns, the
+ * result is 'ui-changed' (nothing is saved unless the mismatch only shows up after Save).
  * @returns {Promise<{ok:true} | {ok:false, reason:'not-editable'|'ui-changed'|'rejected', message?:string}>}
  *   - 'not-editable': not a deck page, logged out, or logged in but not the deck's owner.
  *   - 'ui-changed':   Moxfield's UI no longer matches our anchors (Bulk Edit link / textarea / Save
@@ -272,7 +274,10 @@ const bulkError = () => [...document.querySelectorAll('.invalid-feedback')].map(
  *   user is returned to the deck view if we navigated away from it; nothing is saved. After a Save
  *   timeout the page is left as is.
  */
-export async function applyBulkEdit({ add = [], remove = [] } = {}) {
+export async function applyBulkEdit({ add = [], remove = [], publicId = null } = {}) {
+  // Bound to the deck the edit was planned for: after an SPA move the URL names another deck.
+  const sameDeck = () => !publicId || (deckPath() || [])[1] === publicId;
+  if (!sameDeck()) return UI_CHANGED;
   let opened = null;
   let board = null;
   let original = null;
@@ -293,10 +298,11 @@ export async function applyBulkEdit({ add = [], remove = [] } = {}) {
       if (!(await waitFor(() => board.value === next, 1000))) return await fail(UI_CHANGED);
     }
     const save = findByText('button', /^save$/i, board.closest('form') || document);
-    if (!save) return await fail(UI_CHANGED);
+    if (!save || !sameDeck()) return await fail(UI_CHANGED);
     save.click();
     // Moxfield's "Save" returns to the deck view; a validation error keeps it on /edit.
-    const outcome = await waitFor(() => (onDeckView() && 'saved') || (bulkError() && 'rejected'), SAVE_WAIT_MS);
+    // Landing on another deck's view mid-save is not a confirmed save of this one.
+    const outcome = await waitFor(() => (onDeckView() && (sameDeck() ? 'saved' : 'moved')) || (bulkError() && 'rejected'), SAVE_WAIT_MS);
     if (outcome === 'saved') return { ok: true };
     if (outcome === 'rejected') {
       const message = bulkError();

@@ -228,10 +228,10 @@ export async function installBuilder({ waitFor }) {
 
   // ---- writes --------------------------------------------------------------------------------
   async function write(edit, okMsg, label) {
-    if (writing) return;
+    if (writing || !live()) return; // a stale panel (SPA move to another deck) must not write there
     closeModal();
     S.busy = label; render();
-    const p = applyBulkEdit(edit).catch(() => ({ ok: false, reason: 'ui-changed' }))
+    const p = applyBulkEdit({ ...edit, publicId }).catch(() => ({ ok: false, reason: 'ui-changed' }))
       .then((r) => { if (r && r.ok) afterWrite = { publicId, at: Date.now() }; return r; });
     writing = p;
     const res = await p;
