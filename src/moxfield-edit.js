@@ -22,7 +22,8 @@ export async function authedGet(url) {
   try {
     for (let i = 0; !token && i < 20; i++) await new Promise((r) => setTimeout(r, 150));
     if (!token) return null;
-    const r = await fetch(url, { method: 'GET', credentials: 'include', headers: { Authorization: token } });
+    // redirect:'error': never follow a redirect off api2 with the token attached.
+    const r = await fetch(url, { method: 'GET', credentials: 'include', redirect: 'error', headers: { Authorization: token } });
     return r.ok ? await r.json() : null;
   } catch { return null; }
 }

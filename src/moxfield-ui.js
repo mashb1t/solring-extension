@@ -91,6 +91,14 @@ export function editBulkText(text, { add = [], remove = [] } = {}) {
   return out.join('\n');
 }
 
+// The `remove` names that no card line of the bulk text matches (front face, case-insensitive):
+// editBulkText would silently skip them, so applyBulkEdit refuses the whole edit instead.
+export function unmatchedRemovals(text, remove = []) {
+  const have = new Set();
+  for (const line of String(text ?? '').split('\n')) { const p = parseLine(line); if (p) have.add(p.key); }
+  return (remove || []).filter((n) => n && !have.has(frontFace(n)));
+}
+
 // Sum of quantities over the card lines of a bulk-edit text.
 const bulkCount = (text) => String(text || '').split('\n').reduce((n, l) => { const p = parseLine(l); return n + (p ? p.qty : 0); }, 0);
 
@@ -286,6 +294,7 @@ const bulkError = () => [...document.querySelectorAll('.invalid-feedback')].map(
  *   - 'ui-changed':   Moxfield's UI no longer matches our anchors (Bulk Edit link / textarea / Save
  *                     missing, list never fully loaded) or the Save didn't finish within 10 s.
  *   - 'rejected':     Moxfield refused the text (e.g. unknown card names); `message` is its error.
+ *                     Also returned, before Save, when a `remove` name matches no Main Deck line.
  *   On every failure before or at Save (incl. 'rejected') the original text is restored and the
  *   user is returned to the deck view if we navigated away from it; nothing is saved. After a Save
  *   timeout the page is left as is.
@@ -308,6 +317,8 @@ export async function applyBulkEdit({ add = [], remove = [], publicId = null } =
     board = await readyMainboard(opened.expected);
     if (!board) return await fail(UI_CHANGED);
     original = board.value;
+    const missing = unmatchedRemovals(original, remove);
+    if (missing.length) return await fail({ ok: false, reason: 'rejected', message: `Not found in Bulk Edit: ${missing.join(', ')}` });
     const next = editBulkText(original, { add, remove });
     if (next !== original) {
       setNativeValue(board, next);

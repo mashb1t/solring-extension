@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editBulkText, countsAgree } from '../src/moxfield-ui.js';
+import { editBulkText, countsAgree, unmatchedRemovals } from '../src/moxfield-ui.js';
 
 const BULK = [
   '1 Sol Ring (CMM) 400',
@@ -80,4 +80,11 @@ test('countsAgree: matching counts pass; any mismatching source fails', () => {
   // A genuinely empty mainboard (commander only) still works.
   assert.equal(countsAgree({ parsed: 0, label: 0, view: null }), true);
   assert.equal(countsAgree({ parsed: 0, label: 0, view: { main: 0, total: 1 } }), true);
+});
+
+test('unmatchedRemovals: names with no card line in the bulk text (front face, case-insensitive)', () => {
+  assert.deepEqual(unmatchedRemovals(BULK, ['sol ring', 'Ojer Axonil, Deepest Might', 'Rhystic Study']), ['Rhystic Study']);
+  assert.deepEqual(unmatchedRemovals(BULK, ['Forest']), []);
+  assert.deepEqual(unmatchedRemovals(BULK, []), []);
+  assert.deepEqual(unmatchedRemovals('', ['Forest']), ['Forest']);
 });
