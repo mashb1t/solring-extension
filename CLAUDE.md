@@ -27,12 +27,13 @@ through any Solring backend — all data is fetched straight from the third-part
   Moxfield's card modal / image sidebar), `render-combos.js`, `render-user.js`, `decklist.js` (deck-manager columns).
 - **`src/recommendations.js`** — the `/decks/{id}/recommendations` "Cuts" tab + Deck-Preview enhancements (see below).
 - **Guided Deck Builder** — pure: `build-rules.js`, `build-rank.js`, `autocomplete.js`, `build-store.js` (`build:` state),
-  `builder-view.js`, `picker-logic.js`. `moxfield-ui.js` drives Moxfield's **own** Bulk Edit + New-deck dialog (never API
-  writes). `moxfield-collection.js` = read-only collection GET. `render-picker.js` = "✨ Find with Solring" in the Create New
+  `builder-view.js`, `picker-logic.js`. `moxfield-ui.js` = builder card writes via Moxfield's Bulk Edit API request
+  (`applyBulkEdit`) + Moxfield's **own** New-deck / Change Commander dialogs. `moxfield-collection.js` = read-only collection GET. `render-picker.js` = "✨ Find with Solring" in the Create New
   Deck dialog + "Pick a Commander" alert on commander-less decks. `render-builder.js` = the build view on Commander decks.
 - **`src/moxfield-token.js`** — **MAIN-world** content script; captures Moxfield's bearer token off its own
   requests and relays it via `postMessage` (memory-only). **`src/moxfield-edit.js`** — deck read (`readDeck`, cookie
-  GET) + edits (`setCardQuantity` = `PUT …/cards/{board}/{cardId}`, `removeCard` = `DELETE …/{cardId}`).
+  GET; `readDeckJson`/`readDeckAny` with token fallback) + edits (`setCardQuantity` = `PUT …/cards/{board}/{cardId}`,
+  `removeCard` = `DELETE …/{cardId}`, `bulkEditWrite` = `PUT /v3/decks/{publicId}/bulk-edit`).
 
 ## Conventions
 
@@ -59,19 +60,28 @@ power + synergy, normalized, weakest first) vs **EDHREC popularity** (`outRecs`)
 
 ## Guided Deck Builder writes
 
-The builder writes ONLY through Moxfield's own Bulk Edit UI (`moxfield-ui.applyBulkEdit`, result `{ok}` or `{ok:false, reason}`
-with reason `not-editable` | `ui-changed` | `rejected`); there are no builder API writes. Writes are bound to the planned
-deck (`applyBulkEdit({…, publicId})` → `ui-changed` if the URL names another deck), the textarea is only rewritten when
-`countsAgree` cross-checks it against a readable count (fails closed), and unmatched removals are `rejected` unsaved.
+Builder card writes send ONE request per write — the same `PUT https://api2.moxfield.com/v3/decks/{publicId}/bulk-edit`
+Moxfield's own Bulk Edit "Save" sends, with the deck's full Bulk Edit text (`moxfield-ui.applyBulkEdit` →
+`moxfield-edit.bulkEditWrite`; result `{ok}` or `{ok:false, reason}` with `not-editable` | `ui-changed` | `rejected`).
+This is a **token write** (user-accepted 2026-11-14), scoped to that one endpoint (URL/method fixed, public id validated,
+`redirect:'error'`, token never logged). Flow: owner check (`editAccess`) → fresh deck JSON → fresh Bulk Edit GET text →
+`countsAgree` (parsed mainboard == deck JSON mainboard, fails closed) → `editBulkText` → `bulkEditBody` (all other boards
+passed through unchanged) → PUT → `bulkEditOutcome`. Unknown card names come back as **HTTP 200** `isSuccessful:false`
+(→ `rejected`); the server is last-write-wins (no version check). After a save, `deckSyncMessage` is posted on Moxfield's
+own BroadcastChannel `moxfield-sync-{ownerUserId}` (`isTruncated:true`) so its deck view refetches in place. Creating a
+deck (New-deck dialog pre-fill) and setting the commander (`setCommanderViaBulk`, Change Commander dialog — the Bulk
+Edit payload has no commanders board) stay UI-driven; never click Create.
 Rules: `checkCard` also blocks the last missing piece of a Spellbook combo above the bracket (`makeCtx({combos})` via
 `comboGuards`). Row checkboxes / data loads only on decks you can edit (`moxfield-ui.canEdit`); others lazy-load on expand. `moxfield-edit.authedGet` is a
-read-only, api2-only token GET (collection + private-deck reads). Both sit in the same ToS-/CWS-sensitive area as above.
+read-only, api2-only token GET (collection, private-deck and Bulk Edit text reads). All of this sits in the same
+ToS-/CWS-sensitive area as above.
 
 ## Testing & build
 
 - `npm test` → `node --test`. Pure-logic modules (extract, ratings, md5, cache, sources, decklist, prefs, …) are
   unit-tested against `fixtures/`; builder modules too (build-rules, build-rank, autocomplete, build-store, builder-view,
-  picker-logic, edhrec-build, scryfall, `editBulkText` in moxfield-ui, the moxfield-collection shaper). DOM/render modules are **verified live in a real browser** (load unpacked, reload,
+  picker-logic, edhrec-build, scryfall, moxfield-ui's pure Bulk Edit core (`editBulkText`, `bulkEditBody`,
+  `bulkEditOutcome`, `countsAgree`, `deckSyncMessage`), the moxfield-collection shaper). DOM/render modules are **verified live in a real browser** (load unpacked, reload,
   open a Moxfield deck) — there are no DOM unit tests, so exercise UI changes in-browser.
 - `npm run build` (`node scripts/build.mjs`) runs tests then writes `dist/solring-v<version>.zip`. Version lives in
   `manifest.json`; git tags `vX.Y.Z` trigger the release workflow.
@@ -86,12 +96,13 @@ read-only, api2-only token GET (collection + private-deck reads). Both sit in th
   `card-face-{frontFaceId}` (drives the DFC image + flip button).
 - Moxfield's deck-edit resources are keyed by **cardId**, not the internal board-entry id (a DELETE by entry id 404s).
 - Moxfield dark mode is the `.darkmode` class on html/body, not `[data-bs-theme]` (see `dom.isDark`, `styles/solring.css`).
-- Bulk Edit / dialog selectors are recorded in the `LIVE-VERIFY` comment atop `src/moxfield-ui.js`; re-check it when Moxfield's UI shifts.
+- The Bulk Edit API request/response + the sync channel (2026-11-14) and the dialog selectors (2026-11-13) are recorded in
+  the `LIVE-VERIFY` comment atop `src/moxfield-ui.js`; re-check it when Moxfield changes.
 - EDHREC GETs must be simple requests (no custom headers) or the CORS preflight returns 403.
 - `readDeck` 404s on private decks; `readDeckAny` falls back to `authedGet`.
 - Scryfall returns basics with `usd: null`; the builder prices them at $0 under a budget.
 - `content.js`'s patched pushState runs in the isolated world and misses Moxfield's own pushState; the Navigation API
-  listener is what catches it (not yet live-verified), so the build view still self-remounts after writes as a fallback.
+  listener is what catches it. Builder writes no longer navigate, so the build view re-renders in place after a write.
 - Live testing: Playwright `connectOverCDP` to a manually launched (non-automated) Brave; Cloudflare blocks login in a
   Playwright-launched browser.
 - User global rule: commit granularly (Conventional Commits w/ scope), don't push without being asked, stay on
