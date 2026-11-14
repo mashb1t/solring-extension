@@ -438,7 +438,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   function addBtn(label, title, blocked, onClick) {
-    const b = el('button', { class: 'btn btn-primary btn-sm solring-builder-add', text: label, attrs: { type: 'button', title, 'aria-label': title } });
+    // A bare "+" is drawn in CSS (.solring-builder-add-icon): font glyphs sit off-centre in a square button.
+    const icon = label === '+';
+    const b = el('button', { class: `btn btn-primary btn-sm solring-builder-add${icon ? ' solring-builder-add-icon' : ''}`, text: icon ? '' : label, attrs: { type: 'button', title, 'aria-label': title } });
     b.disabled = blocked || !!S.busy || addsPaused();
     b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
     return b;

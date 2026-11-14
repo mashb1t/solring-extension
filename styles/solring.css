@@ -922,6 +922,11 @@ span.solring-picker-entry { display: inline; }
   position: absolute; top: 0.35rem; right: 0.35rem; z-index: 1; width: 1.75rem; height: 1.75rem; padding: 0;
   border-radius: 50%; font-weight: 700; line-height: 1; box-shadow: 0 1px 3px color-mix(in srgb, #000 35%, transparent);
 }
+.btn.solring-builder-add-icon, .solring-builder-add-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  background-image: linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor);
+  background-size: 0.75rem 2px, 2px 0.75rem; background-position: center; background-repeat: no-repeat;
+}
 .solring-builder-tile.solring-blocked > :not(.solring-builder-why) { opacity: 0.45; }
 .solring-builder-tile.solring-blocked .solring-builder-add { display: none; }
 .solring-builder-why {
