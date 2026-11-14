@@ -961,7 +961,7 @@ span.solring-picker-entry { display: inline; }
 }
 .solring-builder-pieces { margin: 0; padding: 0.15rem 0.4rem 0; list-style: none; font-size: 0.7rem; line-height: 1.3; }
 .solring-builder-pieces li { display: flex; align-items: baseline; gap: 0.3rem; min-width: 0; }
-.solring-builder-pieces .solring-cardname { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.solring-builder-pieces .solring-cardname { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: normal; overflow-wrap: anywhere; }
 .solring-builder-pieces li.solring-missing .solring-cardname { color: var(--solring-text); font-weight: 600; }
 .solring-builder-pieces li.solring-indeck .solring-cardname { color: var(--solring-text-2); }
 .solring-builder-pieces .solring-cardname[data-resolve]:hover,
