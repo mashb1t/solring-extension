@@ -129,6 +129,9 @@ export async function installBuilder({ waitFor }) {
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
   };
   const selected = new Map(); // front-face key → mainboard name (decklist checkboxes)
+  // "Only cards I own" is saved on but the collection isn't loaded (yet, or it failed): the rule
+  // can't be enforced, so every add (tiles, combos, Auto-complete) is paused. Removes stay allowed.
+  const addsPaused = () => !!S.build.rules.ownedOnly && S.ownedState !== 'ready';
   let syncPicks = () => {}; // set by installRowPicks: re-applies checkbox state to the rows
   let modalKey = null; // the open preview's Escape listener (closeModal removes it)
   let themeSeq = 0; // playstyle-switch sequence: a slower earlier switch must not win
@@ -207,6 +210,7 @@ export async function installBuilder({ waitFor }) {
     await loadAll();
     if (!alive()) return abandon();
     S.loading = false;
+    if (S.build.rules.ownedOnly) S.ownedState = 'loading'; // adds stay paused until it's loaded
     recompute();
     render();
     if (editable) installRowPicks(); // row checkboxes + "Remove selected" only where you can write
@@ -239,6 +243,7 @@ export async function installBuilder({ waitFor }) {
   // ---- writes --------------------------------------------------------------------------------
   async function write(edit, okMsg, label) {
     if (writing || !live()) return; // a stale panel (SPA move to another deck) must not write there
+    if (edit.add && edit.add.length && addsPaused()) return;
     closeModal();
     S.busy = label; render();
     const p = applyBulkEdit({ ...edit, publicId }).catch(() => ({ ok: false, reason: 'ui-changed' }))
@@ -291,7 +296,8 @@ export async function installBuilder({ waitFor }) {
     S.ownedState = 'loading'; render();
     const set = await ownedNames().catch(() => null);
     if (!alive()) return abandon();
-    if (!set) { S.owned = null; S.ownedState = 'unavailable'; return saveRules({ ownedOnly: false }); }
+    // Keep the saved rule: a failed load must not silently switch it off (adds stay paused instead).
+    if (!set) { S.owned = null; S.ownedState = 'unavailable'; recompute(); render(); return; }
     S.owned = set; S.ownedState = 'ready';
     return saveRules({ ownedOnly: true });
   }
@@ -318,6 +324,9 @@ export async function installBuilder({ waitFor }) {
     const kids = [rulesBar()];
     if (S.rulesOpen) kids.push(rulesForm());
     if (S.power) kids.push(el('div', { class: 'solring-builder-power', text: S.power }));
+    if (S.build.rules.ownedOnly && S.ownedState === 'unavailable') {
+      kids.push(el('div', { class: 'solring-builder-note solring-builder-err', text: 'Your collection couldn’t load, so adding is paused while “Only cards I own” is on. Untick it to add anyway.' }));
+    }
     kids.push(tiersView());
     body.replaceChildren(...kids);
   }
@@ -332,18 +341,21 @@ export async function installBuilder({ waitFor }) {
       items.push(el('span', { class: 'solring-builder-chip', attrs: { 'data-rule': c.key } }, kids));
     }
     const box = el('input', { class: 'form-check-input', attrs: { type: 'checkbox' } });
-    box.checked = S.ownedState === 'loading' || !!(S.build.rules.ownedOnly && S.owned);
-    box.disabled = S.ownedState === 'loading' || S.ownedState === 'unavailable';
+    const ruleOn = !!S.build.rules.ownedOnly;
+    box.checked = S.ownedState === 'loading' || ruleOn;
+    // Unavailable + saved on: still uncheckable, so the user can switch the rule off and add again.
+    box.disabled = S.ownedState === 'loading' || (S.ownedState === 'unavailable' && !ruleOn);
     box.addEventListener('change', () => setOwnedOnly(box.checked));
-    const ownedText = S.ownedState === 'loading' ? 'Loading your collection…' : 'Only cards I own';
+    const ownedText = S.ownedState === 'loading' ? 'Loading your collection…'
+      : S.ownedState === 'unavailable' && ruleOn ? 'Only cards I own (unavailable)' : 'Only cards I own';
     const owned = el('label', {
-      class: `solring-builder-chip solring-builder-owned${box.disabled ? ' solring-disabled' : ''}`,
+      class: `solring-builder-chip solring-builder-owned${box.disabled || S.ownedState === 'unavailable' ? ' solring-disabled' : ''}`,
       title: S.ownedState === 'unavailable' ? 'Log in to Moxfield to use your collection' : null,
     }, [box, S.ownedState === 'loading' ? el('span', { class: 'solring-spin-icon solring-spin', text: '↻' }) : null, ownedText]);
     const ruleBtn = el('button', { class: 'solring-builder-chip solring-builder-rulebtn', text: S.rulesOpen ? 'Close rules' : '+ rule', attrs: { type: 'button' } });
     ruleBtn.addEventListener('click', () => { S.rulesOpen = !S.rulesOpen; S.rulesError = null; render(); });
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
-    ac.disabled = !!S.busy || !S.ctx;
+    ac.disabled = !!S.busy || !S.ctx || addsPaused();
     ac.addEventListener('click', openPreview);
     return el('div', { class: 'solring-builder-rules' }, [...items, owned, ruleBtn, el('span', { class: 'solring-builder-spacer' }), ac]);
   }
@@ -431,7 +443,7 @@ export async function installBuilder({ waitFor }) {
 
   function addBtn(label, title, blocked, onClick) {
     const b = el('button', { class: 'btn btn-primary btn-sm solring-builder-add', text: label, attrs: { type: 'button', title, 'aria-label': title } });
-    b.disabled = blocked || !!S.busy;
+    b.disabled = blocked || !!S.busy || addsPaused();
     b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
     return b;
   }
@@ -472,7 +484,7 @@ export async function installBuilder({ waitFor }) {
   }
 
   function openPreview() {
-    if (!S.ctx || S.busy) return;
+    if (!S.ctx || S.busy || addsPaused()) return;
     closeModal();
     const fill = proposeFill({ tiers: S.tiers, ctx: S.ctx, size: V.DECK_SIZE, lands: V.LAND_TARGET, colorIdentity: deck.colorIdentity, current: S.comp.current });
     const ticked = new Set(fill.picks.map((_, i) => i));
