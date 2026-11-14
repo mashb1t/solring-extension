@@ -898,6 +898,16 @@ span.solring-picker-entry { display: inline; }
   position: relative; display: flex; flex-direction: column; min-width: 0;
   border: 1px solid var(--solring-border); border-radius: 8px; background: var(--solring-surface); overflow: hidden;
 }
+/* Hover like Solring's clickable surfaces (accent border) + a slight lift like Moxfield's card grid. */
+.solring-builder-tile { transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease; }
+.solring-builder-tile:hover {
+  border-color: var(--solring-accent); transform: translateY(-2px);
+  box-shadow: 0 4px 10px color-mix(in srgb, #000 18%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .solring-builder-tile, .solring-builder-tile:hover { transition: none; transform: none; } }
+.solring-builder-tile [data-solring-card][data-href], .solring-builder-tile [data-solring-card][data-resolve] { cursor: pointer; }
+.solring-builder-tile .solring-builder-name[data-solring-card]:hover { color: var(--solring-accent); }
+.solring-builder-art[data-solring-card]:focus-visible { outline: 2px solid var(--solring-accent); outline-offset: -2px; }
 .solring-builder-art { display: block; width: 100%; aspect-ratio: 488 / 680; object-fit: cover; background: var(--solring-surface-2); }
 .solring-builder-noart { display: flex; align-items: flex-end; padding: 0.4rem; font-size: 0.75rem; font-weight: 600; overflow-wrap: anywhere; }
 .solring-builder-name {

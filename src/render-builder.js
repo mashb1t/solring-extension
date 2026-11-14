@@ -23,7 +23,7 @@ import { ownedNames } from './moxfield-collection.js';
 import { readDeckAny } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import * as V from './builder-view.js';
-import { cardRefs } from './render-card-modal.js';
+import { cardRefs, cardHoverAttrs } from './render-card-modal.js';
 import { comboBracketLabel } from './labels.js';
 
 const ROW_SEL = 'li[data-row-key] a.table-deck-row-link[href^="/cards/"]';
@@ -443,11 +443,15 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     return b;
   }
 
+  // Tile art carries the card-ref hover attrs: enlarged preview on hover, Moxfield's card view on
+  // click (the "+" is a sibling, so its clicks never reach the delegated card-ref listener).
   function art(name) {
     const i = S.info[frontFace(name)];
-    return i && i.image
-      ? el('img', { class: 'solring-builder-art', attrs: { src: i.image, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' } })
-      : el('span', { class: 'solring-builder-art solring-builder-noart', text: name });
+    const image = (i && i.image) || null;
+    const hover = cardHoverAttrs(name, image);
+    return image
+      ? el('img', { class: 'solring-builder-art', attrs: { src: image, alt: name, loading: 'lazy', referrerpolicy: 'no-referrer', ...hover } })
+      : el('span', { class: 'solring-builder-art solring-builder-noart', text: name, attrs: hover });
   }
 
   function addBtn(label, title, blocked, onClick) {
@@ -468,7 +472,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       art(s.name),
       blocked ? el('span', { class: 'solring-builder-why', text: s.check.reason }) : null,
       addBtn('+', `Add ${s.name} via Moxfield`, blocked, () => write({ add: [{ name: s.name, qty: 1 }] }, `Added ${s.name}`, 'add')),
-      el('div', { class: 'solring-builder-name', text: s.name }),
+      el('div', { class: 'solring-builder-name', text: s.name, attrs: cardHoverAttrs(s.name, (S.info[frontFace(s.name)] || {}).image || null, { focus: false }) }),
       meta,
     ]);
   }
@@ -486,7 +490,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     });
     const shown = pieces.slice(0, 3);
     const fan = el('div', { class: 'solring-builder-fan', attrs: { 'aria-hidden': 'true' } }, shown.map((p, idx) => {
-      const piece = el('span', { class: `solring-builder-fanpiece ${p.missing ? 'solring-missing' : 'solring-indeck'}` }, [
+      // Decorative duplicate of the focusable name refs below: hover + click, no tab stop.
+      const piece = el('span', { class: `solring-builder-fanpiece ${p.missing ? 'solring-missing' : 'solring-indeck'}`, attrs: cardHoverAttrs(p.name, p.image, { focus: false }) }, [
         p.image
           ? el('img', { class: 'solring-builder-fanimg', attrs: { src: p.image, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' } })
           : el('span', { class: 'solring-builder-fanimg solring-builder-noart', text: p.name }),

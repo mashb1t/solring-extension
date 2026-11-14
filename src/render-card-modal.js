@@ -127,6 +127,10 @@ function primeMoxPrints() {
 
 let hoverPop = null;
 let hoverInstalled = false;
+// Hover/click targets: Solring's card-ref chips, plus any element marked data-solring-card
+// (the Guided Deck Builder's tile art/name), which carries the card name in that attribute.
+const HOVER_SEL = '.solring-syn-chip[data-img], [data-solring-card][data-img]';
+const CHIP_SEL = '.solring-syn-chip[data-href], .solring-syn-chip[data-resolve], [data-solring-card][data-href], [data-solring-card][data-resolve]';
 function installCardHover() {
   if (hoverInstalled) return;
   hoverInstalled = true;
@@ -136,7 +140,7 @@ function installCardHover() {
   // never fires there (it does on the deck sidebar). Capture runs before any
   // descendant can stop it. Verified live: bubble=0, capture=1 in the modal.
   document.addEventListener('mouseover', (e) => {
-    const chip = e.target.closest && e.target.closest('.solring-syn-chip[data-img]');
+    const chip = e.target.closest && e.target.closest(HOVER_SEL);
     if (!chip) return;
     if (!hoverPop) {
       hoverPop = el('div', { class: 'solring-cardpop', attrs: { 'aria-hidden': 'true' } }, [el('img', { attrs: { alt: '' } })]);
@@ -145,7 +149,7 @@ function installCardHover() {
     const img = hoverPop.querySelector('img');
     // Prefer the deck's selected printing (correct DFC face URL) when we have it; else the
     // synthesized deck-print URL, with the CommanderSalt default print as the 404 fallback.
-    const mox = moxPrints && moxPrints[frontKey(chip.textContent || '')];
+    const mox = moxPrints && moxPrints[frontKey(chip.dataset.solringCard || chip.textContent || '')];
     const primary = mox || chip.dataset.img;
     const fallback = chip.dataset.imgCs; // CommanderSalt print, used if the deck print 404s (e.g. DFCs)
     if (img.getAttribute('src') !== primary) {
@@ -164,7 +168,7 @@ function installCardHover() {
     hoverPop.style.top = `${Math.max(4, top)}px`;
   }, true);
   document.addEventListener('mouseout', (e) => {
-    if (e.target.closest && e.target.closest('.solring-syn-chip[data-img]')) hide();
+    if (e.target.closest && e.target.closest(HOVER_SEL)) hide();
   }, true);
   document.addEventListener('scroll', hide, true);
   // Click (or Enter/Space) opens Moxfield's card view for the chip's card. We click
@@ -183,7 +187,6 @@ function installCardHover() {
     const live = document.querySelector(`a.table-deck-row-link[href="${href}"]`) || document.querySelector(`a[href="${href}"]`);
     if (live) live.click(); else location.assign(href);
   };
-  const CHIP_SEL = '.solring-syn-chip[data-href], .solring-syn-chip[data-resolve]';
   document.addEventListener('click', (e) => {
     const chip = e.target.closest && e.target.closest(CHIP_SEL);
     if (!chip) return;
@@ -242,6 +245,23 @@ function deckPrintMap() {
     if (name && !(name in map)) map[name] = { img: `https://assets.moxfield.net/cards/card-${m[1]}-normal.webp`, href };
   }
   return map;
+}
+
+// Attributes that give any element (a builder tile's art or name) the card-ref hover preview
+// and click-to-open behavior, without the chip styling: the deck's print + row link when the
+// card is on the page, else the supplied image and open-by-name. `focus: false` skips the
+// link role/tabindex (for decorative duplicates of an already-focusable ref).
+export function cardHoverAttrs(name, image, { focus = true } = {}) {
+  installCardHover();
+  primeMoxPrints();
+  const hit = deckPrintMap()[normName(name)];
+  const attrs = { 'data-solring-card': name };
+  const primary = (hit && hit.img) || image;
+  if (primary) attrs['data-img'] = primary;
+  if (hit && hit.img && image && image !== hit.img) attrs['data-img-cs'] = image;
+  if (hit && hit.href) attrs['data-href'] = hit.href; else attrs['data-resolve'] = name;
+  if (focus) { attrs.role = 'link'; attrs.tabindex = '0'; }
+  return attrs;
 }
 
 // Build hoverable card-reference spans from [{name, image?}] (or plain name strings).
