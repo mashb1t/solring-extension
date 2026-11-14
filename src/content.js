@@ -111,6 +111,12 @@
       return r;
     };
   }
+  // render-picker set a commander on a commander-less deck: mount the build view in place.
+  window.addEventListener('solring:rebuild', () => {
+    if (!mods || mods.moxfield.pageType(location.href) !== 'deck') return;
+    mods.builder.teardownBuilder();
+    mods.builder.installBuilder({ waitFor, rebuild: true }).catch((e) => console.warn('[solring] builder', e));
+  });
   window.addEventListener('popstate', onNavigate);
   window.addEventListener('solring:navigate', onNavigate);
   setInterval(onNavigate, 1000);

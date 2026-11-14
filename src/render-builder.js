@@ -89,7 +89,7 @@ function toast(msg, isError) {
   toastTimer = setTimeout(() => { box.classList.remove('solring-on'); toastHide = setTimeout(() => box.remove(), 300); }, isError ? 4500 : 2600);
 }
 
-export async function installBuilder({ waitFor }) {
+export async function installBuilder({ waitFor, rebuild = false }) {
   const publicId = parseDeckId(location.href);
   if (!publicId) return;
   const opts = await getOptions().catch(() => ({}));
@@ -105,8 +105,9 @@ export async function installBuilder({ waitFor }) {
   if (!deckview || !live()) return;
 
   let deck = await readDeckAny(publicId);
-  // One retry: right after a Bulk Edit save the read (or the token relay) can transiently fail.
-  if (!deck && live()) { await new Promise((r) => setTimeout(r, 1200)); deck = live() ? await readDeckAny(publicId) : null; }
+  // One retry: right after a Bulk Edit save the read (or the token relay) can transiently fail; on a
+  // rebuild (commander just set via the picker) the first read can still predate the commander.
+  if ((!deck || (rebuild && !deck.commanders.length)) && live()) { await new Promise((r) => setTimeout(r, 1200)); deck = live() ? await readDeckAny(publicId) : null; }
   if (!live() || !deck || deck.format !== 'commander' || !deck.commanders.length) return;
   const build = await getDeckBuild(publicId).catch(() => ({ theme: null, rules: { ...RULES_DEFAULT } }));
   // Owner signal (Bulk Edit link) once the deck subheader has rendered; a late link gets a moment.

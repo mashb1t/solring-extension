@@ -144,6 +144,9 @@ function injectAlert(alert) {
         if (publicId) await setDeckBuild(publicId, { theme: theme ? theme.slug : null }).catch(() => {});
         picker.root.remove();
         entry.remove();
+        // The deck now has a commander: ask the router to mount the build view without a navigation
+        // (an event, not an import, keeps render-picker free of the builder module).
+        window.dispatchEvent(new CustomEvent('solring:rebuild'));
         return true;
       }
       showMsg(msg, res && res.reason === 'not-editable'
