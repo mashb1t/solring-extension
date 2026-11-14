@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  RULES_DEFAULT, effectiveGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx,
+  RULES_DEFAULT, effectiveGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
 } from '../src/build-rules.js';
 
 const card = (name, o = {}) => ({ name, usd: 1, gameChanger: false, colorIdentity: [], typeLine: '', image: '', ...o });
@@ -126,4 +126,34 @@ test('budget: a basic in info with no price (Scryfall usd null) counts as $0, no
   assert.deepEqual(checkCard('Forest', ctx), { ok: true });
   assert.equal(addToCtx(ctx, 'Forest').spent, 0);
   assert.equal(checkCard('Nonbasic', ctx).reason, 'No price (budget set)');
+});
+
+// Spellbook almostIncluded → combo data for makeCtx: the deck holds Exquisite Blood; Sanguine
+// Bond is the last missing piece of a bracket-3 ('S') infinite.
+const SANGUINE = { almostIncluded: [{ bracketTag: 'S', uses: [{ card: { name: 'Exquisite Blood' } }, { card: { name: 'Sanguine Bond' } }] }] };
+
+test('comboGuards: almostIncluded → front-face key sets + bracket tag', () => {
+  assert.deepEqual(comboGuards(SANGUINE), [{ keys: ['exquisite blood', 'sanguine bond'], bracketTag: 'S' }]);
+  assert.deepEqual(comboGuards(null), []);
+  assert.deepEqual(comboGuards({ almostIncluded: [{ uses: [] }] }), []);
+});
+
+test('a card completing a combo above the bracket is blocked (B2), allowed at B3', () => {
+  const combos = comboGuards(SANGUINE);
+  const b2 = ctxOf({ rules: { ...RULES_DEFAULT, bracket: 2 }, deckNames: ['Exquisite Blood'], combos });
+  assert.deepEqual(checkCard('Sanguine Bond', b2), { ok: false, reason: 'Would complete a combo not allowed at Bracket 2' });
+  const b3 = ctxOf({ rules: { ...RULES_DEFAULT, bracket: 3 }, deckNames: ['Exquisite Blood'], combos });
+  assert.equal(checkCard('Sanguine Bond', b3).ok, true);
+  // Not the last missing piece (Exquisite Blood absent) → nothing to complete yet.
+  const empty = ctxOf({ rules: { ...RULES_DEFAULT, bracket: 2 }, combos });
+  assert.equal(checkCard('Sanguine Bond', empty).ok, true);
+  // The running ctx carries the combo data: adding the first piece arms the block.
+  assert.equal(checkCard('Sanguine Bond', addToCtx(empty, 'Exquisite Blood')).ok, false);
+});
+
+test('a Banned-tagged (B) combo is never allowed', () => {
+  assert.equal(comboAllowed('B', 5), false);
+  const combos = [{ keys: ['a', 'b'], bracketTag: 'B' }];
+  const b5 = ctxOf({ rules: { ...RULES_DEFAULT, bracket: 5 }, deckNames: ['A'], combos });
+  assert.deepEqual(checkCard('B', b5), { ok: false, reason: 'Would complete a combo not allowed at Bracket 5' });
 });

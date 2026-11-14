@@ -12,7 +12,7 @@ import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
 import { getOptions } from './prefs.js';
 import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild } from './build-store.js';
-import { makeCtx, ruleUsage, effectiveGcCap, RULES_DEFAULT } from './build-rules.js';
+import { makeCtx, ruleUsage, effectiveGcCap, comboGuards, RULES_DEFAULT } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
@@ -179,7 +179,7 @@ export async function installBuilder({ waitFor }) {
 
   function recompute() {
     const rules = { ...S.build.rules, ownedOnly: !!(S.build.rules.ownedOnly && S.owned) };
-    S.ctx = makeCtx({ rules, info: S.info, flags: S.flags, owned: S.owned, deckNames: S.comp.names });
+    S.ctx = makeCtx({ rules, info: S.info, flags: S.flags, owned: S.owned, deckNames: S.comp.names, combos: comboGuards(S.comboResults) });
     const combos = keyCombos(S.comboResults, S.comp.unique, rules.bracket, 3);
     S.tiers = buildTiers({ themeCards: S.themeCards, combos, ctx: S.ctx, keyCount: 15 });
   }

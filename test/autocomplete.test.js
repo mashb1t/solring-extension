@@ -130,3 +130,24 @@ test('deck already over size: nothing proposed, shortfall never negative', () =>
   assert.equal(r.total, 0);
   assert.equal(r.shortfall, 0);
 });
+
+test('two picks that together complete a combo above the bracket are not both taken', () => {
+  const rules = { ...RULES_DEFAULT, bracket: 2 };
+  const combos = [{ keys: ['spell 0', 'spell 1'], bracketTag: 'S' }];
+  const ctx = mk({ rules, combos });
+  const r = proposeFill({ tiers: tiersOf(ctx, spells(90)), ctx, colorIdentity: CI });
+  const names = new Set(r.picks.map((p) => p.name));
+  assert.ok(names.has('Spell 0'));
+  assert.ok(!names.has('Spell 1'));
+});
+
+test('Exquisite Blood in deck at B2: Sanguine Bond is blocked in tiers and never auto-picked', () => {
+  const combos = [{ keys: ['exquisite blood', 'sanguine bond'], bracketTag: 'S' }];
+  const cards = [{ name: 'Sanguine Bond', synergy: 0.9, inclusionPct: 80, list: 'Enchantments' }, ...spells(90)];
+  const b2 = mk({ rules: { ...RULES_DEFAULT, bracket: 2 }, deckNames: ['Cmdr', 'Exquisite Blood'], combos });
+  const t = tiersOf(b2, cards);
+  assert.deepEqual(t.key.find((s) => s.name === 'Sanguine Bond').check, { ok: false, reason: 'Would complete a combo not allowed at Bracket 2' });
+  assert.ok(!proposeFill({ tiers: t, ctx: b2, colorIdentity: CI }).picks.some((p) => p.name === 'Sanguine Bond'));
+  const b3 = mk({ rules: { ...RULES_DEFAULT, bracket: 3 }, deckNames: ['Cmdr', 'Exquisite Blood'], combos });
+  assert.ok(proposeFill({ tiers: tiersOf(b3, cards), ctx: b3, colorIdentity: CI }).picks.some((p) => p.name === 'Sanguine Bond'));
+});
