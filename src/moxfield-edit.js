@@ -3,6 +3,12 @@
 // (MAIN world) and relayed via postMessage; the token lives in memory only, never logged or
 // persisted. Confirmed request shapes: PUT .../cards/{board}/{cardId} {quantity:N} sets the
 // absolute quantity; DELETE .../cards/{board}/{cardId} removes the card entirely.
+//
+// ToS-/CWS-sensitive: these are TOKEN WRITES to api2.moxfield.com. Besides the per-card PUT/DELETE
+// above (recommendations "Cuts"), `bulkEditWrite` sends the exact request Moxfield's own Bulk Edit
+// "Save" sends (PUT /v3/decks/{publicId}/bulk-edit) for the Guided Deck Builder — a user-accepted
+// decision (2026-11-14). It is scoped to that one endpoint and only does what the logged-in owner
+// could do by hand in Bulk Edit.
 
 let token = null;
 // Guarded so the pure shaping below (shapeDeck) can be imported by node tests.
@@ -25,6 +31,30 @@ export async function authedGet(url) {
     // redirect:'error': never follow a redirect off api2 with the token attached.
     const r = await fetch(url, { method: 'GET', credentials: 'include', redirect: 'error', headers: { Authorization: token } });
     return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+// The ONE Bulk Edit write: Moxfield's own Save request (LIVE-VERIFY 2026-11-14 in moxfield-ui.js).
+// PUT https://api2.moxfield.com/v3/decks/{publicId}/bulk-edit with the full JSON body, the captured
+// token, `x-public-deck-id` and `x-deck-version` (the v3 deck JSON's `version`; informational —
+// the server is last-write-wins). The URL and method are fixed here: callers pass only the public
+// id (validated) and the body. Never logs the token, never follows a redirect, never throws.
+// Returns { ok, status, json } (json null when not JSON), or null when there is no token / the
+// request itself failed.
+const PUBLIC_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+export async function bulkEditWrite(publicId, body, { version = null } = {}) {
+  try {
+    if (typeof publicId !== 'string' || !PUBLIC_ID_RE.test(publicId) || !body || typeof body !== 'object') return null;
+    for (let i = 0; !token && i < 20; i++) await new Promise((r) => setTimeout(r, 150));
+    if (!token) return null;
+    const headers = { Authorization: token, 'Content-Type': 'application/json', 'x-public-deck-id': publicId };
+    if (Number.isFinite(version)) headers['x-deck-version'] = String(version);
+    const r = await fetch(`https://api2.moxfield.com/v3/decks/${publicId}/bulk-edit`, {
+      method: 'PUT', credentials: 'include', redirect: 'error', headers, body: JSON.stringify(body),
+    });
+    let json = null;
+    try { json = await r.json(); } catch { json = null; }
+    return { ok: r.ok, status: r.status, json };
   } catch { return null; }
 }
 
@@ -79,6 +109,8 @@ export function shapeDeck(d) {
   return {
     editId: d.id,
     name: d.name,
+    version: Number.isFinite(d.version) ? d.version : null,
+    ownerUserId: d.ownerUserId || null,
     format: d.format || null,
     colorIdentity: cmdCards.length ? ['W', 'U', 'B', 'R', 'G'].filter((x) => ci.has(x)) : (d.colorIdentity || []),
     commanders: cmdCards.map((c) => c.name),
@@ -93,12 +125,22 @@ export async function readDeck(publicId) {
   return shapeDeck(await r.json());
 }
 
-// readDeck, falling back to the token-authenticated read-only GET for private decks the user can
-// see (the cookie GET 404s on those). Same shape; null when neither works. Never throws.
-export async function readDeckAny(publicId) {
-  try { return await readDeck(publicId); } catch { /* fall through */ }
+// The raw /v3/decks/all/{id} JSON: cookie GET, falling back to the token-authenticated read-only
+// GET for private decks the user can see (the cookie GET 404s on those). null when neither works
+// (or the shape has no boards). Never throws.
+export async function readDeckJson(publicId) {
+  try {
+    const r = await fetch(`${V3}/${publicId}`, { credentials: 'include' });
+    if (r.ok) { const d = await r.json(); if (d && d.boards) return d; }
+  } catch { /* fall through */ }
   const d = await authedGet(`${V3}/${publicId}`);
-  return d && d.boards ? shapeDeck(d) : null;
+  return d && d.boards ? d : null;
+}
+
+// readDeckJson, shaped (shapeDeck). null when neither read works. Never throws.
+export async function readDeckAny(publicId) {
+  const d = await readDeckJson(publicId);
+  return d ? shapeDeck(d) : null;
 }
 
 async function write(url, opts) {

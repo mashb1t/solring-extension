@@ -1,33 +1,55 @@
-// Moxfield UI driver for the Guided Deck Builder. Solring never writes decks through Moxfield's
-// API: this module only clicks and types into Moxfield's own UI (Bulk Edit, Create New Deck,
-// Change Commander) and lets Moxfield save. `editBulkText` is the pure, unit-tested core.
+// Moxfield helpers for the Guided Deck Builder. Card writes (applyBulkEdit) send the SAME single
+// request Moxfield's own Bulk Edit "Save" sends (moxfield-edit.bulkEditWrite, token write —
+// user-accepted 2026-11-14). Creating a deck and setting a commander still go through Moxfield's
+// own UI (Create New Deck / Change Commander dialogs) and let Moxfield save. `editBulkText`,
+// `bulkEditBody` and `bulkEditOutcome` are the pure, unit-tested core.
 //
-// LIVE-VERIFY 2026-11-13 (Brave, logged in, throwaway deck, Moxfield "Version 2026.11.13.2"):
-// - Bulk Edit: deck-view link `a[href="/decks/{id}/edit"]`, text "Bulk Edit" (label spans hide at
-//   small widths → match textContent). It is an in-app SPA route, not a modal. Absent for
-//   non-owners and when logged out (logged out: navbar `a[href^="/account/signin"]` "Sign in").
-// - Bulk editor: ONE `textarea#board[data-testid="deck-bulk-edit-page-board"]` shared by the board
-//   tabs `a.nav-link` "Main Deck" / "Sideboard" / "Considering" / "Other" (active tab has `.active`);
-//   `label[for="board"]` reads "Main Deck (N)" and tracks the textarea live. The textarea mounts
-//   already filled (sampled every 20–30 ms: no empty frame on SPA nav or hard load).
-// - Save: `button` with text "Save" in the bulk-edit form → saves and returns to /decks/{id}.
-//   ("Save & Continue Editing" = `data-testid="deck-bulk-edit-page-save"`, stays on /edit; unused.)
-//   `button` "Cancel" → back to /decks/{id}; while the text differs from the loaded list it first
-//   raises a native confirm("You have unsaved changes…"), so restore the text before cancelling.
-//   A refused Save (unknown card) stays on /edit and shows `.invalid-feedback` "Error on line N of
-//   mainboard: Could not find card "X". (1 X)".
+// LIVE-VERIFY 2026-11-14 (Brave, logged in, throwaway deck NI5kZZpj4Um1X0CjHozDOw, Moxfield
+// "Version 2026.11.13.2") — Bulk Edit API, captured off Moxfield's own page:
+// - Fill: opening Bulk Edit issues GET https://api2.moxfield.com/v2/decks/{publicId}/bulk-edit
+//   ?ignoreFlavorNames=true&allowMultiplePrintings=true (Authorization: bearer) →
+//   { boards: { mainboard, sideboard, maybeboard, companions, attractions, stickers, contraptions,
+//   planes, schemes, tokens } (one text per board; NO commanders board), pricingProvider
+//   ("cardMarket"), allowMultiplePrintings/usePrefPrintings/ignoreFlavorNames (all false) }.
+//   The textarea shows exactly `boards.mainboard`.
+// - Save: PUT https://api2.moxfield.com/v3/decks/{publicId}/bulk-edit (PUBLIC id, not the internal
+//   `id`), headers Authorization, Content-Type: application/json, x-public-deck-id: {publicId},
+//   x-deck-version: {v3 deck JSON `version`} (Moxfield also adds x-moxfield-version /
+//   x-session-user; an in-page PUT without them succeeded). Body: { boards: <all 10 board texts,
+//   only the edited one changed>, pricingProvider: "cardmarket", usePrefPrintings: true,
+//   ignoreFlavorNames: true, allowMultiplePrintings: true } — Moxfield sends true/true/true even
+//   though the GET echoes false/false/false; echoing the GET's "cardMarket" was accepted too.
+//   Set-less lines get the preferred printing ("1 Island" comes back as "1 Island (SOS) 268").
+// - Success: HTTP 200 { isSuccessful: true, boardSummary: { boardCounts: { mainboard: N, … } },
+//   errors: { boards: { <board>: [] } }, deck: <full v3 deck JSON>, bulkEdit }; response header
+//   x-deck-version = old + 1.
+// - Rejected card name: also HTTP 200 (NOT a 4xx), { isSuccessful: false, boardSummary, errors:
+//   { boards: { mainboard: [{ lineNumber: 6, errorMessage: 'Could not find card "X".',
+//   originalText: "1 X" }] } } } and no `deck`; nothing saved (the version still bumps).
+// - No optimistic concurrency: a PUT with a stale x-deck-version (forced to 3 while the deck was
+//   at 53) still saved; the only signal is response header x-deck-has-changed: true (false on a
+//   normal save). Hence applyBulkEdit re-reads the deck + bulk text right before every write.
+// - Refreshing Moxfield's own deck view: an API write does NOT update an open deck view by itself
+//   (no websocket). Moxfield syncs tabs over BroadcastChannel `moxfield-sync-{userId}`; posting
+//   { v: 1, kind: 'deck', publicId, prevVersion, version, isTruncated: true } there (also from an
+//   isolated world, i.e. a content script) makes the deck view refetch GET /v3/decks/all/{id} and
+//   re-render in place: section.deckview, its parent and the decklist <li> rows keep their
+//   identity. `userId` = the deck JSON's `ownerUserId` (= the session user for the owner).
+//
+// LIVE-VERIFY 2026-11-13 (still current; UI paths used by canEdit / setCommanderViaBulk /
+// prefillNewDeck):
+// - Deck view "Bulk Edit" link `a[href="/decks/{id}/edit"]`, text "Bulk Edit" (label spans hide at
+//   small widths → match textContent); absent for non-owners and when logged out (logged out:
+//   navbar `a[href^="/account/signin"]` "Sign in").
 // - Ownership: the "More" menu (`#subheader-more`) of a deck you own adds "Change Authors",
 //   "Change Commander", "Settings", "Delete"; a logged-in non-owner's menu has none of them.
 // - Commanders: Bulk Edit has NO commander board (Other → Attraction/Contraption/Sticker/Planar/
-//   Schemes only), and commanders are not listed in the Main Deck text. Moxfield's own path is the
-//   "Change Commander" dialog: deck view `#subheader-more` ("More") → dropdown item
-//   "Change Commander" (or the `a.alert-link` "Pick a Commander" on commander-less decks) →
-//   `.modal.show[role=dialog]` titled "Change Commander" → typeahead → footer button "Save".
-//   Changing the commander moves the old one into the mainboard; picking a card that is already in
-//   the mainboard moves it out (no duplicate).
-// - Deck view summary: "<N> main deck" (counts commanders too); commander section header
-//   `[data-testid="deck-view-header-options-title"]` "Commander" + sibling
-//   `[data-testid="deck-view-header-options-total"]` "(k)".
+//   Schemes only; the API body has none either), and commanders are not listed in the Main Deck
+//   text. Moxfield's own path is the "Change Commander" dialog: deck view `#subheader-more`
+//   ("More") → dropdown item "Change Commander" (or the `a.alert-link` "Pick a Commander" on
+//   commander-less decks) → `.modal.show[role=dialog]` titled "Change Commander" → typeahead →
+//   footer button "Save". Changing the commander moves the old one into the mainboard; picking a
+//   card that is already in the mainboard moves it out (no duplicate).
 // - Create New Deck dialog (Your Decks → "New Deck"): `.modal.show[role=dialog]` "Create New Deck";
 //   name `input#name[data-testid="deck-settings-page-name"]`; format `select#format` (value
 //   "commander" = "Commander / EDH", the default); visibility radios under "Advanced options";
@@ -39,6 +61,7 @@
 //   (`aria-expanded="false"`) and leaves the name in the input.
 
 import { frontFace } from './sources/scryfall.js';
+import { authedGet, readDeckJson, bulkEditWrite } from './moxfield-edit.js';
 
 // One bulk-edit line: "<qty>[x] <name>[ (SET) num][ *F*][ #tag…]".
 // Returns { qty, key } or null for anything that isn't a card line (blank, section header, comment).
@@ -100,33 +123,104 @@ export function unmatchedRemovals(text, remove = []) {
 }
 
 // Sum of quantities over the card lines of a bulk-edit text.
-const bulkCount = (text) => String(text || '').split('\n').reduce((n, l) => { const p = parseLine(l); return n + (p ? p.qty : 0); }, 0);
+export const bulkCount = (text) => String(text || '').split('\n').reduce((n, l) => { const p = parseLine(l); return n + (p ? p.qty : 0); }, 0);
+
+// Sum of quantities of one board of a raw /v3/decks/all JSON; null when the board / shape is
+// unknown (so the data-loss guard fails closed).
+export function deckBoardCount(deck, board) {
+  const b = deck && deck.boards && deck.boards[board];
+  if (!b || !b.cards || typeof b.cards !== 'object') return null;
+  let n = 0;
+  for (const c of Object.values(b.cards)) {
+    const q = c && c.quantity;
+    if (!Number.isFinite(q)) return null;
+    n += q;
+  }
+  return n;
+}
 
 /**
- * Data-loss guard: may a bulk-edit textarea whose card lines sum to `parsed` be rewritten?
- * `label` = Moxfield's "Main Deck (N)" number (or null), `view` = the deck view's { main, total }
- * (or null). Fails closed: at least one source must be known and every known source must match
- * (the view's summary may or may not count commanders, so main or total). An empty textarea is
- * refused while any known mainboard count says the deck has cards.
+ * Data-loss guard: may a bulk-edit mainboard text whose card lines sum to `parsed` be rewritten
+ * when the deck JSON says the mainboard holds `expected` cards? Fails closed: an unknown count on
+ * either side, or any mismatch (incl. an empty text against a non-empty deck), refuses.
  */
-export function countsAgree({ parsed, label = null, view = null }) {
-  if (label == null && !view) return false;
-  if (label != null && label !== parsed) return false;
-  if (view && parsed !== view.main && parsed !== view.total) return false;
-  if (parsed === 0 && ((label || 0) > 0 || (view && view.main > 0))) return false;
-  return true;
+export function countsAgree({ parsed, expected }) {
+  return Number.isFinite(parsed) && Number.isFinite(expected) && parsed === expected;
+}
+
+/**
+ * The PUT body Moxfield's own Bulk Edit Save sends, from the bulk-edit GET response and the new
+ * mainboard text. Every other board passes through unchanged (never built from scratch: a board
+ * left out could be wiped). null when the GET shape isn't the known one.
+ */
+export function bulkEditBody(get, mainboard) {
+  const boards = get && get.boards;
+  if (!boards || typeof boards !== 'object' || typeof boards.mainboard !== 'string' || typeof mainboard !== 'string') return null;
+  if (Object.values(boards).some((t) => typeof t !== 'string')) return null;
+  return {
+    boards: { ...boards, mainboard },
+    pricingProvider: get.pricingProvider,
+    usePrefPrintings: true,
+    ignoreFlavorNames: true,
+    allowMultiplePrintings: true,
+  };
+}
+
+const UI_CHANGED = { ok: false, reason: 'ui-changed' };
+const NOT_EDITABLE = { ok: false, reason: 'not-editable' };
+
+// Moxfield's per-line validation errors → 'Line 6 of mainboard: Could not find card "X". (1 X)'.
+function lineErrors(json) {
+  const boards = json && json.errors && json.errors.boards;
+  if (!boards || typeof boards !== 'object') return [];
+  const out = [];
+  for (const [board, list] of Object.entries(boards)) {
+    for (const e of Array.isArray(list) ? list : []) {
+      if (!e || !e.errorMessage) continue;
+      const where = Number.isFinite(e.lineNumber) ? `Line ${e.lineNumber} of ${board}: ` : `${board}: `;
+      out.push(`${where}${e.errorMessage}${e.originalText ? ` (${e.originalText})` : ''}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Map a bulkEditWrite result ({ ok, status, json } or null) to applyBulkEdit's contract.
+ * 401/403 → not-editable; 200 + isSuccessful → ok; isSuccessful:false with line errors (Moxfield
+ * answers an unknown card with HTTP 200, LIVE-VERIFY) → rejected; anything else → ui-changed.
+ */
+export function bulkEditOutcome(res) {
+  if (!res || !Number.isFinite(res.status)) return UI_CHANGED;
+  if (res.status === 401 || res.status === 403) return NOT_EDITABLE;
+  const json = res.json;
+  if (res.ok && json && json.isSuccessful === true) return { ok: true };
+  if (json && json.isSuccessful === false) {
+    const errs = lineErrors(json);
+    if (errs.length) return { ok: false, reason: 'rejected', message: errs.join('; ') };
+  }
+  return UI_CHANGED;
+}
+
+// Moxfield's cross-tab "this deck changed" message (LIVE-VERIFY 2026-11-14): isTruncated tells
+// every open deck view to refetch the deck itself, so no deck data is injected. null without the
+// ids/versions it needs.
+export function deckSyncMessage({ publicId, ownerUserId, prevVersion, version }) {
+  if (!publicId || !ownerUserId || !Number.isFinite(prevVersion) || !Number.isFinite(version)) return null;
+  return {
+    channel: `moxfield-sync-${ownerUserId}`,
+    message: { v: 1, kind: 'deck', publicId, prevVersion, version, isTruncated: true },
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
-// DOM driver. Everything below only clicks/types into Moxfield's own UI; Moxfield does the write.
-// Never throws: every entry point is wrapped and degrades to {ok:false, reason} / false.
+// Entry points. applyBulkEdit writes via the Bulk Edit API; the dialog helpers below only click/type
+// into Moxfield's own UI and let Moxfield save. Never throw: every entry point is wrapped and
+// degrades to {ok:false, reason} / false.
 
 const WAIT_MS = 5000;
 const SAVE_WAIT_MS = 10000;
 const POLL_MS = 50;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const UI_CHANGED = { ok: false, reason: 'ui-changed' };
-const NOT_EDITABLE = { ok: false, reason: 'not-editable' };
 const text = (n) => (n && n.textContent ? n.textContent.replace(/\s+/g, ' ').trim() : '');
 
 // Poll `fn` until it returns a truthy value (returned) or `ms` elapses (→ null).
@@ -159,7 +253,6 @@ const bulkEditLink = () => findByText('a[href$="/edit"]', /^bulk\s*edit$/i);
 export const canEdit = () => !!bulkEditLink();
 const visibleModal = () => [...document.querySelectorAll('.modal.show[role="dialog"]')].pop() || null;
 const moreButton = () => document.getElementById('subheader-more') || findByText('a, button', /^more$/i);
-const onDeckView = () => { const p = deckPath(); return !!(p && !p[2]); };
 // Items only the deck's owner gets in the deck view's "More" menu (LIVE-VERIFY: a non-owner's menu
 // stops at "Add to Wish List"; the owner's adds Change Authors / Change Commander / Settings / Delete).
 const OWNER_ITEM_RE = /^(change authors|change commander|settings|delete)$/i;
@@ -217,127 +310,63 @@ async function pickCommander(input, name) {
   return !!(await waitFor(() => input.getAttribute('aria-expanded') !== 'true' && frontFace(input.value) === want, 2000));
 }
 
-// Deck view's own mainboard total ("13 main deck", which counts the commanders too) minus the
-// "Commander (k)" section count. null when the deck view isn't rendered / the summary moved.
-function viewMainCount() {
-  const sum = findByText('div, span', /^\d+ main deck$/i);
-  if (!sum) return null;
-  const head = findByText('[data-testid="deck-view-header-options-title"]', /^commanders?$/i);
-  const tot = head && head.parentElement.querySelector('[data-testid="deck-view-header-options-total"]');
-  const cmd = tot ? parseInt(text(tot).replace(/\D/g, ''), 10) || 0 : 0;
-  return { total: parseInt(text(sum), 10), main: parseInt(text(sum), 10) - cmd };
-}
-
-// From the deck view, follow Moxfield's own "Bulk Edit" link (an in-app SPA route,
-// /decks/{id}/edit). Returns { ok, expected, navigated } where `expected` is the deck view's
-// mainboard count and `navigated` says we left the deck view (so a failure must bring the user back).
-async function openBulkEdit() {
-  const p = deckPath();
-  if (!p) return NOT_EDITABLE;
-  if (p[2]) return { ok: true, expected: null, navigated: false };
-  const access = await editAccess();
-  if (access !== 'ok') return access;
-  const expected = await waitFor(viewMainCount, 2000);
-  const link = bulkEditLink();
-  if (!link) return UI_CHANGED;
-  link.click();
-  return { ok: true, expected, navigated: true };
-}
-
-// Wait for the bulk editor's Main Deck textarea and make sure it holds the full list before we
-// rewrite it (saving a partially loaded list would delete cards). Moxfield mounts the textarea
-// already filled (LIVE-VERIFY: no empty frame, SPA or hard load), but we still cross-check the
-// parsed quantity sum against the deck view's count and Moxfield's own "Main Deck (N)" label, and
-// refuse (null) when neither is readable (countsAgree fails closed).
-const boardTextarea = () => document.querySelector('textarea[data-testid="deck-bulk-edit-page-board"], textarea#board');
-async function readyMainboard(expected) {
-  const tab = await waitFor(() => findByText('a.nav-link', /^main deck$/i));
-  if (!tab) return null;
-  if (!tab.classList.contains('active')) { tab.click(); if (!(await waitFor(() => tab.classList.contains('active'), 2000))) return null; }
-  return waitFor(() => {
-    const board = boardTextarea();
-    if (!board || board.disabled || board.readOnly) return null;
-    const label = document.querySelector('label[for="board"]');
-    const m = /^main deck\s*\((\d+)\)/i.exec(text(label));
-    return countsAgree({ parsed: bulkCount(board.value), label: m ? Number(m[1]) : null, view: expected || null }) ? board : null;
-  });
-}
-
-// Undo our edit and leave the bulk editor without saving: put the original text back (Moxfield's
-// Cancel raises a native "unsaved changes" confirm() while the text differs — LIVE-VERIFY), then
-// click Moxfield's own Cancel (falls back to history.back()) and wait for the deck view.
-async function leaveBulkEdit(board, original) {
+// Tell Moxfield's open deck views (this tab and others) that the deck changed so they refetch it
+// (LIVE-VERIFY 2026-11-14: an API write alone doesn't update the view). Best effort, never throws.
+function notifyDeckChanged(info) {
   try {
-    if (board && board.isConnected && original != null && board.value !== original) {
-      setNativeValue(board, original);
-      await waitFor(() => board.value === original, 1000);
-      await sleep(100);
-    }
-    if (onDeckView()) return;
-    const cancel = findByText('button', /^cancel$/i);
-    if (cancel) cancel.click(); else history.back();
-    await waitFor(onDeckView, 3000);
-  } catch { /* best effort: never throw into the page */ }
+    const m = deckSyncMessage(info);
+    if (!m || typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel(m.channel);
+    ch.postMessage(m.message);
+    ch.close();
+  } catch { /* best effort */ }
 }
 
-// Moxfield's own validation message under the textarea after a refused Save, e.g.
-// 'Error on line 11 of mainboard: Could not find card "Zzzz". (1 Zzzz)' (LIVE-VERIFY).
-const bulkError = () => [...document.querySelectorAll('.invalid-feedback')].map(text).find(Boolean) || null;
+const BULK_GET = (id) => `https://api2.moxfield.com/v2/decks/${id}/bulk-edit?ignoreFlavorNames=true&allowMultiplePrintings=true`;
 
 /**
- * Add/remove mainboard cards through Moxfield's own Bulk Edit page and let Moxfield save.
- * Call from the deck view (or the bulk editor). Never throws. With `publicId`, the edit is bound to
- * that deck: if the URL names another deck on entry, before Save, or when the view returns, the
- * result is 'ui-changed' (nothing is saved unless the mismatch only shows up after Save).
+ * Add/remove mainboard cards of deck `publicId` with ONE request — the same PUT Moxfield's own Bulk
+ * Edit "Save" sends (moxfield-edit.bulkEditWrite), carrying the deck's full Bulk Edit text. Call
+ * from that deck's view. Never throws. The deck is bound explicitly by `publicId` (no URL reading).
+ * Steps: owner check (deck view UI) → fresh deck JSON (version + mainboard count) → fresh Bulk Edit
+ * text (GET) → data-loss guard (parsed mainboard text count must equal the deck JSON's) → pure
+ * text edit → one PUT → refresh Moxfield's deck view via its own cross-tab sync message.
  * @returns {Promise<{ok:true} | {ok:false, reason:'not-editable'|'ui-changed'|'rejected', message?:string}>}
- *   - 'not-editable': not a deck page, logged out, or logged in but not the deck's owner.
- *   - 'ui-changed':   Moxfield's UI no longer matches our anchors (Bulk Edit link / textarea / Save
- *                     missing, list never fully loaded) or the Save didn't finish within 10 s.
+ *   - 'not-editable': no deck id, logged out, not the deck's owner, or Moxfield answered 401/403.
+ *   - 'ui-changed':   a read failed / returned an unknown shape, the counts disagree (refused before
+ *                     any write), or the write failed in an unrecognised way.
  *   - 'rejected':     Moxfield refused the text (e.g. unknown card names); `message` is its error.
- *                     Also returned, before Save, when a `remove` name matches no Main Deck line.
- *   On every failure before or at Save (incl. 'rejected') the original text is restored and the
- *   user is returned to the deck view if we navigated away from it; nothing is saved. After a Save
- *   timeout the page is left as is.
+ *                     Also returned, before any write, when a `remove` name matches no Main Deck line.
  */
 export async function applyBulkEdit({ add = [], remove = [], publicId = null } = {}) {
-  // Bound to the deck the edit was planned for: after an SPA move the URL names another deck.
-  const sameDeck = () => !publicId || (deckPath() || [])[1] === publicId;
-  if (!sameDeck()) return UI_CHANGED;
-  let opened = null;
-  let board = null;
-  let original = null;
-  const fail = async (result) => {
-    if (opened && opened.navigated) await leaveBulkEdit(board, original);
-    else if (board && original != null && board.isConnected && board.value !== original) setNativeValue(board, original);
-    return result;
-  };
   try {
-    opened = await openBulkEdit();
-    if (!opened.ok) return opened;
-    board = await readyMainboard(opened.expected);
-    if (!board) return await fail(UI_CHANGED);
-    original = board.value;
+    if (!publicId || !/^[A-Za-z0-9_-]+$/.test(publicId)) return NOT_EDITABLE;
+    const access = await editAccess();
+    if (access !== 'ok') return access;
+    const deck = await readDeckJson(publicId);
+    if (!deck || deck.publicId !== publicId) return UI_CHANGED;
+    const get = await authedGet(BULK_GET(publicId));
+    const original = get && get.boards && get.boards.mainboard;
+    if (typeof original !== 'string') return UI_CHANGED;
+    // Fail closed: never rewrite a text that doesn't hold the whole mainboard.
+    if (!countsAgree({ parsed: bulkCount(original), expected: deckBoardCount(deck, 'mainboard') })) return UI_CHANGED;
     const missing = unmatchedRemovals(original, remove);
-    if (missing.length) return await fail({ ok: false, reason: 'rejected', message: `Not found in Bulk Edit: ${missing.join(', ')}` });
+    if (missing.length) return { ok: false, reason: 'rejected', message: `Not found in Bulk Edit: ${missing.join(', ')}` };
     const next = editBulkText(original, { add, remove });
-    if (next !== original) {
-      setNativeValue(board, next);
-      if (!(await waitFor(() => board.value === next, 1000))) return await fail(UI_CHANGED);
+    if (next === original) return { ok: true }; // nothing to change: no write
+    const body = bulkEditBody(get, next);
+    if (!body) return UI_CHANGED;
+    const prevVersion = Number.isFinite(deck.version) ? deck.version : null;
+    const res = await bulkEditWrite(publicId, body, { version: prevVersion });
+    const outcome = bulkEditOutcome(res);
+    if (outcome.ok) {
+      const saved = res.json.deck;
+      const version = saved && Number.isFinite(saved.version) ? saved.version : (prevVersion != null ? prevVersion + 1 : null);
+      notifyDeckChanged({ publicId, ownerUserId: (saved && saved.ownerUserId) || deck.ownerUserId, prevVersion, version });
     }
-    const save = findByText('button', /^save$/i, board.closest('form') || document);
-    if (!save || !sameDeck()) return await fail(UI_CHANGED);
-    save.click();
-    // Moxfield's "Save" returns to the deck view; a validation error keeps it on /edit.
-    // Landing on another deck's view mid-save is not a confirmed save of this one.
-    const outcome = await waitFor(() => (onDeckView() && (sameDeck() ? 'saved' : 'moved')) || (bulkError() && 'rejected'), SAVE_WAIT_MS);
-    if (outcome === 'saved') return { ok: true };
-    if (outcome === 'rejected') {
-      const message = bulkError();
-      return await fail({ ok: false, reason: 'rejected', message });
-    }
-    return UI_CHANGED;
+    return outcome;
   } catch {
-    try { return await fail(UI_CHANGED); } catch { return UI_CHANGED; }
+    return UI_CHANGED;
   }
 }
 

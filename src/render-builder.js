@@ -3,10 +3,11 @@
 // tiered suggestions (① key incl. ≤ 3 combos, ② theme, ③ lands), per-row checkboxes on Moxfield's
 // decklist with "Remove selected", and an Auto-complete preview that writes nothing before confirm.
 //
-// Every write goes through Moxfield's own Bulk Edit (moxfield-ui.applyBulkEdit), which navigates
-// to /decks/{id}/edit and back. The content router tears this view down on that navigation and
-// re-installs it on return, so the in-flight write is a MODULE-level promise: a fresh mount awaits
-// it, then re-reads the deck and runs the one post-write Power check. No innerHTML anywhere.
+// Every write is ONE request — the same PUT Moxfield's own Bulk Edit "Save" sends
+// (moxfield-ui.applyBulkEdit). No navigation: after a write the view re-reads the deck, re-renders
+// in place and runs the one post-write Power check; applyBulkEdit has already told Moxfield's deck
+// view to refetch. The in-flight write is a MODULE-level promise so a remount (SPA nav) can't start
+// a second write while one is pending. No innerHTML anywhere.
 
 import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
@@ -29,16 +30,10 @@ import { comboBracketLabel } from './labels.js';
 const ROW_SEL = 'li[data-row-key] a.table-deck-row-link[href^="/cards/"]';
 const THEME_SHOWN = 18;
 const LANDS_SHOWN = 12;
-const AFTER_WRITE_MS = 120000;
 
 let mountToken = null; // identity of the live mount; teardown clears it (stale-async guard)
 let writing = null; // in-flight applyBulkEdit promise; survives teardown/remount on purpose
-let afterWrite = null; // { publicId, at } after a successful write → fresh mount runs the Power check
 let mountDisposers = []; // the live mount's listeners/observers (also registered with the router)
-// The router's history patch lives in the content script's isolated world, so it never sees
-// Moxfield's own pushState: route changes are caught by its 1 s href poll (+150 ms debounce), which
-// can miss a fast /edit round-trip entirely. Wait this long after a write before concluding that.
-const ROUTER_MISS_MS = 1600;
 
 export function teardownBuilder() {
   mountToken = null;
@@ -70,13 +65,12 @@ const ok = (res) => res && !res.error && !res.miss;
 
 const FAIL_TEXT = {
   'not-editable': 'Open the deck in edit mode (logged in) to add cards',
-  'ui-changed': 'Couldn’t reach Moxfield’s Bulk Edit',
+  'ui-changed': 'Couldn’t save through Moxfield’s Bulk Edit',
 };
 const failText = (r) => (r && r.reason === 'rejected' ? `Moxfield rejected: ${r.message || 'unknown error'}` : FAIL_TEXT[r && r.reason] || FAIL_TEXT['ui-changed']);
 
 // Toast styled like Moxfield's own autosave notification (as recommendations.js does). Its own
-// class: recommendations' teardown removes `.solring-autosave` on every route change, and a write
-// toast must outlive the /edit round-trip.
+// class: recommendations' teardown removes `.solring-autosave` on every route change.
 let toastTimer = null; let toastHide = null;
 function toast(msg, isError) {
   let box = document.querySelector('.solring-builder-toast');
@@ -101,13 +95,13 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const live = () => mountToken === token && parseDeckId(location.href) === publicId;
   const own = (fn) => { mountDisposers.push(fn); registerDisposable(fn); };
 
-  if (writing) await writing.catch(() => null); // a Bulk Edit from the previous mount is finishing
+  if (writing) await writing.catch(() => null); // a write from the previous mount is finishing
   if (!live()) return;
   let deckview = await waitFor('section.deckview');
   if (!deckview || !live()) return;
 
   let deck = await readDeckAny(publicId);
-  // One retry: right after a Bulk Edit save the read (or the token relay) can transiently fail; on a
+  // One retry: the read (or the token relay) can transiently fail; on a
   // rebuild (commander just set via the picker) the first read can still predate the commander.
   if ((!deck || (rebuild && !deck.commanders.length)) && live()) { await new Promise((r) => setTimeout(r, 1200)); deck = live() ? await readDeckAny(publicId) : null; }
   if (!live() || !deck || deck.format !== 'commander' || !deck.commanders.length) return;
@@ -220,17 +214,13 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     render();
     if (editable) installRowPicks(); // row checkboxes + "Remove selected" only where you can write
     if (S.build.rules.ownedOnly) setOwnedOnly(true); // persisted: load the collection now (loading state)
-    if (afterWrite && afterWrite.publicId === publicId && Date.now() - afterWrite.at < AFTER_WRITE_MS) {
-      afterWrite = null;
-      powerCheck();
-    }
   }
   if (editable) await start();
 
-  // Re-read the deck after a write that did NOT remount us (e.g. Bulk Edit was already open).
+  // Re-read the deck after a write and re-render in place.
   async function refreshDeck() {
     let fresh = await readDeckAny(publicId);
-    // Same transient-failure retry as the mount path (read right after a Bulk Edit save).
+    // Same transient-failure retry as the mount path.
     if (!fresh && alive()) { await new Promise((r) => setTimeout(r, 1200)); fresh = alive() ? await readDeckAny(publicId) : null; }
     if (!alive()) return abandon();
     if (fresh) {
@@ -251,8 +241,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     if (edit.add && edit.add.length && addsPaused()) return;
     closeModal();
     S.busy = label; render();
-    const p = applyBulkEdit({ ...edit, publicId }).catch(() => ({ ok: false, reason: 'ui-changed' }))
-      .then((r) => { if (r && r.ok) afterWrite = { publicId, at: Date.now() }; return r; });
+    const p = applyBulkEdit({ ...edit, publicId }).catch(() => ({ ok: false, reason: 'ui-changed' }));
     writing = p;
     const res = await p;
     if (writing === p) writing = null;
@@ -262,19 +251,10 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       return;
     }
     toast(okMsg);
-    await new Promise((r) => setTimeout(r, ROUTER_MISS_MS));
-    if (mountToken && mountToken !== token) return; // the router saw the round-trip and remounted: it re-reads
-    if (mountToken === token && alive()) { // still mounted (Bulk Edit never left this view): refresh in place
-      afterWrite = null;
-      S.busy = null;
-      await refreshDeck();
-      powerCheck();
-      return;
-    }
-    // The router missed the round-trip (or only its /edit leg tore us down) and nothing is mounted:
-    // remount ourselves (the fresh mount consumes afterWrite and runs the Power check).
-    teardownBuilder();
-    if (parseDeckId(location.href) === publicId) installBuilder({ waitFor }).catch(() => {});
+    if (!alive()) return abandon();
+    S.busy = null;
+    await refreshDeck();
+    if (alive()) powerCheck();
   }
 
   async function powerCheck() {
