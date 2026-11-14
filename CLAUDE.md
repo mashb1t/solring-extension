@@ -7,7 +7,8 @@ through any Solring backend — all data is fetched straight from the third-part
 ## Architecture
 
 - **`src/content.js`** — classic bootstrap injected on `https://*.moxfield.com/*`. Dynamically imports the ES-module
-  logic, detects the page type via `moxfield.js`, and re-dispatches on Moxfield's SPA navigation. Every pass is
+  logic, detects the page type via `moxfield.js`, and re-dispatches on Moxfield's SPA navigation (Navigation API
+  `currententrychange`, popstate, 1 s href poll fallback; `solring:rebuild` re-mounts the build view). Every pass is
   idempotent and guarded; `dom.disposeAll()` tears down the previous route's observers/listeners first.
 - **`src/background.js`** — the **only** code that fetches `api.commandersalt.com` / `backend.commanderspellbook.com`
   (both need `host_permissions` — neither serves CORS). Content scripts talk to it via `messaging.js`
@@ -16,7 +17,8 @@ through any Solring backend — all data is fetched straight from the third-part
 - **`src/sources/`** — worker-only pure fetch+shape helpers: `edhrec.js` (commander page, `json.edhrec.com`, ACAO:\*),
   `edhrec-recs.js` (`edhrec.com/api/recs` cuts, no ACAO → `getRecs` message), `spellbook.js` (`find-my-combos`),
   `edhrec-build.js` (deck-builder theme/commander pages, `json.edhrec.com`), `scryfall.js` (`api.scryfall.com` card info + flag lists).
-- **`src/cache.js`** — `chrome.storage.local` cache. Prefixes `deck:` / `search:` / `edhrec:` / `sbook:` / `ebuild:` / `scry:` (disposable; cleared with the cache). `build:` (per-deck builder
+- **`src/cache.js`** — `chrome.storage.local` cache. Prefixes `deck:` / `search:` / `edhrec:` / `sbook:` / `ebuild:` / `scry:` (disposable; cleared with the cache;
+  shaped data only — `ebuild:<op>:<path>` holds the shaped EDHREC result, never the raw page; `scry:flags` is served stale on a failed refresh). `build:` (per-deck builder
   playstyle/rules + pending handoff) is **user state**, NOT in `isCacheKey`, never cleared with the cache. TTL-gated
   enrichment (`isFreshTtl`), schema-gated deck data (`isFresh`), `dedupe(key, fn)` for in-flight coalescing.
 - **Renderers** — `render-deck.js` (deck report-card panel + tiles), `render-panels.js` (expandable detail panels +
@@ -58,7 +60,11 @@ power + synergy, normalized, weakest first) vs **EDHREC popularity** (`outRecs`)
 ## Guided Deck Builder writes
 
 The builder writes ONLY through Moxfield's own Bulk Edit UI (`moxfield-ui.applyBulkEdit`, result `{ok}` or `{ok:false, reason}`
-with reason `not-editable` | `ui-changed` | `rejected`); there are no builder API writes. `moxfield-edit.authedGet` is a
+with reason `not-editable` | `ui-changed` | `rejected`); there are no builder API writes. Writes are bound to the planned
+deck (`applyBulkEdit({…, publicId})` → `ui-changed` if the URL names another deck), the textarea is only rewritten when
+`countsAgree` cross-checks it against a readable count (fails closed), and unmatched removals are `rejected` unsaved.
+Rules: `checkCard` also blocks the last missing piece of a Spellbook combo above the bracket (`makeCtx({combos})` via
+`comboGuards`). Row checkboxes / data loads only on decks you can edit (`moxfield-ui.canEdit`); others lazy-load on expand. `moxfield-edit.authedGet` is a
 read-only, api2-only token GET (collection + private-deck reads). Both sit in the same ToS-/CWS-sensitive area as above.
 
 ## Testing & build
@@ -84,8 +90,8 @@ read-only, api2-only token GET (collection + private-deck reads). Both sit in th
 - EDHREC GETs must be simple requests (no custom headers) or the CORS preflight returns 403.
 - `readDeck` 404s on private decks; `readDeckAny` falls back to `authedGet`.
 - Scryfall returns basics with `usd: null`; the builder prices them at $0 under a budget.
-- `content.js`'s nav hook (patched pushState) runs in the isolated world and misses Moxfield's own pushState; only the 1 s URL
-  poll catches route changes, so the build view self-remounts after writes.
+- `content.js`'s patched pushState runs in the isolated world and misses Moxfield's own pushState; the Navigation API
+  listener is what catches it (not yet live-verified), so the build view still self-remounts after writes as a fallback.
 - Live testing: Playwright `connectOverCDP` to a manually launched (non-automated) Brave; Cloudflare blocks login in a
   Playwright-launched browser.
 - User global rule: commit granularly (Conventional Commits w/ scope), don't push without being asked, stay on
