@@ -102,7 +102,10 @@
     timer = setTimeout(() => route().catch((e) => console.warn('[solring] route failed', e)), 150);
   }
 
-  // Detect SPA navigation via patched history methods, popstate, and a coarse href poll.
+  // Detect SPA navigation. The patched history methods below only see THIS world's pushState (the
+  // content script's isolated world), never Moxfield's own; the Navigation API's
+  // currententrychange does fire here for the page's pushState (Chrome 102+), so it is the primary
+  // signal. popstate and the coarse 1 s href poll stay as fallbacks.
   for (const fn of ['pushState', 'replaceState']) {
     const orig = history[fn];
     history[fn] = function patched(...args) {
@@ -117,6 +120,9 @@
     mods.builder.teardownBuilder();
     mods.builder.installBuilder({ waitFor, rebuild: true }).catch((e) => console.warn('[solring] builder', e));
   });
+  if (window.navigation && typeof window.navigation.addEventListener === 'function') {
+    window.navigation.addEventListener('currententrychange', onNavigate);
+  }
   window.addEventListener('popstate', onNavigate);
   window.addEventListener('solring:navigate', onNavigate);
   setInterval(onNavigate, 1000);
