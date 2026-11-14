@@ -94,6 +94,21 @@ export function editBulkText(text, { add = [], remove = [] } = {}) {
 // Sum of quantities over the card lines of a bulk-edit text.
 const bulkCount = (text) => String(text || '').split('\n').reduce((n, l) => { const p = parseLine(l); return n + (p ? p.qty : 0); }, 0);
 
+/**
+ * Data-loss guard: may a bulk-edit textarea whose card lines sum to `parsed` be rewritten?
+ * `label` = Moxfield's "Main Deck (N)" number (or null), `view` = the deck view's { main, total }
+ * (or null). Fails closed: at least one source must be known and every known source must match
+ * (the view's summary may or may not count commanders, so main or total). An empty textarea is
+ * refused while any known mainboard count says the deck has cards.
+ */
+export function countsAgree({ parsed, label = null, view = null }) {
+  if (label == null && !view) return false;
+  if (label != null && label !== parsed) return false;
+  if (view && parsed !== view.main && parsed !== view.total) return false;
+  if (parsed === 0 && ((label || 0) > 0 || (view && view.main > 0))) return false;
+  return true;
+}
+
 // ---------------------------------------------------------------------------------------------
 // DOM driver. Everything below only clicks/types into Moxfield's own UI; Moxfield does the write.
 // Never throws: every entry point is wrapped and degrades to {ok:false, reason} / false.
@@ -221,7 +236,8 @@ async function openBulkEdit() {
 // Wait for the bulk editor's Main Deck textarea and make sure it holds the full list before we
 // rewrite it (saving a partially loaded list would delete cards). Moxfield mounts the textarea
 // already filled (LIVE-VERIFY: no empty frame, SPA or hard load), but we still cross-check the
-// parsed quantity sum against the deck view's count and Moxfield's own "Main Deck (N)" label.
+// parsed quantity sum against the deck view's count and Moxfield's own "Main Deck (N)" label, and
+// refuse (null) when neither is readable (countsAgree fails closed).
 const boardTextarea = () => document.querySelector('textarea[data-testid="deck-bulk-edit-page-board"], textarea#board');
 async function readyMainboard(expected) {
   const tab = await waitFor(() => findByText('a.nav-link', /^main deck$/i));
@@ -232,10 +248,7 @@ async function readyMainboard(expected) {
     if (!board || board.disabled || board.readOnly) return null;
     const label = document.querySelector('label[for="board"]');
     const m = /^main deck\s*\((\d+)\)/i.exec(text(label));
-    const n = bulkCount(board.value);
-    if (m && Number(m[1]) !== n) return null;
-    if (expected && n !== expected.main && n !== expected.total) return null;
-    return board;
+    return countsAgree({ parsed: bulkCount(board.value), label: m ? Number(m[1]) : null, view: expected || null }) ? board : null;
   });
 }
 
