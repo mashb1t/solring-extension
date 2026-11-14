@@ -1,6 +1,7 @@
 /* Solring — injected CommanderSalt UI. Namespaced `solring-`, blended into
    Moxfield's surfaces. Rating color is used only as a meaningful data accent,
-   always paired with a letter/label. Light + dark via [data-bs-theme]. */
+   always paired with a letter/label. Light + dark via Moxfield's .darkmode class (html/body);
+   [data-bs-theme] kept as a fallback. */
 
 :root {
   /* Grades run A–D (high = bad): A worst → red, D best → green. */

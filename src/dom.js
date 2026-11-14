@@ -54,9 +54,10 @@ export function disposeAll() {
   }
 }
 
-/** Detect Moxfield's active theme. This build exposes no data-bs-theme, so the
-    reliable signal is the body's background luminance. Attr/media are hints. */
+/** Detect Moxfield's active theme. Moxfield marks dark mode with a `darkmode` class on html/body
+    (no data-bs-theme); the body's background luminance is the fallback. Attr/media are hints. */
 export function isDark() {
+  if (document.documentElement.classList.contains('darkmode') || document.body.classList.contains('darkmode')) return true;
   const t = document.documentElement.getAttribute('data-bs-theme')
     || document.body.getAttribute('data-bs-theme');
   if (t) return t === 'dark';
