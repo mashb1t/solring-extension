@@ -132,10 +132,12 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const selected = new Map(); // front-face key → mainboard name (decklist checkboxes)
   // "Only cards I own" is saved on but the collection isn't loaded (yet, or it failed): the rule
   // can't be enforced, so every add (tiles, combos, Auto-complete) is paused. Removes stay allowed.
-  const addsPaused = () => !!S.build.rules.ownedOnly && S.ownedState !== 'ready';
+  // A fresh tick (rule not saved until the load succeeds) pauses adds while it loads, too.
+  const addsPaused = () => S.ownedState === 'loading' || (!!S.build.rules.ownedOnly && S.ownedState !== 'ready');
   let syncPicks = () => {}; // set by installRowPicks: re-applies checkbox state to the rows
   let modalKey = null; // the open preview's Escape listener (closeModal removes it)
   let themeSeq = 0; // playstyle-switch sequence: a slower earlier switch must not win
+  let started = false; // start() ran (declared before the bar is clickable: no TDZ on an early expand)
 
   // ---- skeleton ------------------------------------------------------------------------------
   const body = el('div', { class: 'solring-panel-body solring-builder-body' });
@@ -204,7 +206,6 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     await loadInfo();
   }
 
-  let started = false;
   async function start() {
     if (started || !alive()) return;
     started = true;
