@@ -62,12 +62,15 @@ power + synergy, normalized, weakest first) vs **EDHREC popularity** (`outRecs`)
 
 Builder card writes send ONE request per write — the same `PUT https://api2.moxfield.com/v3/decks/{publicId}/bulk-edit`
 Moxfield's own Bulk Edit "Save" sends, with the deck's full Bulk Edit text (`moxfield-ui.applyBulkEdit` →
-`moxfield-edit.bulkEditWrite`; result `{ok}` or `{ok:false, reason}` with `not-editable` | `ui-changed` | `rejected`).
+`moxfield-edit.bulkEditRead`/`bulkEditWrite`; result `{ok, concurrent?}` or `{ok:false, reason}` with `not-editable` (403 /
+not the owner) | `session` (no token or 401 → "reload the page" toast) | `ui-changed` | `rejected`).
 This is a **token write** (user-accepted 2026-11-14), scoped to that one endpoint (URL/method fixed, public id validated,
 `redirect:'error'`, token never logged). Flow: owner check (`editAccess`) → fresh deck JSON → fresh Bulk Edit GET text →
-`countsAgree` (parsed mainboard == deck JSON mainboard, fails closed) → `editBulkText` → `bulkEditBody` (all other boards
-passed through unchanged) → PUT → `bulkEditOutcome`. Unknown card names come back as **HTTP 200** `isSuccessful:false`
-(→ `rejected`); the server is last-write-wins (no version check). After a save, `deckSyncMessage` is posted on Moxfield's
+`bulkGuard` (main/side/maybe text counts == deck JSON via `countsAgree`, fails closed) → `editBulkText` → `bulkEditBody`
+(requires all 10 `BULK_BOARDS` texts + `pricingProvider`; other boards passed through unchanged) → PUT →
+`bulkEditOutcome`. Unknown card names come back as **HTTP 200** `isSuccessful:false` (→ `rejected`). The server is
+last-write-wins (no version check): if the saved `deck.version` isn't ours + 1 (`concurrentChange`), the builder shows
+"This deck changed elsewhere just now — please check it". The owner check is bound to `a[href="/decks/{id}/edit"]`. After a save, `deckSyncMessage` is posted on Moxfield's
 own BroadcastChannel `moxfield-sync-{ownerUserId}` (`isTruncated:true`) so its deck view refetches in place. Creating a
 deck (New-deck dialog pre-fill) and setting the commander (`setCommanderViaBulk`, Change Commander dialog — the Bulk
 Edit payload has no commanders board) stay UI-driven; never click Create.
@@ -102,7 +105,8 @@ ToS-/CWS-sensitive area as above.
 - `readDeck` 404s on private decks; `readDeckAny` falls back to `authedGet`.
 - Scryfall returns basics with `usd: null`; the builder prices them at $0 under a budget.
 - `content.js`'s patched pushState runs in the isolated world and misses Moxfield's own pushState; the Navigation API
-  listener is what catches it. Builder writes no longer navigate, so the build view re-renders in place after a write.
+  listener is what catches it (not yet live-verified). Builder writes no longer navigate, so the build view re-renders in
+  place after a write.
 - Live testing: Playwright `connectOverCDP` to a manually launched (non-automated) Brave; Cloudflare blocks login in a
   Playwright-launched browser.
 - User global rule: commit granularly (Conventional Commits w/ scope), don't push without being asked, stay on

@@ -64,7 +64,8 @@ const send = (fn) => fn().catch(() => null);
 const ok = (res) => res && !res.error && !res.miss;
 
 const FAIL_TEXT = {
-  'not-editable': 'Open the deck in edit mode (logged in) to add cards',
+  'not-editable': 'Open the deck in edit mode (logged in) to edit cards',
+  session: 'Moxfield session expired — reload the page and try again',
   'ui-changed': 'Couldn’t save through Moxfield’s Bulk Edit',
 };
 const failText = (r) => (r && r.reason === 'rejected' ? `Moxfield rejected: ${r.message || 'unknown error'}` : FAIL_TEXT[r && r.reason] || FAIL_TEXT['ui-changed']);
@@ -250,7 +251,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       if (alive()) { S.busy = null; render(); }
       return;
     }
-    toast(okMsg);
+    // Last write wins on Moxfield's side: flag a save that landed between our read and our write.
+    if (res.concurrent) toast('This deck changed elsewhere just now — please check it', true);
+    else toast(okMsg);
     if (!alive()) return abandon();
     S.busy = null;
     await refreshDeck();

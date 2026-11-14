@@ -41,20 +41,35 @@ export async function authedGet(url) {
 // id (validated) and the body. Never logs the token, never follows a redirect, never throws.
 // Returns { ok, status, json } (json null when not JSON), or null when there is no token / the
 // request itself failed.
-const PUBLIC_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+export const PUBLIC_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const waitToken = async () => { for (let i = 0; !token && i < 20; i++) await new Promise((r) => setTimeout(r, 150)); return !!token; };
+async function readJson(r) { try { return await r.json(); } catch { return null; } }
+
+// The ONE Bulk Edit read: the GET Moxfield's Bulk Edit page fills its textarea from (fixed URL,
+// same guards as bulkEditWrite). Unlike authedGet it reports the status, so an expired token (401)
+// can be told apart from other failures. Returns { ok, status, json }, or null when there is no
+// token / the id is invalid / the request itself failed. Never throws, never logs the token.
+export async function bulkEditRead(publicId) {
+  try {
+    if (typeof publicId !== 'string' || !PUBLIC_ID_RE.test(publicId)) return null;
+    if (!(await waitToken())) return null;
+    const r = await fetch(`https://api2.moxfield.com/v2/decks/${publicId}/bulk-edit?ignoreFlavorNames=true&allowMultiplePrintings=true`, {
+      method: 'GET', credentials: 'include', redirect: 'error', headers: { Authorization: token },
+    });
+    return { ok: r.ok, status: r.status, json: await readJson(r) };
+  } catch { return null; }
+}
+
 export async function bulkEditWrite(publicId, body, { version = null } = {}) {
   try {
     if (typeof publicId !== 'string' || !PUBLIC_ID_RE.test(publicId) || !body || typeof body !== 'object') return null;
-    for (let i = 0; !token && i < 20; i++) await new Promise((r) => setTimeout(r, 150));
-    if (!token) return null;
+    if (!(await waitToken())) return null;
     const headers = { Authorization: token, 'Content-Type': 'application/json', 'x-public-deck-id': publicId };
     if (Number.isFinite(version)) headers['x-deck-version'] = String(version);
     const r = await fetch(`https://api2.moxfield.com/v3/decks/${publicId}/bulk-edit`, {
       method: 'PUT', credentials: 'include', redirect: 'error', headers, body: JSON.stringify(body),
     });
-    let json = null;
-    try { json = await r.json(); } catch { json = null; }
-    return { ok: r.ok, status: r.status, json };
+    return { ok: r.ok, status: r.status, json: await readJson(r) };
   } catch { return null; }
 }
 

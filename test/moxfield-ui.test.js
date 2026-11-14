@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   editBulkText, countsAgree, unmatchedRemovals, bulkEditBody, bulkEditOutcome, deckBoardCount, bulkCount, deckSyncMessage,
+  bulkGuard, bulkReadOutcome, concurrentChange, BULK_BOARDS,
 } from '../src/moxfield-ui.js';
 
 const BULK = [
@@ -123,6 +124,51 @@ test('bulkEditBody: null when the GET shape is not the known one (never builds b
   assert.equal(bulkEditBody({ boards: { sideboard: '' } }, 'x'), null); // no mainboard text
   assert.equal(bulkEditBody({ boards: { mainboard: '', sideboard: 5 } }, 'x'), null); // non-string board
   assert.equal(bulkEditBody(BULK_GET, null), null);
+  // Fix round 1: a partial boards object would wipe the missing boards → refuse.
+  assert.equal(bulkEditBody({ boards: { mainboard: '1 X' }, pricingProvider: 'cardMarket' }, '1 Y'), null);
+  const { tokens, ...nine } = BULK_GET.boards;
+  assert.equal(bulkEditBody({ ...BULK_GET, boards: nine }, '1 Y'), null);
+  // pricingProvider missing → refuse rather than silently omit it.
+  const { pricingProvider, ...noPricing } = BULK_GET;
+  assert.equal(bulkEditBody(noPricing, '1 Y'), null);
+});
+
+test('BULK_BOARDS: the 10 board texts captured from Moxfield\'s Bulk Edit GET', () => {
+  assert.deepEqual([...BULK_BOARDS].sort(), Object.keys(BULK_GET.boards).sort());
+});
+
+const deckWith = (main, side, maybe) => {
+  const b = (cards) => ({ cards: Object.fromEntries(cards.map((q, i) => [`e${i}`, { quantity: q, card: { name: `C${i}` } }])) });
+  return { boards: { mainboard: b(main), sideboard: b(side), maybeboard: b(maybe) } };
+};
+
+test('bulkGuard: main, side and maybe text counts must all match the deck JSON (fail closed)', () => {
+  // BULK_GET: mainboard 2, sideboard 1, maybeboard 1
+  assert.equal(bulkGuard(BULK_GET, deckWith([1, 1], [1], [1])), true);
+  assert.equal(bulkGuard(BULK_GET, deckWith([1, 1], [], [1])), false); // sideboard text missing a card
+  assert.equal(bulkGuard(BULK_GET, deckWith([1, 1], [1], [1, 1])), false); // maybeboard mismatch
+  assert.equal(bulkGuard(BULK_GET, deckWith([1, 1, 1], [1], [1])), false); // mainboard mismatch
+  assert.equal(bulkGuard(BULK_GET, { boards: { mainboard: deckWith([1, 1], [], []).boards.mainboard } }), false); // unknown side count
+  assert.equal(bulkGuard(null, deckWith([1, 1], [1], [1])), false);
+  assert.equal(bulkGuard(BULK_GET, null), false);
+});
+
+test('bulkReadOutcome: no token / 401 → session, 403 → not-editable, 200 JSON → null (proceed), else ui-changed', () => {
+  assert.deepEqual(bulkReadOutcome(null), { ok: false, reason: 'session' });
+  assert.deepEqual(bulkReadOutcome({ ok: false, status: 401, json: null }), { ok: false, reason: 'session' });
+  assert.deepEqual(bulkReadOutcome({ ok: false, status: 403, json: null }), { ok: false, reason: 'not-editable' });
+  assert.equal(bulkReadOutcome({ ok: true, status: 200, json: BULK_GET }), null);
+  assert.deepEqual(bulkReadOutcome({ ok: true, status: 200, json: null }), { ok: false, reason: 'ui-changed' });
+  assert.deepEqual(bulkReadOutcome({ ok: false, status: 500, json: null }), { ok: false, reason: 'ui-changed' });
+  assert.deepEqual(bulkReadOutcome({ ok: false, status: 0, json: null }), { ok: false, reason: 'ui-changed' });
+});
+
+test('concurrentChange: the saved version must be exactly prevVersion + 1', () => {
+  assert.equal(concurrentChange(50, 51), false);
+  assert.equal(concurrentChange(50, 53), true); // someone else saved in between
+  assert.equal(concurrentChange(50, 50), true);
+  assert.equal(concurrentChange(null, 51), false); // unknown → no evidence, no warning
+  assert.equal(concurrentChange(50, undefined), false);
 });
 
 test('bulkEditOutcome: 200 + isSuccessful → ok', () => {
@@ -142,8 +188,8 @@ test('bulkEditOutcome: 200 + isSuccessful:false with line errors → rejected wi
   assert.equal(bulkEditOutcome({ ok: true, status: 200, json: two }).message, 'Line 1 of mainboard: A.; Line 2 of sideboard: B. (1 B)');
 });
 
-test('bulkEditOutcome: 401/403 → not-editable', () => {
-  assert.deepEqual(bulkEditOutcome({ ok: false, status: 401, json: null }), { ok: false, reason: 'not-editable' });
+test('bulkEditOutcome: 401 → session (expired token), 403 → not-editable', () => {
+  assert.deepEqual(bulkEditOutcome({ ok: false, status: 401, json: null }), { ok: false, reason: 'session' });
   assert.deepEqual(bulkEditOutcome({ ok: false, status: 403, json: { message: 'nope' } }), { ok: false, reason: 'not-editable' });
 });
 
