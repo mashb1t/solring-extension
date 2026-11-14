@@ -194,8 +194,8 @@ async function getBuildData({ op, commanders, theme, card, cards }) {
 }
 
 // Guided Deck Builder: Scryfall data. Card info is cached per front-face key (scry:<key>, 1 day);
-// only uncached names hit the network. Flag lists are cached whole (scry:flags, 7 days) and go
-// over the wire as arrays.
+// only uncached names hit the network. Flag lists are cached whole (scry:flags, 7 days, served
+// stale when a refresh fails) and go over the wire as arrays.
 
 async function cardInfo(names) {
   const info = {};
@@ -223,7 +223,8 @@ async function flagLists() {
     const cached = await getEntry(key);
     if (isFreshTtl(cached, SCRY_FLAGS_TTL_MS)) return cached;
     const sets = await fetchFlagSets();
-    if (!sets) return null;
+    // Stale-on-error: an expired copy beats none (empty lists would lift the bracket limits).
+    if (!sets) return cached && cached.data ? cached : null;
     return setEntry(key, {
       gameChangers: [...sets.gameChangers],
       extraTurns: [...sets.extraTurns],

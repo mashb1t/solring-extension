@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  deckComposition, flagSets, commanderMatches, infoNames, ruleChips, comboCheck, groupPicks,
+  deckComposition, flagSets, flagsAvailable, commanderMatches, infoNames, ruleChips, comboCheck, groupPicks,
   previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
@@ -155,4 +155,20 @@ test('ownedFilter: hides only not-owned suggestions, and only when owned-only is
   const r = ownedFilter(list, true);
   assert.deepEqual(r.shown.map((s) => s.name), ['A', 'C']);
   assert.equal(r.hidden, 1);
+});
+
+test('flagsAvailable: only a real flags response counts; a miss / error / missing list does not', () => {
+  assert.equal(flagsAvailable({ gameChangers: [], extraTurns: [], massLandDenial: [] }), true);
+  assert.equal(flagsAvailable({ miss: true }), false);
+  assert.equal(flagsAvailable({ error: 'x' }), false);
+  assert.equal(flagsAvailable(null), false);
+  assert.equal(flagsAvailable({ gameChangers: [], extraTurns: [] }), false);
+});
+
+test('ruleChips: "Bracket checks unavailable" warning chip when flags are missing', () => {
+  const chips = ruleChips([{ key: 'bracket', label: 'Bracket 3' }], { flagsMissing: true });
+  const f = chips.find((c) => c.key === 'flags');
+  assert.equal(f.text, 'Bracket checks unavailable');
+  assert.equal(f.warn, true);
+  assert.equal(ruleChips([{ key: 'bracket', label: 'Bracket 3' }]).some((c) => c.key === 'flags'), false);
 });

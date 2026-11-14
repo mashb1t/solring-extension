@@ -34,6 +34,12 @@ export function flagSets(res) {
   return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial') };
 }
 
+/** Did getCardData({op:'flags'}) return the real lists? (The worker serves a stale copy on a failed
+ *  refresh, so false means nothing is cached at all: extra-turn / MLD / GC checks can't run.) */
+export function flagsAvailable(res) {
+  return !!(res && !res.error && !res.miss && ['gameChangers', 'extraTurns', 'massLandDenial'].every((k) => Array.isArray(res[k])));
+}
+
 /** Same commander set, compared by lowercased front face (order-insensitive). */
 export function commanderMatches(a, b) {
   const ka = new Set((a || []).filter(Boolean).map(frontFace));
@@ -58,10 +64,11 @@ const dollars = (n) => `$${Math.round(n)}`;
 
 /**
  * ruleUsage(ctx) → chips: { key, text, pct (0–1 meter fill, or null), warn, hint }.
- * `warn` = the limit is reached (the next card of that kind is blocked).
+ * `warn` = the limit is reached (the next card of that kind is blocked). `flagsMissing` appends a
+ * "Bracket checks unavailable" warning chip (flag lists couldn't load).
  */
-export function ruleChips(usage) {
-  return (usage || []).map((u) => {
+export function ruleChips(usage, { flagsMissing = false } = {}) {
+  const chips = (usage || []).map((u) => {
     if (u.key === 'gc') {
       if (u.max === Infinity) return { key: 'gc', text: `Game Changers ${u.used} / no cap`, pct: null, warn: false };
       return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
@@ -72,6 +79,8 @@ export function ruleChips(usage) {
     if (u.key === 'power') return { key: 'power', text: u.label, pct: null, warn: false, hint: 'target' };
     return { key: u.key, text: u.label, pct: null, warn: false };
   });
+  if (flagsMissing) chips.push({ key: 'flags', text: 'Bracket checks unavailable', pct: null, warn: true });
+  return chips;
 }
 
 /**

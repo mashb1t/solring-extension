@@ -123,7 +123,7 @@ export async function installBuilder({ waitFor }) {
   // ---- state -------------------------------------------------------------------------------
   const S = {
     build,
-    themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), info: {},
+    themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), flagsOk: true, info: {},
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
@@ -195,6 +195,7 @@ export async function installBuilder({ waitFor }) {
     const [themesRes, flagsRes, combos] = await Promise.all([themesP, send(() => getCardData({ op: 'flags' })), loadCombos()]);
     S.themes = ok(themesRes) && Array.isArray(themesRes.themes) ? themesRes.themes : [];
     S.flags = V.flagSets(ok(flagsRes) ? flagsRes : null);
+    S.flagsOk = V.flagsAvailable(flagsRes); // false → chip + no Auto-complete (single "+" stays)
     S.comboResults = combos;
     // A stored playstyle wins; otherwise preview the most-played one (not persisted until picked).
     S.theme = S.build.theme || (S.themes[0] && S.themes[0].slug) || null;
@@ -332,13 +333,17 @@ export async function installBuilder({ waitFor }) {
   }
 
   function rulesBar() {
-    const chips = S.ctx ? V.ruleChips(ruleUsage(S.ctx)) : [];
+    const chips = S.ctx ? V.ruleChips(ruleUsage(S.ctx), { flagsMissing: !S.flagsOk }) : [];
     const items = [el('span', { class: 'solring-builder-label', text: 'Rules' })];
     for (const c of chips) {
       const kids = [c.text];
       if (c.pct != null) kids.push(el('span', { class: `solring-builder-meter${c.warn ? ' solring-warn' : ''}` }, [el('i', { style: `width:${Math.round(c.pct * 100)}%` })]));
       if (c.hint) kids.push(el('small', { text: c.hint }));
-      items.push(el('span', { class: 'solring-builder-chip', attrs: { 'data-rule': c.key } }, kids));
+      items.push(el('span', {
+        class: `solring-builder-chip${c.key === 'flags' ? ' solring-builder-err' : ''}`,
+        title: c.key === 'flags' ? 'Scryfall’s extra-turn / mass-land-denial / Game Changer lists couldn’t load, so Auto-complete is off. Single adds still check the rest.' : null,
+        attrs: { 'data-rule': c.key },
+      }, kids));
     }
     const box = el('input', { class: 'form-check-input', attrs: { type: 'checkbox' } });
     const ruleOn = !!S.build.rules.ownedOnly;
@@ -355,7 +360,7 @@ export async function installBuilder({ waitFor }) {
     const ruleBtn = el('button', { class: 'solring-builder-chip solring-builder-rulebtn', text: S.rulesOpen ? 'Close rules' : '+ rule', attrs: { type: 'button' } });
     ruleBtn.addEventListener('click', () => { S.rulesOpen = !S.rulesOpen; S.rulesError = null; render(); });
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
-    ac.disabled = !!S.busy || !S.ctx || addsPaused();
+    ac.disabled = !!S.busy || !S.ctx || addsPaused() || !S.flagsOk;
     ac.addEventListener('click', openPreview);
     return el('div', { class: 'solring-builder-rules' }, [...items, owned, ruleBtn, el('span', { class: 'solring-builder-spacer' }), ac]);
   }
@@ -484,7 +489,7 @@ export async function installBuilder({ waitFor }) {
   }
 
   function openPreview() {
-    if (!S.ctx || S.busy || addsPaused()) return;
+    if (!S.ctx || S.busy || addsPaused() || !S.flagsOk) return;
     closeModal();
     const fill = proposeFill({ tiers: S.tiers, ctx: S.ctx, size: V.DECK_SIZE, lands: V.LAND_TARGET, colorIdentity: deck.colorIdentity, current: S.comp.current });
     const ticked = new Set(fill.picks.map((_, i) => i));
