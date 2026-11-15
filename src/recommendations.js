@@ -17,6 +17,7 @@ import { readDeck, frontKey, hasToken, setCardQuantity, removeCard } from './mox
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { getDeck, getEnrichment, getRecs, getBuildData } from './messaging.js';
 import { comboBreakers, dropCombosWith } from './combo-breakers.js';
+import { cutsViewAction } from './cuts-view.js';
 import { breakerBadge, closeBreakerPop, confirmRemove, cancelBreakerConfirm } from './combo-breaker-ui.js';
 import { annotate } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
@@ -78,21 +79,6 @@ export async function installRecommendations({ waitFor }) {
   grid.parentElement.insertBefore(cutsView, grid.nextSibling);
   registerDisposable(teardownRecommendations);
 
-  // Load EDHREC recs once (used by both tabs): deck read → recs POST.
-  const deck = await readDeck(publicId).catch(() => null);
-  // Combo breakers: cut cards that are pieces of a combo the deck already has. Loads alongside
-  // the recs (never blocks the tabs); cells rendered before it lands get their badge when it does.
-  const ctx = { publicId, editId: deck && deck.editId, breakers: new Map(), view: cutsView };
-  if (deck && !(opts.sources && opts.sources.spellbook === false)) ctx.breakersReady = loadBreakers(deck, ctx);
-  const json = deck ? await getRecs(deck.commanders, Object.values(deck.boards.mainboard).map((e) => e.name)).catch(() => null) : null;
-  const inScore = new Map();
-  for (const r of (json && json.inRecs) || []) if (r && r.name && typeof r.score === 'number') inScore.set(frontKey(r.name), r.score);
-  const cuts = deck
-    ? cutRecs(json, Infinity).map((r) => { const e = deck.boards.mainboard[frontKey(r.name)]; return e ? { ...e, score: r.score } : null; }).filter(Boolean)
-    : [];
-
-  if (inScore.size) annotateAdds(grid, inScore); // stamp the native "add" cards with their score
-
   // Moxfield's "We found N recommendations from edhrec.com." header line — reword it for the Cuts
   // tab (same <p>, count in <strong>, edhrec.com kept as the original link), restore for Recommended.
   const foundLine = [...document.querySelectorAll('.text-muted')].find((e) => /We found .*recommendations from edhrec/i.test(e.textContent || ''));
@@ -101,30 +87,66 @@ export async function installRecommendations({ waitFor }) {
   // Teardown (nav, or Cuts turned off live while the Cuts tab shows) must not leave our wording behind.
   if (foundLine && foundOrig != null) restoreFoundLine = () => { if (foundLine.isConnected) foundLine.innerHTML = foundOrig; };
 
+  // The tabs work at once; the cuts load below. `cuts` stays null until then: an early Cuts click
+  // shows "Loading cuts…" and the grid renders when the data lands (cuts-view.cutsViewAction).
+  let cuts = null;
   let cutsRendered = false;
+  let showingCuts = false;
+  const ctx = { publicId, editId: null, breakers: new Map(), view: cutsView };
+  const reword = () => {
+    if (!foundLine) return;
+    if (showingCuts && cuts) {
+      foundLine.replaceChildren(
+        document.createTextNode('We found '),
+        el('strong', { text: String(cuts.length) }),
+        document.createTextNode(' recommended cuts from '),
+        foundLink ? foundLink.cloneNode(true) : document.createTextNode('edhrec.com'),
+        document.createTextNode(' (least-played in this commander’s decks first).'),
+      );
+    } else if (foundOrig != null) {
+      foundLine.innerHTML = foundOrig;
+    }
+  };
+  const syncCuts = () => {
+    const action = cutsViewAction({ active: showingCuts, cuts, rendered: cutsRendered });
+    if (action === 'loading' && !cutsView.querySelector('.solring-cuts-loading')) {
+      cutsView.replaceChildren(el('div', { class: 'solring-cuts-status solring-cuts-loading', text: 'Loading cuts…' }));
+    } else if (action === 'render') {
+      cutsRendered = true;
+      renderCuts(cutsView, template, grid.className, cuts, ctx);
+    }
+  };
   const show = (showCuts) => {
+    showingCuts = showCuts;
     tabAdd.classList.toggle('active', !showCuts);
     tabCut.classList.toggle('active', showCuts);
     grid.style.display = showCuts ? 'none' : '';
     if (showCuts) grid.setAttribute('data-solring-recohidden', '1'); else grid.removeAttribute('data-solring-recohidden');
     if (showCuts) cutsView.removeAttribute('hidden'); else cutsView.setAttribute('hidden', '');
-    if (foundLine) {
-      if (showCuts) {
-        foundLine.replaceChildren(
-          document.createTextNode('We found '),
-          el('strong', { text: String(cuts.length) }),
-          document.createTextNode(' recommended cuts from '),
-          foundLink ? foundLink.cloneNode(true) : document.createTextNode('edhrec.com'),
-          document.createTextNode(' (least-played in this commander’s decks first).'),
-        );
-      } else if (foundOrig != null) {
-        foundLine.innerHTML = foundOrig;
-      }
-    }
-    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, ctx); }
+    reword();
+    syncCuts();
   };
   tabAdd.addEventListener('click', () => show(false));
   tabCut.addEventListener('click', () => show(true));
+
+  // Load EDHREC recs once (used by both tabs): deck read → recs POST.
+  const deck = await readDeck(publicId).catch(() => null);
+  if (!installed || !isRecoRoute()) return; // torn down (nav) while reading
+  ctx.editId = deck && deck.editId;
+  // Combo breakers: cut cards that are pieces of a combo the deck already has. Loads alongside
+  // the recs (never blocks the tabs); cells rendered before it lands get their badge when it does.
+  if (deck && !(opts.sources && opts.sources.spellbook === false)) ctx.breakersReady = loadBreakers(deck, ctx);
+  const json = deck ? await getRecs(deck.commanders, Object.values(deck.boards.mainboard).map((e) => e.name)).catch(() => null) : null;
+  if (!installed || !isRecoRoute()) return;
+  const inScore = new Map();
+  for (const r of (json && json.inRecs) || []) if (r && r.name && typeof r.score === 'number') inScore.set(frontKey(r.name), r.score);
+  cuts = deck
+    ? cutRecs(json, Infinity).map((r) => { const e = deck.boards.mainboard[frontKey(r.name)]; return e ? { ...e, score: r.score } : null; }).filter(Boolean)
+    : [];
+
+  if (inScore.size) annotateAdds(grid, inScore); // stamp the native "add" cards with their score
+  if (showingCuts) reword(); // a Cuts tab opened while loading gets its count line… (never touch Moxfield's line otherwise)
+  syncCuts(); // …and its grid (or the empty-state message) now
 
   annotatePreview(publicId); // mirror the deck view's per-card Solring columns onto the Deck Preview
   installCustomizeViewToggles(); // add the Solring "Include Extra Data" toggles to the preview's Customize View
