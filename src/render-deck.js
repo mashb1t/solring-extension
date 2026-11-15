@@ -112,7 +112,12 @@ function installOnce() {
   installCardSidebar(() => currentFields, () => currentOptions); // mirrored on the deck-page sidebar
   const offPref = onPrefChange(async (which) => {
     if (which === 'card') { reannotate(); return; }
-    if (which === 'options') { currentOptions = await getOptions(); reannotate(); } // colours: option-colors.js
+    if (which === 'options') {
+      currentOptions = await getOptions();
+      const show = currentOptions.statsEnabled !== false;
+      document.querySelectorAll('.solring-container').forEach((w) => { w.hidden = !show; });
+      reannotate();
+    } // colours: option-colors.js
   });
   // Router drains this on nav: drop the prefs listener and reset the once-guard so the
   // next deck re-runs installOnce (which re-installs the card panels it also disposed).
@@ -430,6 +435,9 @@ export async function mount({ waitFor }) {
   const panel = el('div', { class: `solring-panel${isDark() ? ' solring-dark' : ''}` }, [titleBar, body]);
   // Wrap in a Bootstrap .container so the panel aligns with the deck body width.
   const wrap = el('div', { class: 'container mt-3 mb-5 solring-container', attrs: { 'data-solring-root': '' } }, [panel]);
+  // "Solring Stats panel" off hides only the panel: the analysis still loads for the per-card
+  // columns and Card Info panels it feeds.
+  wrap.hidden = currentOptions.statsEnabled === false;
 
   function setOpen(open) {
     panel.classList.toggle('solring-open', open);

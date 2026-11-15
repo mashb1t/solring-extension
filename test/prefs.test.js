@@ -49,6 +49,7 @@ test('getOptions: builder / picker / cuts settings default on, builder panel aut
   const { getOptions } = await import('../src/prefs.js');
   const o = await getOptions();
   assert.equal(o.builderEnabled, true);
+  assert.equal(o.statsEnabled, true);
   assert.equal(o.builderPanelDefault, 'auto');
   assert.equal(o.pickerEnabled, true);
   assert.equal(o.cutsEnabled, true);

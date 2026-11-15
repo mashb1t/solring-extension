@@ -68,6 +68,7 @@ export const OPTIONS_DEFAULT = {
   cardPanelSidebar: true,
   deckPanelDefault: 'auto', // 'auto' | 'open' | 'collapsed'
   accordion: true, // deck report-card: only one metric tile open at a time
+  statsEnabled: true, // "Solring Stats" deck report-card panel (hidden only; per-card columns still load)
   builderEnabled: true, // Guided Deck Builder build view (+ decklist checkboxes) on Commander decks
   builderPanelDefault: 'auto', // 'auto' (open below the legal size) | 'open' | 'collapsed'
   pickerEnabled: true, // "Find with Solring" in the New-deck dialog + "Pick a Commander" alert

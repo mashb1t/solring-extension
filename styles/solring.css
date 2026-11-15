@@ -141,6 +141,7 @@
   border: 1px solid var(--solring-border); border-radius: 6px; background: var(--solring-surface);
 }
 .solring-panel-section[hidden] { display: none; }
+.solring-container[hidden] { display: none; }
 .solring-pl-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--solring-text-2); margin-bottom: 0.4rem; }
 /* One-line description under a group header (e.g. Synergy → Anchors / Hubs). */
 .solring-pl-desc { font-size: 0.7rem; color: var(--solring-text-2); margin: 0.4rem 0; line-height: 1.3; }

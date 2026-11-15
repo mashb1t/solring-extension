@@ -31,6 +31,7 @@ async function render() {
   $('synergyPercentile').value = o.synergyPercentile;
   $('cacheLifetimeDays').value = String(o.cacheLifetimeDays);
   $('deckPanelDefault').value = o.deckPanelDefault;
+  $('statsEnabled').checked = o.statsEnabled !== false;
   $('builderEnabled').checked = o.builderEnabled !== false;
   $('builderPanelDefault').value = o.builderPanelDefault;
   $('pickerEnabled').checked = o.pickerEnabled !== false;
@@ -58,6 +59,7 @@ function bind() {
   onCheck('cardPanelModal', 'cardPanelModal');
   onCheck('cardPanelSidebar', 'cardPanelSidebar');
   onCheck('accordion', 'accordion');
+  onCheck('statsEnabled', 'statsEnabled');
   onCheck('builderEnabled', 'builderEnabled');
   onCheck('pickerEnabled', 'pickerEnabled');
   onCheck('cutsEnabled', 'cutsEnabled');
