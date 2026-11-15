@@ -50,6 +50,7 @@ export function teardownPicker() {
 export async function installPicker(_ctx = {}) {
   if (observer) return;
   const opts = await getOptions().catch(() => ({}));
+  if (opts.pickerEnabled === false) return; // turned off in the options (dialog link + alert link)
   if (opts.sources && opts.sources.edhrec === false) return; // gated on the EDHREC source
   if (observer) return;
   observer = new MutationObserver((records) => {

@@ -33,6 +33,7 @@ async function render() {
   $('deckPanelDefault').value = o.deckPanelDefault;
   $('builderEnabled').checked = o.builderEnabled !== false;
   $('builderPanelDefault').value = o.builderPanelDefault;
+  $('pickerEnabled').checked = o.pickerEnabled !== false;
   for (const c of COLORS) {
     const v = c.get(o);
     $(c.id).value = v || c.def;
@@ -57,6 +58,7 @@ function bind() {
   onCheck('cardPanelSidebar', 'cardPanelSidebar');
   onCheck('accordion', 'accordion');
   onCheck('builderEnabled', 'builderEnabled');
+  onCheck('pickerEnabled', 'pickerEnabled');
 
   const onNum = (id, key) => {
     $(id).addEventListener('change', () => {

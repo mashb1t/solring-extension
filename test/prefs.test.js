@@ -43,13 +43,14 @@ test('setOptions deep-merges sources: patching one source preserves the others',
   assert.equal(o.sources.spellbook, true); // sibling preserved, not dropped
 });
 
-test('getOptions: builder settings default on, builder panel auto', async () => {
+test('getOptions: builder / picker settings default on, builder panel auto', async () => {
   const { chrome } = makeChrome();
   global.chrome = chrome;
   const { getOptions } = await import('../src/prefs.js');
   const o = await getOptions();
   assert.equal(o.builderEnabled, true);
   assert.equal(o.builderPanelDefault, 'auto');
+  assert.equal(o.pickerEnabled, true);
 });
 
 test('setOptions: new builder keys persist and merge with stored options', async () => {
@@ -63,9 +64,11 @@ test('setOptions: new builder keys persist and merge with stored options', async
   assert.equal(o.builderEnabled, true);
   assert.equal(o.sources.edhrec, true);
   await setOptions({ builderEnabled: false, builderPanelDefault: 'collapsed' });
+  await setOptions({ pickerEnabled: false });
   o = await getOptions();
   assert.equal(o.builderEnabled, false);
   assert.equal(o.builderPanelDefault, 'collapsed');
+  assert.equal(o.pickerEnabled, false);
   assert.equal(o.autoFetch, false); // unrelated stored value untouched
   assert.equal(o.sources.spellbook, false);
 });

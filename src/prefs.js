@@ -70,6 +70,7 @@ export const OPTIONS_DEFAULT = {
   accordion: true, // deck report-card: only one metric tile open at a time
   builderEnabled: true, // Guided Deck Builder build view (+ decklist checkboxes) on Commander decks
   builderPanelDefault: 'auto', // 'auto' (open below the legal size) | 'open' | 'collapsed'
+  pickerEnabled: true, // "Find with Solring" in the New-deck dialog + "Pick a Commander" alert
   cacheLifetimeDays: 30,
   // External enrichment sources (Phase 4). Disabling one leaves its panel slot empty.
   sources: { edhrec: true, spellbook: true },
