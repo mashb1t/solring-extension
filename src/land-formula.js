@@ -1,4 +1,4 @@
-// Karsten land formula for a 99-card Commander deck (Frank Karsten, "How Many Lands Do You Need in
+// TCGplayer land formula for a 99-card Commander deck (Frank Karsten, "How Many Lands Do You Need in
 // Your Deck? An Updated Analysis", TCGplayer). Pure logic, no DOM:
 //
 //   lands = 31.42 + 3.13 × average mana value of the spells − 0.28 × cheap draw/ramp spells
@@ -8,6 +8,10 @@
 // over Scryfall's lowercase Oracle text (all faces joined; the front face decides MV / land / creature).
 // Cards are shaped Scryfall info (sources/scryfall.js shapeCards): { cmc, oracle, frontType,
 // typeLine, layout, rarity }, optionally with a `qty`.
+
+/** TCGplayer article the formula comes from (linked from the options page and the builder). */
+export const LAND_FORMULA_URL = 'https://www.tcgplayer.com/content/article/How-Many-Lands-Do-You-Need-in-Your-Deck-An-Updated-Analysis/cd1c1a24-d439-4a8e-b369-b936edb0b38a/';
+export const LAND_FORMULA_TEXT = 'lands = 31.42 + 3.13 × average mana value of your spells − 0.28 × cheap card draw / mana ramp spells';
 
 export const FIXED_LANDS = 36;
 const BASE = 31.42;
@@ -107,9 +111,9 @@ export function landTarget({ nonlands = [], mdfcs = [] } = {}) {
 const r2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
 const r1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
 
-/** "Karsten: 31.42 + 3.13 × 3.05 − 0.28 × 6 = 39.3 → 39" (− "0.38 MDFC" before the arrow when any). */
+/** "TCGplayer formula: 31.42 + 3.13 × 3.05 − 0.28 × 6 = 39.3 → 39" (− "0.38 MDFC" before the arrow when any). */
 export function landBasis(r) {
-  if (!r || r.target == null) return `Karsten: no mana values yet, using ${FIXED_LANDS}`;
+  if (!r || r.target == null) return `TCGplayer formula: no mana values yet, using ${FIXED_LANDS}`;
   const credit = r.mdfcCredit > 0 ? ` − ${r2(r.mdfcCredit)} MDFC` : '';
-  return `Karsten: ${BASE} + ${PER_MV} × ${r2(r.avgMv)} − ${PER_CHEAP} × ${r.cheap} = ${r1(r.raw)}${credit} → ${r.target}`;
+  return `TCGplayer formula: ${BASE} + ${PER_MV} × ${r2(r.avgMv)} − ${PER_CHEAP} × ${r.cheap} = ${r1(r.raw)}${credit} → ${r.target}`;
 }

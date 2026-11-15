@@ -80,8 +80,8 @@ test('landTarget: formula, average over cards with cmc only, MDFC credit before 
   const m = landTarget({ nonlands: [card('Brainstorm'), card('Dark Ritual'), filler], mdfcs: [{ rarity: 'mythic' }, { rarity: 'uncommon', qty: 1 }] });
   assert.ok(Math.abs(m.mdfcCredit - 1.12) < 1e-9);
   assert.equal(m.target, 36); // 37.12 − 1.12 = 36.0
-  assert.equal(landBasis(r), 'Karsten: 31.42 + 3.13 × 2.00 − 0.28 × 2 = 37.1 → 37');
-  assert.equal(landBasis(m), 'Karsten: 31.42 + 3.13 × 2.00 − 0.28 × 2 = 37.1 − 1.12 MDFC → 36');
+  assert.equal(landBasis(r), 'TCGplayer formula: 31.42 + 3.13 × 2.00 − 0.28 × 2 = 37.1 → 37');
+  assert.equal(landBasis(m), 'TCGplayer formula: 31.42 + 3.13 × 2.00 − 0.28 × 2 = 37.1 − 1.12 MDFC → 36');
 });
 
 test('landTarget: qty weights; no cmc at all → target null', () => {

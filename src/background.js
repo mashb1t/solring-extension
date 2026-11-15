@@ -207,7 +207,7 @@ async function cardInfo(names, fresh = false) {
     const key = frontFace(name);
     const cached = await getEntry(`scry:${key}`);
     // An entry cached before a field was kept is refetched once: eur/tix (non-USD prices aren't
-    // "unknown"), cmc/oracle (the Karsten land formula).
+    // "unknown"), cmc/oracle (the TCGplayer land formula).
     if (fresh || !isFreshTtl(cached, SCRY_INFO_TTL_MS) || (!cached.data.notFound && !('eur' in cached.data && 'oracle' in cached.data))) missing.push(name);
     else if (!cached.data.notFound) info[key] = cached.data; // negative entries stay absent
   }

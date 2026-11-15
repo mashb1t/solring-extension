@@ -167,7 +167,7 @@ export function previewTotals({ picks, ticked, ctx, current }) {
 }
 
 /** The preview's one-line summary under the title (amounts in `pricing`'s currency; `lands` = the
- *  land target, the Karsten formula's when that option is on). */
+ *  land target, the TCGplayer formula's when that option is on). */
 export function previewSummary(t, rules, gcCap, pricing = DEFAULT_PRICING, lands = LAND_TARGET) {
   const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${lands}`, `Bracket ${rules.bracket}`];
   parts.push(gcCap === Infinity ? `Game Changers ${t.gcAfter}` : `Game Changers ${t.gcAfter} / ${gcCap}`);

@@ -20,7 +20,7 @@ import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
 import { proposeFill } from './autocomplete.js';
-import { landTarget, splitCards, landBasis, FIXED_LANDS } from './land-formula.js';
+import { landTarget, splitCards, landBasis, FIXED_LANDS, LAND_FORMULA_URL, LAND_FORMULA_TEXT } from './land-formula.js';
 import { DEFAULT_PRICING, pricedInfo, approxNote, deckPrices, chooseProvider, pricingFor } from './pricing.js';
 import { getBuildData, getCardData, importDeck } from './messaging.js';
 import { applyBulkEdit, canEdit } from './moxfield-ui.js';
@@ -174,7 +174,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
-    landFormula: opts.landFormula === true, land: null, // Karsten land target (recompute), null when off
+    landFormula: opts.landFormula === true, land: null, // TCGplayer land target (recompute), null when off
   };
   const selected = new Map(); // front-face key → mainboard name (decklist checkboxes)
   // "Only cards I own" is saved on but the collection isn't loaded (yet, or it failed): the rule
@@ -193,7 +193,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   let syncWant = null; let syncTimer = 0; let refreshing = false; let rowSig = null;
   let readRows = () => []; // set by installRowPicks: the decklist rows that count toward the 100
 
-  // Karsten land formula over the 99 (mainboard; commanders excluded) plus optional proposed picks.
+  // TCGplayer land formula over the 99 (mainboard; commanders excluded) plus optional proposed picks.
   // Declared before the first render() (the bar summary uses them): no TDZ.
   const landCalc = (picks = []) => landTarget(splitCards([
     ...Object.values(deck.boards.mainboard).map((e) => ({ info: S.info[frontFace(e.name)], qty: e.quantity, isLand: e.isLand })),
@@ -309,7 +309,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // can write. They need just the deck read above, not start()'s suggestion data.
   if (editable) installRowPicks();
   installDeckSync();
-  // Live "Calculate land count (Karsten formula)" toggle: recompute + re-render, no remount.
+  // Live "Calculate land count (TCGplayer formula)" toggle: recompute + re-render, no remount.
   own(onPrefChange(async (which) => {
     if (which !== 'options') return;
     const o = await getOptions().catch(() => null);
@@ -625,8 +625,12 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       themeAll.length > THEME_SHOWN ? moreBtn(S.showAllTheme, themeAll.length, () => { S.showAllTheme = !S.showAllTheme; render(); }) : null));
     const landAll = landF.shown;
     const lands = S.showAllLands ? landAll : landAll.slice(0, LANDS_SHOWN);
-    const landNote = el('div', { class: 'solring-builder-chip solring-builder-landnote', title: landTitle(), text:
-      `${S.comp.current.lands} / ${landGoal()} lands in deck · Auto-complete adds the missing lands (these first, then basics in your colours)` });
+    const landNote = el('div', { class: 'solring-builder-chip solring-builder-landnote', title: landTitle() }, [
+      document.createTextNode(`${S.comp.current.lands} / ${landGoal()} lands in deck · Auto-complete adds the missing lands (these first, then basics in your colours)`),
+      // Formula on: name the source and link it; hovering shows the formula itself.
+      S.landFormula ? document.createTextNode(' · ') : null,
+      S.landFormula ? el('a', { class: 'solring-builder-landsrc', text: 'TCGplayer formula', attrs: { href: LAND_FORMULA_URL, target: '_blank', rel: 'noopener', title: LAND_FORMULA_TEXT } }) : null,
+    ]);
     out.push(section(`③ Lands (${landAll.length})`, lands.map(cardTile),
       landAll.length > LANDS_SHOWN ? moreBtn(S.showAllLands, landAll.length, () => { S.showAllLands = !S.showAllLands; render(); }) : null, landNote));
     return el('div', { class: 'solring-builder-tiers' }, out);
@@ -757,7 +761,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const propose = (lands) => proposeFill({ tiers: S.tiers, ctx: S.ctx, size: V.DECK_SIZE, lands, colorIdentity: deck.colorIdentity, current: S.comp.current });
     let lands = landGoal();
     let fill = propose(lands);
-    // Karsten: the proposed spells change the average MV / cheap count / MDFC credit. Recompute over
+    // TCGplayer formula: the proposed spells change the average MV / cheap count / MDFC credit. Recompute over
     // deck + proposed picks and re-propose once if the target moved. Intentionally a single extra
     // pass (no fixpoint loop): a third target would differ by at most a land and could oscillate.
     if (S.landFormula) {

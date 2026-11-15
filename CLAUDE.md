@@ -19,7 +19,7 @@ through any Solring backend — all data is fetched straight from the third-part
   `edhrec-build.js` (deck-builder theme/commander pages, `json.edhrec.com`), `scryfall.js` (`api.scryfall.com` card info + flag lists).
 - **Builder data** — `getBuildData` / `getCardData` take `fresh:true` (the builder header's ↻ reload): skip the TTL,
   overwrite the entry, fall back to the cached copy if the fetch fails. `scry:` entries missing a newly kept field
-  (`eur`, `oracle`) are refetched once. `src/land-formula.js` (pure, tested): Karsten land target (option
+  (`eur`, `oracle`) are refetched once. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option
   `landFormula`), article rules verbatim; land/spell MDFCs are partial lands, never cheap spells.
 - **Picker** — commander rows use `cardPopAttrs` (shared `.solring-cardpop`, `data-pop="left"` of the dialog); the
   playstyle ⓘ popover is built-in text only (`picker-logic.themeHelp`: `THEME_HELP`, a typal line, a fallback), no
