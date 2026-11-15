@@ -393,7 +393,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     reloadBtn.disabled = busy || !!S.busy || !!writing || Date.now() - reloadedAt < RELOAD_COOLDOWN_MS;
   }
   // A load (start / reload / playstyle switch) is in flight: suggestions and rules state are stale.
-  const loadingNow = () => reloading || S.loading;
+  // A hoisted declaration: start() renders the rules bar before this point is reached (no TDZ).
+  function loadingNow() { return reloading || S.loading; }
 
   // ---- manual edits (Moxfield's own add/remove/quantity, another tab) ---------------------------
   // Moxfield posts { kind:'deck', publicId, prevVersion, version, … } on BroadcastChannel
