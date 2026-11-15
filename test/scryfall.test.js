@@ -146,3 +146,15 @@ test('shapeCards: keeps cmc, oracle, layout, rarity, frontType (DFC faces joined
   assert.match(m.oracle, /Choose target creature[\s\S]*\n[\s\S]*Add \{B\}/);
   assert.equal(info['shatterskull smashing'].rarity, 'mythic');
 });
+
+test('fetchCardLookup: asks Scryfall by front face, keys the result by the requested name', async () => {
+  let sent = null;
+  const stub = async (_url, opts) => {
+    sent = JSON.parse(opts.body).identifiers.map((i) => i.name);
+    return { ok: true, json: async () => ({ data: [{ name: "Toralf, God of Fury // Toralf's Hammer", layout: 'modal_dfc', card_faces: [{ image_uris: { normal: 'img' } }] }], not_found: [] }) };
+  };
+  const res = await withFetch(stub, () => fetchCardLookup(["Toralf, God of Fury // Toralf's Hammer"], { delayMs: 0 }));
+  assert.deepEqual(sent, ['Toralf, God of Fury']);
+  assert.equal(res.info['toralf, god of fury'].image, 'img');
+  assert.deepEqual(res.notFound, []);
+});

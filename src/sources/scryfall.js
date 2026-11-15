@@ -114,7 +114,9 @@ export async function fetchCardLookup(names, { delayMs = DELAY_MS } = {}) {
       const r = await fetch(`${API}/cards/collection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifiers: batch.map((name) => ({ name })) }),
+        // Front face only: /cards/collection misses many full "A // B" names (e.g. modal DFCs,
+        // "Fire // Ice") but resolves every layout by its front-face name (LIVE-VERIFY 2026-11-15).
+        body: JSON.stringify({ identifiers: batch.map((name) => ({ name: String(name).split(' // ')[0].trim() })) }),
       });
       if (r.ok) json = await r.json().catch(() => null);
     } catch { /* skip batch */ }

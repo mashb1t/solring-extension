@@ -208,7 +208,8 @@ async function cardInfo(names, fresh = false) {
     const cached = await getEntry(`scry:${key}`);
     // An entry cached before a field was kept is refetched once: eur/tix (non-USD prices aren't
     // "unknown"), cmc/oracle (the TCGplayer land formula).
-    if (fresh || !isFreshTtl(cached, SCRY_INFO_TTL_MS) || (!cached.data.notFound && !('eur' in cached.data && 'oracle' in cached.data))) missing.push(name);
+    // v2 not-found entries only: older ones came from full "A // B" lookups Scryfall can't resolve.
+    if (fresh || !isFreshTtl(cached, SCRY_INFO_TTL_MS) || (cached.data.notFound ? cached.data.v !== 2 : !('eur' in cached.data && 'oracle' in cached.data))) missing.push(name);
     else if (!cached.data.notFound) info[key] = cached.data; // negative entries stay absent
   }
   if (missing.length) {
@@ -217,7 +218,7 @@ async function cardInfo(names, fresh = false) {
       info[key] = card;
       await setEntry(`scry:${key}`, card);
     }
-    for (const key of notFound) await setEntry(`scry:${key}`, { notFound: true });
+    for (const key of notFound) await setEntry(`scry:${key}`, { notFound: true, v: 2 });
     if (fresh) { // a failed batch: keep serving what was cached
       const nf = new Set(notFound);
       for (const name of missing) {
