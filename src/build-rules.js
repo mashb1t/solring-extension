@@ -5,16 +5,50 @@ import { frontFace } from './sources/scryfall.js';
 import { BASICS } from './sources/edhrec.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
-// tutorCap: max tutors (Scryfall otag:tutor minus land tutors) in the deck; null = no limit.
-// noLandHate / noStax: block mass land denial / stax pieces at any bracket.
-export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null, noLandHate: false, noStax: false };
+// Per-bracket rule presets (official Commander Brackets; the tutor numbers are Solring's reading of
+// "very few" / "few"). A rule the user hasn't set (stored null) follows the CURRENT bracket's preset;
+// an explicit value is an override and wins. gameChangerCap is a hard bracket ceiling (clampGcCap),
+// tutorCap / noLandHate are soft defaults the user may loosen. Extra turns are not overridable.
+export const BRACKET_PRESETS = Object.freeze({
+  1: Object.freeze({ gameChangerCap: 0, noLandHate: true, allowExtraTurns: false, tutorCap: 1, noStax: false }),
+  2: Object.freeze({ gameChangerCap: 0, noLandHate: true, allowExtraTurns: false, tutorCap: 3, noStax: false }),
+  3: Object.freeze({ gameChangerCap: 3, noLandHate: true, allowExtraTurns: false, tutorCap: null, noStax: false }),
+  4: Object.freeze({ gameChangerCap: Infinity, noLandHate: false, allowExtraTurns: true, tutorCap: null, noStax: false }),
+  5: Object.freeze({ gameChangerCap: Infinity, noLandHate: false, allowExtraTurns: true, tutorCap: null, noStax: false }),
+});
+
+/** The preset row for a bracket; out-of-range values clamp to 1–5, garbage reads as Bracket 3. */
+export function bracketPreset(bracket) {
+  const n = Number(bracket);
+  if (!Number.isFinite(n)) return BRACKET_PRESETS[3];
+  return BRACKET_PRESETS[Math.min(5, Math.max(1, Math.round(n)))];
+}
+
+// Stored-rules schema. v2 = bracket presets. Before it, noLandHate defaulted to false and false
+// meant "off", so an old explicit false can't be told from an untouched one: migrateRules reads
+// an unversioned false as null (= follow the preset). Unversioned tutorCap null meant "no limit"
+// and now means "preset", which is intended (B1–2 get a tutor cap by default).
+export const RULES_V = 2;
+
+// gameChangerCap / tutorCap / noLandHate: null = the bracket preset (see BRACKET_PRESETS).
+// tutorCap counts Scryfall otag:tutor minus land tutors. noStax: block stax pieces (plain boolean).
+export const RULES_DEFAULT = { v: RULES_V, bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null, noLandHate: null, noStax: false };
+
+/** Stored rules of any version → v2 shape (unversioned noLandHate false → null). Pure; never mutates. */
+export function migrateRules(rules) {
+  const r = { ...(rules || {}) };
+  if (r.v == null) {
+    if (r.noLandHate === false) r.noLandHate = null;
+    r.v = RULES_V;
+  }
+  return r;
+}
 
 // Spellbook bracket tags → minimum bracket. 'B' (Banned: uses a banned card) is never allowed.
 const COMBO_MIN_BRACKET = { E: 1, O: 2, C: 2, S: 3, P: 3, R: 4, B: Infinity };
 
 export function bracketGcCap(bracket) {
-  if (bracket <= 2) return 0;
-  return bracket === 3 ? 3 : Infinity;
+  return bracketPreset(bracket).gameChangerCap;
 }
 
 // A user GC cap at or above the bracket's own cap adds nothing, so it's stored as null (= the
@@ -27,6 +61,33 @@ export function clampGcCap(cap, bracket) {
 export function effectiveGcCap(rules) {
   const cap = clampGcCap(rules.gameChangerCap, rules.bracket);
   return cap == null ? bracketGcCap(rules.bracket) : cap;
+}
+
+/**
+ * RAW stored rules → the rules in force: stored overrides merged over bracketPreset(rules.bracket).
+ * Always pass RAW rules (never an effectiveRules result): `fromPreset` says which values came from
+ * the preset, and drives the chip / block-reason wording. GC stays on effectiveGcCap's path.
+ */
+export function effectiveRules(rules) {
+  const r = migrateRules(rules);
+  const bracket = Number(r.bracket ?? RULES_DEFAULT.bracket);
+  const preset = bracketPreset(bracket);
+  const fromPreset = {
+    gameChangerCap: clampGcCap(r.gameChangerCap ?? null, bracket) == null,
+    tutorCap: r.tutorCap == null,
+    noLandHate: r.noLandHate == null,
+  };
+  return {
+    ...r,
+    bracket,
+    gcCap: effectiveGcCap({ ...r, bracket }),
+    tutorCap: fromPreset.tutorCap ? preset.tutorCap : r.tutorCap,
+    noLandHate: fromPreset.noLandHate ? preset.noLandHate : !!r.noLandHate,
+    noStax: !!r.noStax,
+    allowExtraTurns: preset.allowExtraTurns,
+    preset,
+    fromPreset,
+  };
 }
 
 // Unknown/null tag is only allowed where nothing is restricted (bracket 4+).
@@ -76,7 +137,7 @@ export function comboGuards(results) {
 // `pricing` (pricing.pricingFor) is the currency budget texts are shown in; default TCGplayer/USD.
 export function makeCtx({ rules, info, flags, owned, deckNames, combos, pricing }) {
   const forbidden = (combos || []).filter((c) => !comboAllowed(c.bracketTag, rules.bracket)).map((c) => c.keys);
-  let ctx = { rules, info: info || {}, pricing: pricing || DEFAULT_PRICING, flags, owned: owned || null, deckKeys: new Set(), gcUsed: 0, tutorUsed: 0, spent: 0, forbidden };
+  let ctx = { rules, eff: effectiveRules(rules), info: info || {}, pricing: pricing || DEFAULT_PRICING, flags, owned: owned || null, deckKeys: new Set(), gcUsed: 0, tutorUsed: 0, spent: 0, forbidden };
   for (const n of deckNames || []) ctx = addToCtx(ctx, n);
   return ctx;
 }
@@ -89,23 +150,25 @@ export function addToCtx(ctx, name) {
 export function checkCard(name, ctx) {
   const key = frontFace(name);
   const { rules } = ctx;
+  const eff = ctx.eff || effectiveRules(rules);
   const basic = BASICS.has(key);
   if (!basic && ctx.deckKeys.has(key)) return { ok: false, reason: 'Already in deck' };
   const cap = effectiveGcCap(rules);
   if (isGc(key, ctx) && ctx.gcUsed + 1 > cap) {
     return { ok: false, reason: `Would be Game Changer #${ctx.gcUsed + 1} (cap ${cap})` };
   }
-  if (rules.tutorCap != null && inFlag(ctx, 'tutors', key) && (ctx.tutorUsed || 0) + 1 > rules.tutorCap) {
-    return { ok: false, reason: `Would be tutor #${(ctx.tutorUsed || 0) + 1} (cap ${rules.tutorCap})` };
+  if (eff.tutorCap != null && inFlag(ctx, 'tutors', key) && (ctx.tutorUsed || 0) + 1 > eff.tutorCap) {
+    return { ok: false, reason: `Would be tutor #${(ctx.tutorUsed || 0) + 1} (cap ${eff.tutorCap})` };
   }
   // Deliberately conservative: the official brackets only bar CHAINED extra turns at B1–3, but a
   // builder can't tell a lone extra-turn card from a future chain, so every one is blocked there.
-  if (rules.bracket <= 3) {
-    if (ctx.flags.extraTurns.has(key)) return { ok: false, reason: `Not allowed at Bracket ${rules.bracket} (extra turn)` };
-    if (ctx.flags.massLandDenial.has(key)) return { ok: false, reason: `Not allowed at Bracket ${rules.bracket} (mass land denial)` };
+  if (!eff.allowExtraTurns && inFlag(ctx, 'extraTurns', key)) return { ok: false, reason: `Not allowed at Bracket ${eff.bracket} (extra turn)` };
+  // Mass land denial: the B1–3 preset reads as the bracket's rule; a user "No land hate" above
+  // the preset as the user's. A user override off at B1–3 lets it through.
+  if (eff.noLandHate && inFlag(ctx, 'massLandDenial', key)) {
+    return { ok: false, reason: eff.preset.noLandHate ? `Not allowed at Bracket ${eff.bracket} (mass land denial)` : 'Blocked by your rules (mass land denial)' };
   }
-  if (rules.noLandHate && inFlag(ctx, 'massLandDenial', key)) return { ok: false, reason: 'Blocked by your rules (mass land denial)' };
-  if (rules.noStax && inFlag(ctx, 'stax', key)) return { ok: false, reason: 'Blocked by your rules (stax)' };
+  if (eff.noStax && inFlag(ctx, 'stax', key)) return { ok: false, reason: 'Blocked by your rules (stax)' };
   for (const keys of ctx.forbidden || []) {
     if (keys.includes(key) && keys.every((k) => k === key || ctx.deckKeys.has(k))) {
       return { ok: false, reason: `Would complete a combo not allowed at Bracket ${rules.bracket}` };
@@ -122,14 +185,17 @@ export function checkCard(name, ctx) {
   return { ok: true };
 }
 
+// Preset-derived entries carry `preset: true` + `bracket` so the chips can say "(Bracket N)".
 export function ruleUsage(ctx) {
   const { rules } = ctx;
+  const eff = ctx.eff || effectiveRules(rules);
   const out = [{ key: 'bracket', label: `Bracket ${rules.bracket}`, used: null, max: null }];
   out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules), bracket: rules.bracket, custom: clampGcCap(rules.gameChangerCap, rules.bracket) != null });
-  if (rules.tutorCap != null) out.push({ key: 'tutors', label: 'Tutors', used: ctx.tutorUsed || 0, max: rules.tutorCap });
+  if (eff.tutorCap != null) out.push({ key: 'tutors', label: 'Tutors', used: ctx.tutorUsed || 0, max: eff.tutorCap, bracket: eff.bracket, preset: eff.fromPreset.tutorCap });
   if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget, pricing: ctx.pricing || DEFAULT_PRICING });
-  if (rules.noLandHate) out.push({ key: 'noLandHate', label: 'No land hate', used: null, max: null });
-  if (rules.noStax) out.push({ key: 'noStax', label: 'No stax', used: null, max: null });
+  if (eff.noLandHate) out.push({ key: 'noLandHate', label: 'No land hate', used: null, max: null, bracket: eff.bracket, preset: eff.fromPreset.noLandHate });
+  else if (eff.preset.noLandHate) out.push({ key: 'landHate', label: 'Land hate allowed (your rule)', used: null, max: null });
+  if (eff.noStax) out.push({ key: 'noStax', label: 'No stax', used: null, max: null });
   if (rules.power) out.push({ key: 'power', label: `Power ${rules.power.min}–${rules.power.max}`, used: null, max: null });
   return out;
 }

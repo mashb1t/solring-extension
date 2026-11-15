@@ -43,7 +43,7 @@ test('rules stored before the tutor / land-hate / stax keys get their defaults; 
   store['build:old'] = { theme: null, rules: { bracket: 4, gameChangerCap: 2, power: null, budget: null, ownedOnly: false } };
   const b = await getDeckBuild('old');
   assert.equal(b.rules.tutorCap, null);
-  assert.equal(b.rules.noLandHate, false);
+  assert.equal(b.rules.noLandHate, null); // absent → follows the bracket preset
   assert.equal(b.rules.noStax, false);
   assert.equal(b.rules.gameChangerCap, 2);
   await setDeckBuild('old', { rules: { gameChangerCap: null } });

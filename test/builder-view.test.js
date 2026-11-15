@@ -5,7 +5,7 @@ import {
   previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault, deckSizeStatus,
   cleanupCuts, deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckRowEntries, rowsAhead, pruneSelection,
 } from '../src/builder-view.js';
-import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
+import { RULES_DEFAULT, makeCtx, ruleUsage, effectiveRules } from '../src/build-rules.js';
 
 const flags = (o = {}) => ({ gameChangers: new Set(), extraTurns: new Set(), massLandDenial: new Set(), ...o });
 const entry = (name, quantity = 1, isLand = false) => ({ name, quantity, isLand });
@@ -63,10 +63,10 @@ test('infoNames: deck + theme + combo pieces, deduped by front face', () => {
 test('ruleChips: GC and budget meters, uncapped GC, power target hint', () => {
   const ctx = { ...makeCtx({ rules: { ...RULES_DEFAULT, budget: 250, power: { min: 6, max: 7 } }, info: {}, flags: flags(), owned: null, deckNames: [] }), gcUsed: 1, spent: 61.4 };
   const chips = ruleChips(ruleUsage(ctx));
-  assert.deepEqual(chips.map((c) => c.text), ['Bracket 3', 'Game Changers 1 / 3 (Bracket 3)', 'Budget $61 / $250', 'Power 6–7']);
+  assert.deepEqual(chips.map((c) => c.text), ['Bracket 3', 'Game Changers 1 / 3 (Bracket 3)', 'Budget $61 / $250', 'No land hate (Bracket 3)', 'Power 6–7']);
   assert.equal(chips[1].pct.toFixed(2), '0.33');
   assert.equal(chips[1].warn, false);
-  assert.equal(chips[3].hint, 'target');
+  assert.equal(chips[4].hint, 'target');
   const full = ruleChips([{ key: 'gc', used: 3, max: 3 }, { key: 'gc', used: 0, max: 0 }, { key: 'gc', used: 5, max: Infinity }]);
   assert.equal(full[0].warn, true);
   assert.equal(full[1].pct, 1);
@@ -147,9 +147,9 @@ test('powerVerdict: within / above / below, and unavailable for stub, miss, erro
 
 test('parseRulesForm: blanks clear rules; invalid input reports an error', () => {
   assert.deepEqual(parseRulesForm({ bracket: '3', gcCap: '', powerMin: '', powerMax: '', budget: '' }),
-    { rules: { bracket: 3, gameChangerCap: null, power: null, budget: null, tutorCap: null, noLandHate: false, noStax: false } });
+    { rules: { bracket: 3, gameChangerCap: null, power: null, budget: null, tutorCap: null, noLandHate: null, noStax: false } });
   assert.deepEqual(parseRulesForm({ bracket: '4', gcCap: '2', powerMin: '6', powerMax: '7', budget: '50' }),
-    { rules: { bracket: 4, gameChangerCap: 2, power: { min: 6, max: 7 }, budget: 50, tutorCap: null, noLandHate: false, noStax: false } });
+    { rules: { bracket: 4, gameChangerCap: 2, power: { min: 6, max: 7 }, budget: 50, tutorCap: null, noLandHate: null, noStax: false } });
   assert.ok(parseRulesForm({ bracket: '6' }).error);
   assert.ok(parseRulesForm({ bracket: '3', gcCap: '-1' }).error);
   assert.ok(parseRulesForm({ bracket: '3', powerMin: '7', powerMax: '6' }).error);
@@ -415,4 +415,44 @@ test('cleanupCuts: keeps EDHREC order, maps to the mainboard name (DFC), dedupes
   assert.equal(out.length, 6);
   assert.deepEqual(out.slice(0, 2), [{ name: 'Sol Ring', score: 1 }, { name: 'Brightclimb Pathway // Grimclimb Pathway', score: 5 }]);
   assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 3 }).map((c) => c.name).at(-1), 'Howling Mine');
+});
+
+test('bracket presets: chips name the bracket for preset-derived rules, "your cap" for overrides', () => {
+  const chipsOf = (rules) => ruleChips(ruleUsage(makeCtx({ rules: { ...RULES_DEFAULT, ...rules }, info: {}, flags: flags({ tutors: new Set(['demonic tutor']) }), owned: null, deckNames: ['Demonic Tutor'] }))).map((c) => c.text);
+  assert.deepEqual(chipsOf({ bracket: 2 }), ['Bracket 2', 'Game Changers 0 / 0 (Bracket 2)', 'Tutors 1 / 3 (Bracket 2)', 'No land hate (Bracket 2)']);
+  assert.deepEqual(chipsOf({ bracket: 2, tutorCap: 5, noLandHate: false }), ['Bracket 2', 'Game Changers 0 / 0 (Bracket 2)', 'Tutors 1 / 5 (your cap)', 'Land hate allowed (your rule)']);
+  assert.deepEqual(chipsOf({ bracket: 4, noLandHate: true }), ['Bracket 4', 'Game Changers 0 / no cap', 'No land hate']);
+});
+
+test('parseRulesForm: presets (blank / untouched) vs overrides round-trip', () => {
+  const p = (o) => parseRulesForm({ bracket: '2', ...o }).rules;
+  assert.equal(p({}).tutorCap, null);
+  assert.equal(p({}).noLandHate, null);
+  assert.equal(p({ noLandHate: null }).noLandHate, null);
+  assert.equal(p({ tutorCap: '5' }).tutorCap, 5); // above the B2 preset: kept, not clamped
+  assert.equal(p({ noLandHate: false }).noLandHate, false);
+  assert.equal(p({ noLandHate: true }).noLandHate, true);
+  // Saved patch → effective rules → the form again
+  const saved = { ...RULES_DEFAULT, ...p({}) };
+  const e = effectiveRules(saved);
+  assert.deepEqual([e.tutorCap, e.noLandHate], [3, true]);
+  assert.deepEqual([effectiveRules({ ...saved, bracket: 4 }).tutorCap, effectiveRules({ ...saved, bracket: 4 }).noLandHate], [null, false]);
+  const over = { ...RULES_DEFAULT, ...p({ tutorCap: '5', noLandHate: false }) };
+  assert.deepEqual([effectiveRules({ ...over, bracket: 4 }).tutorCap, effectiveRules({ ...over, bracket: 4 }).noLandHate], [5, false]);
+});
+
+test('rulesAreDefault: preset-following rules are default; overrides (v2) are not', () => {
+  assert.equal(rulesAreDefault({ ...RULES_DEFAULT }), true);
+  assert.equal(rulesAreDefault({ ...RULES_DEFAULT, noLandHate: false }), false);
+  assert.equal(rulesAreDefault({ ...RULES_DEFAULT, noLandHate: true }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, noLandHate: false }), true); // legacy false = untouched
+});
+
+test('previewSummary + flagsAvailable use the effective (preset) tutor cap', () => {
+  const t = { count: 1, deckAfter: 50, landsAfter: 20, gcAfter: 0, tutorsAfter: 2, spentAfter: 0, cost: 1 };
+  assert.match(previewSummary(t, { ...RULES_DEFAULT, bracket: 2 }, 0), / · Tutors 2 \/ 3 · /);
+  assert.doesNotMatch(previewSummary(t, { ...RULES_DEFAULT, bracket: 4 }, Infinity), /Tutors/);
+  const old = { gameChangers: [], extraTurns: [], massLandDenial: [] };
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, bracket: 2 }), false);
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, bracket: 4 }), true);
 });

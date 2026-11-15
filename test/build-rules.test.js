@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  RULES_DEFAULT, effectiveGcCap, clampGcCap, bracketGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
+  RULES_DEFAULT, RULES_V, BRACKET_PRESETS, bracketPreset, effectiveRules, migrateRules, effectiveGcCap, clampGcCap, bracketGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
 } from '../src/build-rules.js';
 
 const card = (name, o = {}) => ({ name, price: 1, gameChanger: false, colorIdentity: [], typeLine: '', image: '', ...o });
@@ -10,10 +10,11 @@ const ctxOf = (o = {}) => makeCtx({
   rules: { ...RULES_DEFAULT }, info: {}, flags: flags(), owned: null, deckNames: [], ...o,
 });
 
-test('RULES_DEFAULT: tutor cap, no land hate and no stax off', () => {
+test('RULES_DEFAULT: tutor cap and land hate follow the bracket preset; no stax off', () => {
   assert.equal(RULES_DEFAULT.tutorCap, null);
-  assert.equal(RULES_DEFAULT.noLandHate, false);
+  assert.equal(RULES_DEFAULT.noLandHate, null);
   assert.equal(RULES_DEFAULT.noStax, false);
+  assert.equal(RULES_DEFAULT.v, RULES_V);
 });
 
 test('no land hate: mass land denial blocked at any bracket; off = bracket rules only', () => {
@@ -177,11 +178,12 @@ test('ruleUsage', () => {
   assert.equal(ruleUsage(ctxOf()).some((r) => r.key === 'tutors'), false);
   const t = ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, tutorCap: 2 }, flags: flags({ tutors: new Set(['mystical tutor']) }), deckNames: ['Mystical Tutor'] }))
     .find((r) => r.key === 'tutors');
-  assert.deepEqual(t, { key: 'tutors', label: 'Tutors', used: 1, max: 2 });
+  assert.deepEqual(t, { key: 'tutors', label: 'Tutors', used: 1, max: 2, bracket: 3, preset: false });
   const keys = (rules) => ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, ...rules } })).map((r) => r.key);
-  assert.equal(keys({}).includes('noLandHate'), false);
+  assert.equal(keys({}).includes('noLandHate'), true); // the B3 preset
+  assert.equal(keys({ bracket: 4 }).includes('noLandHate'), false);
   assert.equal(keys({}).includes('noStax'), false);
-  const both = ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, noLandHate: true, noStax: true } }));
+  const both = ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, bracket: 4, noLandHate: true, noStax: true } }));
   assert.deepEqual(both.filter((r) => r.key === 'noLandHate' || r.key === 'noStax').map((r) => r.label), ['No land hate', 'No stax']);
 });
 
@@ -234,4 +236,107 @@ test('a Banned-tagged (B) combo is never allowed', () => {
   const combos = [{ keys: ['a', 'b'], bracketTag: 'B' }];
   const b5 = ctxOf({ rules: { ...RULES_DEFAULT, bracket: 5 }, deckNames: ['A'], combos });
   assert.deepEqual(checkCard('B', b5), { ok: false, reason: 'Would complete a combo not allowed at Bracket 5' });
+});
+
+// ---- bracket presets ----------------------------------------------------------------------------
+
+test('bracketPreset: the table for all five brackets', () => {
+  const row = (b) => { const p = bracketPreset(b); return [p.gameChangerCap, p.noLandHate, p.allowExtraTurns, p.tutorCap, p.noStax]; };
+  assert.deepEqual(row(1), [0, true, false, 1, false]);
+  assert.deepEqual(row(2), [0, true, false, 3, false]);
+  assert.deepEqual(row(3), [3, true, false, null, false]);
+  assert.deepEqual(row(4), [Infinity, false, true, null, false]);
+  assert.deepEqual(row(5), [Infinity, false, true, null, false]);
+  assert.equal(bracketPreset('2'), BRACKET_PRESETS[2]);
+  assert.equal(bracketPreset(0), BRACKET_PRESETS[1]);
+  assert.equal(bracketPreset(9), BRACKET_PRESETS[5]);
+  assert.equal(bracketPreset(undefined), BRACKET_PRESETS[3]);
+  assert.ok(Object.isFrozen(BRACKET_PRESETS[3]));
+  for (const b of [1, 2, 3, 4, 5]) assert.equal(bracketGcCap(b), bracketPreset(b).gameChangerCap);
+});
+
+test('effectiveRules: unset rules follow the preset; overrides win', () => {
+  const d = effectiveRules(RULES_DEFAULT);
+  assert.equal(d.bracket, 3);
+  assert.equal(d.gcCap, 3);
+  assert.equal(d.tutorCap, null);
+  assert.equal(d.noLandHate, true);
+  assert.equal(d.noStax, false);
+  assert.equal(d.allowExtraTurns, false);
+  assert.deepEqual(d.fromPreset, { gameChangerCap: true, tutorCap: true, noLandHate: true });
+  const b2 = effectiveRules({ ...RULES_DEFAULT, bracket: 2 });
+  assert.equal(b2.tutorCap, 3);
+  assert.equal(b2.gcCap, 0);
+  assert.equal(b2.noLandHate, true);
+  const o = effectiveRules({ ...RULES_DEFAULT, bracket: 2, tutorCap: 5, noLandHate: false });
+  assert.equal(o.tutorCap, 5); // not clamped: the tutor preset is a soft default
+  assert.equal(o.noLandHate, false);
+  assert.deepEqual(o.fromPreset, { gameChangerCap: true, tutorCap: false, noLandHate: false });
+  const b4 = effectiveRules({ ...RULES_DEFAULT, bracket: 4, noLandHate: true, tutorCap: 0, noStax: true });
+  assert.deepEqual([b4.noLandHate, b4.tutorCap, b4.noStax, b4.allowExtraTurns, b4.gcCap], [true, 0, true, true, Infinity]);
+});
+
+test('a bracket change re-applies presets only to the rules the user has not set', () => {
+  const unset = { ...RULES_DEFAULT, bracket: 2 };
+  const set = { ...RULES_DEFAULT, bracket: 2, tutorCap: 5, noLandHate: false };
+  const at = (rules, bracket) => { const e = effectiveRules({ ...rules, bracket }); return [e.tutorCap, e.noLandHate]; };
+  assert.deepEqual(at(unset, 1), [1, true]);
+  assert.deepEqual(at(unset, 3), [null, true]);
+  assert.deepEqual(at(unset, 4), [null, false]);
+  for (const b of [1, 3, 4, 5]) assert.deepEqual(at(set, b), [5, false]);
+  // A user "No land hate" on stays on at B4/5, where the preset is off.
+  assert.deepEqual(at({ ...RULES_DEFAULT, noLandHate: true }, 5), [null, true]);
+});
+
+test('migrateRules: an unversioned noLandHate false (pre-presets "off") reads as the preset', () => {
+  assert.deepEqual(migrateRules({ bracket: 2, noLandHate: false, tutorCap: null }), { bracket: 2, noLandHate: null, tutorCap: null, v: RULES_V });
+  assert.equal(migrateRules({ bracket: 4, noLandHate: true }).noLandHate, true);
+  assert.equal(migrateRules({ v: RULES_V, noLandHate: false }).noLandHate, false); // a v2 false is an override
+  assert.deepEqual(migrateRules(null), { v: RULES_V });
+  const old = { bracket: 3, noLandHate: false };
+  migrateRules(old);
+  assert.deepEqual(old, { bracket: 3, noLandHate: false }); // pure
+});
+
+test('old stored rules (no v): land hate and tutors follow the preset', () => {
+  const f = flags({ massLandDenial: new Set(['armageddon']), tutors: new Set(['a', 'b', 'c', 'd']) });
+  const old = { bracket: 2, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null, noLandHate: false, noStax: false };
+  const ctx = makeCtx({ rules: old, info: {}, flags: f, owned: null, deckNames: ['A', 'B', 'C'] });
+  assert.deepEqual(checkCard('Armageddon', ctx), { ok: false, reason: 'Not allowed at Bracket 2 (mass land denial)' });
+  assert.deepEqual(checkCard('D', ctx), { ok: false, reason: 'Would be tutor #4 (cap 3)' });
+  // Rules stored before the tutor / land-hate keys existed at all.
+  const older = makeCtx({ rules: { bracket: 4, gameChangerCap: 2 }, info: {}, flags: f, owned: null, deckNames: [] });
+  assert.equal(checkCard('Armageddon', older).ok, true);
+});
+
+test('checkCard presets: B2 blocks MLD and a 4th tutor; B4 allows both; a B3 override allows MLD', () => {
+  const f = flags({ massLandDenial: new Set(['armageddon']), tutors: new Set(['t1', 't2', 't3', 't4']) });
+  const at = (rules) => ctxOf({ flags: f, rules: { ...RULES_DEFAULT, ...rules }, deckNames: ['T1', 'T2', 'T3'] });
+  const b2 = at({ bracket: 2 });
+  assert.equal(b2.tutorUsed, 3);
+  assert.deepEqual(checkCard('Armageddon', b2), { ok: false, reason: 'Not allowed at Bracket 2 (mass land denial)' });
+  assert.deepEqual(checkCard('T4', b2), { ok: false, reason: 'Would be tutor #4 (cap 3)' });
+  assert.deepEqual(checkCard('T4', at({ bracket: 1 })), { ok: false, reason: 'Would be tutor #4 (cap 1)' });
+  const b4 = at({ bracket: 4 });
+  assert.equal(checkCard('Armageddon', b4).ok, true);
+  assert.equal(checkCard('T4', b4).ok, true);
+  assert.equal(checkCard('T4', at({ bracket: 3 })).ok, true); // B3: no tutor preset
+  assert.equal(checkCard('Armageddon', at({ bracket: 3, noLandHate: false })).ok, true);
+  assert.equal(checkCard('T4', at({ bracket: 2, tutorCap: 5 })).ok, true);
+  // The extra-turn block is not overridable.
+  const et = ctxOf({ flags: flags({ extraTurns: new Set(['time warp']) }), rules: { ...RULES_DEFAULT, noLandHate: false } });
+  assert.equal(checkCard('Time Warp', et).ok, false);
+});
+
+test('ruleUsage marks preset-derived tutors / land hate; an override off at B1–3 shows as allowed', () => {
+  const usage = (rules) => Object.fromEntries(ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, ...rules } })).map((r) => [r.key, r]));
+  const b2 = usage({ bracket: 2 });
+  assert.deepEqual(b2.tutors, { key: 'tutors', label: 'Tutors', used: 0, max: 3, bracket: 2, preset: true });
+  assert.equal(b2.noLandHate.preset, true);
+  assert.equal(b2.noLandHate.bracket, 2);
+  const off = usage({ noLandHate: false });
+  assert.equal(off.noLandHate, undefined);
+  assert.equal(off.landHate.label, 'Land hate allowed (your rule)');
+  assert.equal(usage({ bracket: 4, noLandHate: false }).landHate, undefined); // nothing to call out at B4
+  assert.equal(usage({ bracket: 4, noLandHate: true }).noLandHate.preset, false);
 });

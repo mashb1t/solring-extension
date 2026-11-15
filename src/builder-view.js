@@ -1,7 +1,7 @@
 // Guided Deck Builder build view: pure view-model helpers for render-builder.js (deck
 // composition, rule chips, auto-complete preview grouping/totals, power verdict). No DOM.
 import { frontFace } from './sources/scryfall.js';
-import { checkCard, addToCtx, RULES_DEFAULT, bracketGcCap, clampGcCap } from './build-rules.js';
+import { checkCard, addToCtx, RULES_DEFAULT, bracketGcCap, clampGcCap, effectiveRules, migrateRules } from './build-rules.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
 export const DECK_SIZE = 100;
@@ -82,12 +82,13 @@ export function builderStartsOpen({ setting, editable, cards }) {
   return Number.isFinite(cards) ? cards < DECK_SIZE : true;
 }
 
-/** Do the deck's rules equal RULES_DEFAULT (so the rules bar's Reset has nothing to undo)? */
+/** Do the deck's rules equal RULES_DEFAULT (so the rules bar's Reset has nothing to undo)?
+ *  Preset-following rules (null) are default; any override, even one equal to the preset, is not. */
 export function rulesAreDefault(rules) {
-  const r = rules || {};
+  const r = migrateRules(rules);
   const bracket = Number(r.bracket ?? RULES_DEFAULT.bracket);
   return bracket === RULES_DEFAULT.bracket && clampGcCap(r.gameChangerCap, bracket) == null
-    && !r.power && r.budget == null && !r.ownedOnly && r.tutorCap == null && !r.noLandHate && !r.noStax;
+    && !r.power && r.budget == null && !r.ownedOnly && r.tutorCap == null && r.noLandHate == null && !r.noStax;
 }
 
 /** getCardData({op:'flags'}) → Sets for makeCtx. A miss/error/missing list → empty Set. */
@@ -102,7 +103,7 @@ export function flagSets(res) {
  *  existed still serves the bracket checks. */
 export function flagsAvailable(res, rules = null) {
   const need = ['gameChangers', 'extraTurns', 'massLandDenial'];
-  if (rules && rules.tutorCap != null) need.push('tutors');
+  if (rules && effectiveRules(rules).tutorCap != null) need.push('tutors'); // B1–2 preset caps too
   if (rules && rules.noStax) need.push('stax');
   return !!(res && !res.error && !res.miss && need.every((k) => Array.isArray(res[k])));
 }
@@ -145,11 +146,13 @@ export function ruleChips(usage, { flagsMissing = false } = {}) {
       return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}${src}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'tutors') {
-      return { key: 'tutors', text: `Tutors ${u.used} / ${u.max}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
+      const src = u.preset ? ` (Bracket ${u.bracket})` : u.preset === false ? ' (your cap)' : '';
+      return { key: 'tutors', text: `Tutors ${u.used} / ${u.max}${src}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'budget') {
       return { key: 'budget', text: `Budget ${whole(u.used, u.pricing)} / ${whole(u.max, u.pricing)}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
+    if (u.key === 'noLandHate') return { key: u.key, text: u.preset ? `${u.label} (Bracket ${u.bracket})` : u.label, pct: null, warn: false };
     if (u.key === 'power') return { key: 'power', text: u.label, pct: null, warn: false, hint: 'target' };
     return { key: u.key, text: u.label, pct: null, warn: false };
   });
@@ -213,9 +216,10 @@ export function previewTotals({ picks, ticked, ctx, current }) {
 /** The preview's one-line summary under the title (amounts in `pricing`'s currency; `lands` = the
  *  land target, the TCGplayer formula's when that option is on). */
 export function previewSummary(t, rules, gcCap, pricing = DEFAULT_PRICING, lands = LAND_TARGET) {
+  const { tutorCap } = effectiveRules(rules); // RAW rules in (ctx.rules): the preset cap shows too
   const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${lands}`, `Bracket ${rules.bracket}`];
   parts.push(gcCap === Infinity ? `Game Changers ${t.gcAfter}` : `Game Changers ${t.gcAfter} / ${gcCap}`);
-  if (rules.tutorCap != null) parts.push(`Tutors ${t.tutorsAfter ?? 0} / ${rules.tutorCap}`);
+  if (tutorCap != null) parts.push(`Tutors ${t.tutorsAfter ?? 0} / ${tutorCap}`);
   if (rules.budget != null) parts.push(`${priceText(t.spentAfter, pricing)} / ${whole(rules.budget, pricing)}`);
   else parts.push(`adds ${priceText(t.cost, pricing)}`);
   return parts.join(' · ');
@@ -246,8 +250,11 @@ export function powerVerdict(res, target) {
 /**
  * The "+ rule" form values → a rules patch, or { error }. Blank fields clear a rule.
  * Inputs are strings (form values); bracket 1–5, GC cap ≥ 0, power 1–10 with min ≤ max, budget > 0.
+ * Bracket presets: a blank GC / tutor cap and `noLandHate: null` (checkbox untouched) are stored as
+ * null = follow the bracket's preset; a number / boolean is the user's override. Tutor overrides are
+ * not clamped (a soft preset), unlike the GC cap (a hard bracket ceiling).
  */
-export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tutorCap, noLandHate = false, noStax = false }, pricing = DEFAULT_PRICING) {
+export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tutorCap, noLandHate = null, noStax = false }, pricing = DEFAULT_PRICING) {
   const num = (s) => (String(s ?? '').trim() === '' ? null : Number(s));
   const b = Number(bracket);
   if (!(Number.isInteger(b) && b >= 1 && b <= 5)) return { error: 'Bracket must be 1–5' };
@@ -264,7 +271,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tut
   }
   const bud = num(budget);
   if (bud != null && !(bud > 0)) return { error: `Budget must be more than ${whole(0, pricing)}` };
-  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors, noLandHate: !!noLandHate, noStax: !!noStax } };
+  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors, noLandHate: noLandHate == null ? null : !!noLandHate, noStax: !!noStax } };
 }
 
 export const NOT_OWNED = 'Not in your collection';

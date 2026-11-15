@@ -3,7 +3,7 @@
 // in chrome.storage.local via cache.js prefs.
 
 import { getPref, setPref } from './cache.js';
-import { RULES_DEFAULT } from './build-rules.js';
+import { RULES_DEFAULT, migrateRules } from './build-rules.js';
 
 const PENDING_KEY = 'build:pending';
 const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
@@ -23,7 +23,8 @@ export async function getDeckBuild(publicId) {
   const stored = (await getPref(deckKey(publicId), null)) || {};
   return {
     theme: stored.theme ?? null,
-    rules: { ...RULES_DEFAULT, ...(stored.rules || {}) },
+    // Migrate BEFORE the defaults merge: RULES_DEFAULT's `v` must not stamp a legacy noLandHate false.
+    rules: { ...RULES_DEFAULT, ...migrateRules(stored.rules) },
   };
 }
 
@@ -32,7 +33,7 @@ export function setDeckBuild(publicId, patch) {
   return enqueue(async () => {
     const stored = (await getPref(deckKey(publicId), null)) || {};
     const next = { ...stored, ...patch };
-    if (patch && patch.rules) next.rules = { ...(stored.rules || {}), ...patch.rules };
+    if (patch && patch.rules) next.rules = { ...migrateRules(stored.rules), ...patch.rules };
     await setPref(deckKey(publicId), next);
   });
 }
