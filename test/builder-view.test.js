@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   deckComposition, flagSets, flagsAvailable, commanderMatches, infoNames, ruleChips, comboCheck, groupPicks,
-  previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen,
+  previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
 
@@ -273,4 +273,14 @@ test('pruneSelection: keeps selected cards still in the mainboard, drops removed
   assert.deepEqual([...kept.keys()], ['forest', 'howling mine']);
   assert.equal(pruneSelection(sel, {}).size, 0);
   assert.equal(pruneSelection(null, deck.boards.mainboard).size, 0);
+});
+
+test('rulesAreDefault: only RULES_DEFAULT-equivalent rules count as default', () => {
+  assert.equal(rulesAreDefault({ bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false }), true);
+  assert.equal(rulesAreDefault({ bracket: 3 }), true);
+  assert.equal(rulesAreDefault({ bracket: 4 }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, gameChangerCap: 0 }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, power: { min: 6, max: 7 } }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, budget: 200 }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, ownedOnly: true }), false);
 });

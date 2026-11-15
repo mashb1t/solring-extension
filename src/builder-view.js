@@ -1,7 +1,7 @@
 // Guided Deck Builder build view: pure view-model helpers for render-builder.js (deck
 // composition, rule chips, auto-complete preview grouping/totals, power verdict). No DOM.
 import { frontFace } from './sources/scryfall.js';
-import { checkCard, addToCtx } from './build-rules.js';
+import { checkCard, addToCtx, RULES_DEFAULT } from './build-rules.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
 export const DECK_SIZE = 100;
@@ -39,6 +39,13 @@ export function builderStartsOpen({ setting, editable, cards }) {
   if (setting === 'open') return true;
   if (setting === 'collapsed') return false;
   return Number.isFinite(cards) ? cards < DECK_SIZE : true;
+}
+
+/** Do the deck's rules equal RULES_DEFAULT (so the rules bar's Reset has nothing to undo)? */
+export function rulesAreDefault(rules) {
+  const r = rules || {};
+  return Number(r.bracket ?? RULES_DEFAULT.bracket) === RULES_DEFAULT.bracket && r.gameChangerCap == null
+    && !r.power && r.budget == null && !r.ownedOnly;
 }
 
 /** getCardData({op:'flags'}) → Sets for makeCtx. A miss/error/missing list → empty Set. */

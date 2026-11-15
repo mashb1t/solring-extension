@@ -455,6 +455,18 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     recompute(); render();
   }
 
+  // Back to RULES_DEFAULT (Bracket 3, no GC cap / power / budget, owned-only off).
+  async function resetRules() {
+    if (!alive()) return;
+    S.rulesOpen = false; S.rulesError = null; S.power = null;
+    if (S.ownedState !== 'unavailable') S.ownedState = 'idle';
+    S.build.rules = { ...RULES_DEFAULT };
+    await setDeckBuild(publicId, { rules: { ...RULES_DEFAULT } }).catch(() => {});
+    if (!alive()) return abandon();
+    recompute(); render();
+    toast('Rules reset');
+  }
+
   async function setOwnedOnly(on) {
     if (!on) { S.ownedState = S.ownedState === 'unavailable' ? 'unavailable' : 'idle'; return saveRules({ ownedOnly: false }); }
     S.ownedState = 'loading'; render();
@@ -528,10 +540,14 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     }, [box, S.ownedState === 'loading' ? el('span', { class: 'solring-spin-icon solring-spin', text: '↻' }) : null, ownedText]);
     const ruleBtn = el('button', { class: 'solring-builder-chip solring-builder-rulebtn', text: S.rulesOpen ? 'Close rules' : '+ rule', attrs: { type: 'button' } });
     ruleBtn.addEventListener('click', () => { S.rulesOpen = !S.rulesOpen; S.rulesError = null; render(); });
+    // Reset: only while the rules differ from the defaults; no confirm (re-adding a rule undoes it).
+    const reset = V.rulesAreDefault(S.build.rules) ? null
+      : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3, no caps, no budget)' } });
+    if (reset) reset.addEventListener('click', resetRules);
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
     ac.disabled = !!S.busy || !S.ctx || addsPaused() || !S.flagsOk;
     ac.addEventListener('click', openPreview);
-    return el('div', { class: 'solring-builder-rules' }, [...items, owned, ruleBtn, el('span', { class: 'solring-builder-spacer' }), ac]);
+    return el('div', { class: 'solring-builder-rules' }, [...items, owned, ruleBtn, reset, el('span', { class: 'solring-builder-spacer' }), ac]);
   }
 
   function rulesForm() {
