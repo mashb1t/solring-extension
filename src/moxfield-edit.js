@@ -129,6 +129,9 @@ export function shapeDeck(d) {
     version: Number.isFinite(d.version) ? d.version : null,
     ownerUserId: d.ownerUserId || null,
     format: d.format || null,
+    // Moxfield's deck price flags. Its footer total counts basics + commanders even when these are
+    // false (LIVE-VERIFY 2026-11-15 in pricing.js), so pricing ignores them; kept for reference.
+    priceFlags: { basics: d.includeBasicLandsInPrice ?? null, commanders: d.includeCommandersInPrice ?? null },
     colorIdentity: cmdCards.length ? ['W', 'U', 'B', 'R', 'G'].filter((x) => ci.has(x)) : (d.colorIdentity || []),
     commanders: cmdCards.map((c) => c.name),
     boards: { commanders: board('commanders'), mainboard: board('mainboard'), sideboard: board('sideboard'), maybeboard: board('maybeboard') },

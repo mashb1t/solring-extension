@@ -149,3 +149,20 @@ test('chooseProvider: Bulk Edit value wins, then stored, then TCGplayer', () => 
   assert.deepEqual(chooseProvider({ pricingProvider: 'weird' }, null), { provider: 'tcgplayer', fromBulk: false });
   assert.deepEqual(chooseProvider(null, 'garbage'), { provider: 'tcgplayer', fromBulk: false });
 });
+
+test('deckPrices matches Moxfield\'s total: basics + commanders count even with both price flags false; sideboard out', () => {
+  const j = structuredClone(deckJson);
+  j.includeBasicLandsInPrice = false; j.includeCommandersInPrice = false;
+  j.boards.mainboard.cards.f.card.prices.eur = 0.3; // priced basic
+  j.boards.sideboard = { cards: { s: { quantity: 1, finish: 'nonFoil', card: { id: 's1', name: 'Side', type_line: 'Instant', prices: { eur: 70 } } } } };
+  const d = shapeDeck(j);
+  assert.deepEqual(d.priceFlags, { basics: false, commanders: false });
+  const p = deckPrices(d, EUR);
+  assert.equal(p.forest.price, 0.3);
+  assert.equal(p.cmdr.price, 10.41);
+  assert.equal(p.side, undefined);
+  const names = [];
+  for (const b of ['commanders', 'mainboard']) for (const e of Object.values(d.boards[b])) for (let i = 0; i < e.quantity; i++) names.push(e.name);
+  const ctx = makeCtx({ rules: { ...RULES_DEFAULT, budget: 50 }, info: pricedInfo({}, EUR, p), pricing: EUR, flags: flags(), owned: null, deckNames: names });
+  assert.equal(Math.round(ctx.spent * 100) / 100, 17.31); // 10.41 + 5 + 2×0.5 + 3×0.3 (Moxfield total minus sideboard)
+});

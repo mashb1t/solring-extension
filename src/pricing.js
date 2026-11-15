@@ -13,10 +13,15 @@
 // - The v3 deck JSON (/v3/decks/all/{id}) has every key per card (usd, eur, tix, ck, ct, csi,
 //   scg, mp, plus _foil/_etched variants) but NO provider/currency field: for decks the user doesn't
 //   own (Bulk Edit GET 403) the provider isn't in anything already fetched, hence the cached value.
-// - Moxfield's deck footer total ("€595.82") = Σ quantity × provider price over mainboard +
-//   commanders (verified: mainboard eur 585.41 + commander 10.41), even with the deck's
-//   includeCommandersInPrice false. Footer/tooltips use the currency symbol (€ / $; TIX for
-//   Cardhoarder).
+// - Moxfield's deck footer ("Cardmarket €1,710.44 (€0.00 unowned)") = Σ quantity × provider price
+//   (finish-aware: eur_foil for foils) over mainboard + commanders + SIDEBOARD, basics included,
+//   commanders included, even though every deck checked has includeBasicLandsInPrice and
+//   includeCommandersInPrice false (fix round 1, 4 decks with/without basics, e.g. main 1545.06
+//   [79.05 of it basics] + side 70.56 + commander 94.82 = 1710.44; main 1128.85 + side 197.21 +
+//   commander 66.73 = 1392.79; the throwaway's 585.41 + 10.41 = 595.82). So the flags (carried by
+//   shapeDeck as `priceFlags`) don't change the total and are ignored here; the builder's whole-deck
+//   budget is that total minus the sideboard. The "(… unowned)" figure is the part not in the
+//   user's collection. Footer/tooltips use the currency symbol (€ / $; TIX for Cardhoarder).
 
 /** Moxfield provider id → store name, currency, deck-JSON price keys, Scryfall price field. */
 export const PROVIDERS = {
@@ -115,7 +120,11 @@ export function pricedInfo(info, pricing = DEFAULT_PRICING, deckPrices = null) {
   return out;
 }
 
-/** shapeDeck() result → { frontKey: { name, price } } per copy for commanders + mainboard. */
+/**
+ * shapeDeck() result → { frontKey: { name, price } } per copy for commanders + mainboard: basics and
+ * commanders always count, as in Moxfield's own total (deck.priceFlags are deliberately ignored,
+ * see LIVE-VERIFY above). The sideboard isn't part of the 100, so it's left out.
+ */
 export function deckPrices(deck, pricing = DEFAULT_PRICING) {
   const out = {};
   for (const b of ['commanders', 'mainboard']) {
