@@ -30,6 +30,9 @@ through any Solring backend — all data is fetched straight from the third-part
   `builder-view.js`, `picker-logic.js`. `moxfield-ui.js` = builder card writes via Moxfield's Bulk Edit API request
   (`applyBulkEdit`) + Moxfield's **own** New-deck / Change Commander dialogs. `moxfield-collection.js` = read-only collection GET. `render-picker.js` = "✨ Find with Solring" in the Create New
   Deck dialog + "Pick a Commander" alert on commander-less decks. `render-builder.js` = the build view on Commander decks.
+  `pricing.js` = prices in the user's Moxfield provider (Bulk Edit GET `pricingProvider`, cached as `build:pricingProvider`,
+  else TCGplayer): deck cards from the v3 deck JSON's provider key, suggestions from Scryfall `usd`/`eur`/`tix` (USD
+  stand-in, marked approx., for providers Scryfall lacks); `info[key].price` + a `pricing` ctx drive every budget text.
 - **`src/moxfield-token.js`** — **MAIN-world** content script; captures Moxfield's bearer token off its own
   requests and relays it via `postMessage` (memory-only). **`src/moxfield-edit.js`** — deck read (`readDeck`, cookie
   GET; `readDeckJson`/`readDeckAny` with token fallback) + edits (`setCardQuantity` = `PUT …/cards/{board}/{cardId}`,

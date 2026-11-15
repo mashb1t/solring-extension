@@ -14,17 +14,17 @@
 import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
 import { getOptions } from './prefs.js';
-import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild } from './build-store.js';
+import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild, getPricingProvider, setPricingProvider } from './build-store.js';
 import { makeCtx, ruleUsage, effectiveGcCap, comboGuards, RULES_DEFAULT } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
 import { proposeFill } from './autocomplete.js';
-import { DEFAULT_PRICING, pricedInfo, approxNote } from './pricing.js';
+import { DEFAULT_PRICING, pricedInfo, approxNote, deckPrices, chooseProvider, pricingFor } from './pricing.js';
 import { getBuildData, getCardData, importDeck } from './messaging.js';
 import { applyBulkEdit, canEdit } from './moxfield-ui.js';
 import { ownedNames } from './moxfield-collection.js';
-import { readDeckAny } from './moxfield-edit.js';
+import { readDeckAny, bulkEditRead } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import * as V from './builder-view.js';
 import { cardRefs, cardHoverAttrs } from './render-card-modal.js';
@@ -102,6 +102,21 @@ function toast(msg, isError) {
   requestAnimationFrame(() => box.classList.add('solring-on'));
   clearTimeout(toastTimer); clearTimeout(toastHide);
   toastTimer = setTimeout(() => { box.classList.remove('solring-on'); toastHide = setTimeout(() => box.remove(), 300); }, isError ? 4500 : 2600);
+}
+
+// The user's Moxfield price provider, resolved once per page load from the Bulk Edit GET (decks
+// they own; the same GET Bulk Edit itself issues) and stored for decks they don't own.
+let pageProvider = null;
+async function resolvePricing(publicId, editable) {
+  if (pageProvider) return pricingFor(pageProvider);
+  const bulk = editable ? await bulkEditRead(publicId) : null;
+  const stored = await getPricingProvider().catch(() => null);
+  const { provider, fromBulk } = chooseProvider(bulk && bulk.ok ? bulk.json : null, stored);
+  if (fromBulk) {
+    pageProvider = provider;
+    if (provider !== stored) setPricingProvider(provider).catch(() => {});
+  }
+  return pricingFor(provider);
 }
 
 export async function installBuilder({ waitFor, rebuild = false }) {
@@ -212,14 +227,16 @@ export async function installBuilder({ waitFor, rebuild = false }) {
 
   function recompute() {
     const rules = { ...S.build.rules, ownedOnly: !!(S.build.rules.ownedOnly && S.owned) };
-    S.ctx = makeCtx({ rules, info: pricedInfo(S.info, S.pricing), pricing: S.pricing, flags: S.flags, owned: S.owned, deckNames: S.comp.names, combos: comboGuards(S.comboResults) });
+    S.ctx = makeCtx({ rules, info: pricedInfo(S.info, S.pricing, deckPrices(deck, S.pricing)), pricing: S.pricing, flags: S.flags, owned: S.owned, deckNames: S.comp.names, combos: comboGuards(S.comboResults) });
     const combos = keyCombos(S.comboResults, S.comp.unique, rules.bracket, 3);
     S.tiers = buildTiers({ themeCards: S.themeCards, combos, ctx: S.ctx, keyCount: 15 });
   }
 
   async function loadAll() {
     const themesP = send(() => getBuildData({ op: 'themes', commanders: deck.commanders }));
-    const [themesRes, flagsRes, combos] = await Promise.all([themesP, send(() => getCardData({ op: 'flags' })), loadCombos()]);
+    const [themesRes, flagsRes, combos, pricing] = await Promise.all([themesP, send(() => getCardData({ op: 'flags' })), loadCombos(),
+      resolvePricing(publicId, editable).catch(() => DEFAULT_PRICING)]);
+    S.pricing = pricing;
     S.themes = ok(themesRes) && Array.isArray(themesRes.themes) ? themesRes.themes : [];
     S.flags = V.flagSets(ok(flagsRes) ? flagsRes : null);
     S.flagsOk = V.flagsAvailable(flagsRes); // false → chip + no Auto-complete (single "+" stays)

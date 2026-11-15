@@ -100,7 +100,7 @@ const isLandType = (typeLine) => /\bland\b/i.test(String(typeLine || '').split('
 
 /**
  * Shape a /v3/decks/all/{id} JSON. Each board maps a card's front-face key → { entryId, cardId,
- * name, quantity, isLand, image, faces }. `colorIdentity` is the union of the commanders' colour
+ * name, quantity, isLand, image, faces, finish, prices, providerPrices }. `colorIdentity` is the union of the commanders' colour
  * identities (the deck-level field can include off-colour cards); `format` is Moxfield's string
  * (e.g. 'commander').
  */
@@ -113,6 +113,8 @@ export function shapeDeck(d) {
       if (name) {
         out[frontKey(name)] = {
           entryId, cardId: c.card.id, name, quantity: c.quantity || 1, isLand: isLandType(c.card.type_line), ...cardImages(c.card),
+          // Raw per-provider prices (pricing.deckCardPrice picks the user's provider + this finish).
+          finish: c.finish || (c.isFoil ? 'foil' : 'nonFoil'), prices: c.card.prices || null, providerPrices: c.card.providerPrices || null,
         };
       }
     }

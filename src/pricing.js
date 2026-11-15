@@ -125,3 +125,13 @@ export function deckPrices(deck, pricing = DEFAULT_PRICING) {
   }
   return out;
 }
+
+/**
+ * Which provider to use: the Bulk Edit GET's `pricingProvider` (owner only) wins, then the last
+ * known value (stored), then TCGplayer. → { provider, fromBulk } (fromBulk: worth storing).
+ */
+export function chooseProvider(bulkJson, stored) {
+  const live = normalizeProvider(bulkJson && bulkJson.pricingProvider);
+  if (live) return { provider: live, fromBulk: true };
+  return { provider: normalizeProvider(stored) || DEFAULT_PROVIDER, fromBulk: false };
+}

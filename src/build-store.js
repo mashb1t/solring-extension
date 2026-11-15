@@ -57,3 +57,9 @@ export function takePendingBuild() {
     return { commanders: p.commanders, theme: p.theme };
   });
 }
+
+// The user's Moxfield price provider as last seen on a Bulk Edit GET (decks they own), so decks
+// they don't own (Bulk Edit 403s, and the deck JSON carries no provider) price the same way.
+const PROVIDER_KEY = 'build:pricingProvider';
+export const getPricingProvider = () => getPref(PROVIDER_KEY, null);
+export const setPricingProvider = (provider) => enqueue(() => setPref(PROVIDER_KEY, provider));
