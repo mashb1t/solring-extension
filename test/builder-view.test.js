@@ -423,7 +423,8 @@ test('cleanupCuts positiveOnly: scores ≤ 0 are dropped BEFORE the over + 5 cap
     { name: 'Fellwar Stone', score: 4 }, { name: 'Swiftfoot Boots', score: 3 }, { name: 'Howling Mine', score: 2 },
   ];
   assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 1, positiveOnly: true }).map((c) => c.name), ['Fellwar Stone', 'Swiftfoot Boots', 'Howling Mine']);
-  assert.equal(cleanupCuts({ cuts, deck: cutDeck, over: 1 }).length, 6); // off (default): all, capped at 6
+  assert.equal(cleanupCuts({ cuts, deck: cutDeck, over: 1 }).length, 3); // default on, like the option
+  assert.equal(cleanupCuts({ cuts, deck: cutDeck, over: 1, positiveOnly: false }).length, 6); // off: all, capped at 6
   const many = [...cuts.slice(0, 3), ...cuts.slice(0, 3), { name: 'Fellwar Stone', score: 4 }];
   assert.deepEqual(cleanupCuts({ cuts: many, deck: cutDeck, over: 1, positiveOnly: true }).map((c) => c.name), ['Fellwar Stone']);
 });

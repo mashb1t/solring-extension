@@ -49,7 +49,7 @@ export function deckSizeStatus(cards, size = DECK_SIZE) {
  * EDHREC order kept; at most over + 5. `positiveOnly` (options.cutsPositiveOnly) drops score ≤ 0 /
  * missing first. → [{ name, score }]
  */
-export function cleanupCuts({ cuts, deck, over, positiveOnly = false }) {
+export function cleanupCuts({ cuts, deck, over, positiveOnly = true }) {
   const n = Number(over) || 0;
   if (n <= 0 || !Array.isArray(cuts)) return [];
   cuts = positiveCuts(cuts, positiveOnly); // before the cap: the cap counts only shown cards
