@@ -15,7 +15,7 @@ import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
 import { getOptions, onPrefChange } from './prefs.js';
 import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild, getPricingProvider, setPricingProvider } from './build-store.js';
-import { makeCtx, ruleUsage, effectiveGcCap, bracketGcCap, clampGcCap, comboGuards, RULES_DEFAULT } from './build-rules.js';
+import { makeCtx, ruleUsage, effectiveGcCap, bracketGcCap, clampGcCap, comboGuards, RULES_DEFAULT, bracketPreset, migrateRules } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos, spellbookComboUrl } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
@@ -496,7 +496,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     recompute(); render();
   }
 
-  // Back to RULES_DEFAULT (Bracket 3, no GC cap / power / budget, owned-only off).
+  // Back to RULES_DEFAULT (Bracket 3, every preset rule following its preset, no power / budget, owned-only off).
   async function resetRules() {
     if (!alive() || loadingNow()) return;
     ownedSeq++; // an "Only cards I own" load still in flight must not re-enable the rule afterwards
@@ -588,7 +588,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     ruleBtn.addEventListener('click', () => { S.rulesOpen = !S.rulesOpen; S.rulesError = null; render(); });
     // Reset: only while the rules differ from the defaults; no confirm (re-adding a rule undoes it).
     const reset = V.rulesAreDefault(S.build.rules) ? null
-      : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3 with its Game Changer limit, no other caps, no budget)' } });
+      : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3 with its presets: Game Changer limit, no mass land denial; no budget)' } });
     if (reset) { reset.disabled = loadingNow() || !!S.busy; reset.addEventListener('click', resetRules); }
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
     ac.disabled = !!S.busy || !S.ctx || addsPaused() || !flagsOk() || loadingNow();
@@ -597,18 +597,19 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   function rulesForm() {
-    const r = S.build.rules;
+    const r = migrateRules(S.build.rules);
     const field = (label, input) => el('label', { class: 'solring-builder-field' }, [el('span', { text: label }), input]);
     const inp = (value, attrs) => { const i = el('input', { class: 'form-control form-control-sm', attrs: { type: 'number', ...attrs } }); i.value = value == null ? '' : String(value); return i; };
     const bracket = el('select', { class: 'form-select form-select-sm' }, [1, 2, 3, 4, 5].map((b) => el('option', { text: `Bracket ${b}`, attrs: { value: String(b) } })));
     bracket.value = String(r.bracket);
     // GC cap: never above the bracket's own cap (input max; none at B4+). Blank = bracket default.
     const gc = inp(clampGcCap(r.gameChangerCap, r.bracket), { min: '0', step: '1' });
-    const gcDefault = el('button', { class: 'solring-builder-linkbtn', text: 'use bracket default', attrs: { type: 'button', title: 'Clear your cap: the bracket decides how many Game Changers fit' } });
+    const presetBtn = (title) => el('button', { class: 'solring-builder-linkbtn', text: 'use bracket preset', attrs: { type: 'button', title } });
+    const gcDefault = presetBtn('Clear your cap: the bracket decides how many Game Changers fit');
     const syncGc = () => {
       const max = bracketGcCap(Number(bracket.value));
       if (max === Infinity) gc.removeAttribute('max'); else gc.max = String(max);
-      gc.placeholder = max === Infinity ? 'default: no cap' : `default: ${max}`;
+      gc.placeholder = max === Infinity ? 'preset: no cap' : `preset: ${max}`;
       if (gc.value !== '' && Number(gc.value) > max) gc.value = '';
       gcDefault.hidden = gc.value === '';
     };
@@ -619,13 +620,36 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const pmin = inp(r.power && r.power.min, { min: '1', max: '10', step: '0.5', placeholder: 'min' });
     const pmax = inp(r.power && r.power.max, { min: '1', max: '10', step: '0.5', placeholder: 'max' });
     const budget = inp(r.budget, { min: '1', step: '1', placeholder: 'no limit' });
-    const tutors = inp(r.tutorCap, { min: '0', step: '1', placeholder: 'no limit' });
-    const check = (on, label, title) => {
+    // Tutor cap / No land hate: blank / untouched = the selected bracket's preset (stored null); a
+    // value the user enters or a toggle is an override, kept across bracket changes until cleared.
+    const tutors = inp(r.tutorCap, { min: '0', step: '1' });
+    const tutorPreset = presetBtn('Clear your cap: the bracket preset decides how many tutors fit');
+    const syncTutors = () => {
+      const p = bracketPreset(Number(bracket.value)).tutorCap;
+      tutors.placeholder = p == null ? 'preset: no limit' : `preset: ${p}`;
+      tutorPreset.hidden = tutors.value === '';
+    };
+    tutors.addEventListener('input', syncTutors);
+    tutorPreset.addEventListener('click', () => { tutors.value = ''; syncTutors(); tutors.focus(); });
+    const check = (on, label, title, extra = []) => {
       const box = el('input', { class: 'form-check-input', attrs: { type: 'checkbox' } });
       box.checked = !!on;
-      return { box, node: el('label', { class: 'solring-builder-check', title }, [box, el('span', { text: label })]) };
+      return { box, node: el('label', { class: 'solring-builder-check', title }, [box, el('span', { text: label }), ...extra]) };
     };
-    const noLandHate = check(r.noLandHate, 'No land hate', 'Block mass land denial (Armageddon and the like) at any bracket. Single-target land destruction is still allowed.');
+    let lhOverride = r.noLandHate != null;
+    const lhHint = el('span', { class: 'solring-builder-note' });
+    const lhPreset = presetBtn('Clear your choice: the bracket preset decides whether mass land denial is allowed');
+    const noLandHate = check(r.noLandHate, 'No land hate', 'Block mass land denial (Armageddon and the like). On by default at Brackets 1–3 (their preset), off at 4–5. Single-target land destruction is still allowed.', [lhHint]);
+    const syncLandHate = () => {
+      const b = Number(bracket.value);
+      if (!lhOverride) noLandHate.box.checked = bracketPreset(b).noLandHate;
+      lhHint.textContent = lhOverride ? '' : ` (Bracket ${b} preset)`;
+      lhPreset.hidden = !lhOverride;
+    };
+    noLandHate.box.addEventListener('change', () => { lhOverride = true; syncLandHate(); });
+    lhPreset.addEventListener('click', (e) => { e.preventDefault(); lhOverride = false; syncLandHate(); });
+    bracket.addEventListener('change', () => { syncTutors(); syncLandHate(); });
+    syncTutors(); syncLandHate();
     const noStax = check(r.noStax, 'No stax', 'Block stax pieces at any bracket (Scryfall’s rule-of-law and cost-increaser tags: Rule of Law, Thalia, Sphere of Resistance, …)');
     const save = el('button', { class: 'btn btn-primary btn-sm', text: 'Save rules', attrs: { type: 'submit' } });
     // novalidate: parseRulesForm owns validation (its errors show inline) and the GC clamp (a cap
@@ -634,8 +658,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       field('Bracket', bracket), field('Game Changer cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [gc, gcDefault])),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
-      field('Tutor cap', tutors),
-      el('div', { class: 'solring-builder-checks' }, [noLandHate.node, noStax.node]),
+      field('Tutor cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [tutors, tutorPreset])),
+      el('div', { class: 'solring-builder-checks' }, [noLandHate.node, lhPreset, noStax.node]),
       el('div', { class: 'solring-builder-formfoot' }, [
         S.rulesError ? el('span', { class: 'solring-builder-err', text: S.rulesError }) : null, save,
       ]),
@@ -644,7 +668,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       e.preventDefault();
       // novalidate: a half-typed number ("1e", "-") reads as '' and would silently clear its rule.
       if ([gc, pmin, pmax, budget, tutors].some((i) => i.validity && i.validity.badInput)) { S.rulesError = 'Enter numbers only'; render(); return; }
-      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value, tutorCap: tutors.value, noLandHate: noLandHate.box.checked, noStax: noStax.box.checked }, S.pricing);
+      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value, tutorCap: tutors.value, noLandHate: lhOverride ? noLandHate.box.checked : null, noStax: noStax.box.checked }, S.pricing);
       if (res.error) { S.rulesError = res.error; render(); return; }
       S.rulesOpen = false; S.rulesError = null;
       if (!res.rules.power) S.power = null;

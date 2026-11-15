@@ -28,10 +28,14 @@ through any Solring backend — all data is fetched straight from the third-part
   chip). Optional lists `tutors` (`otag:tutor -otag:tutor-land`) and `stax` (`otag:rule-of-law or otag:cost-increaser`;
   `otag:stax` doesn't exist) fail on their own → `null`; a 404 `not_found` search is an empty list. Stored as `v:2`
   (`flagsEntry`); `flagsNeedFetch` refetches pre-v2 once, and a v2 entry with a failed optional (`optFailedAt`) at most
-  daily. `builder-view.flagsAvailable(res, rules)` requires only the lists active rules need (`tutorCap` → tutors,
+  daily. `builder-view.flagsAvailable(res, rules)` requires only the lists active rules need (effective `tutorCap` → tutors,
   `noStax` → stax; `noLandHate` uses the base MLD list), so a null optional only blocks its own rule's Auto-complete.
-- **Builder rules** — `tutorCap` (null = none), `noLandHate`, `noStax` on top of bracket / GC cap / power / budget. The
-  GC cap is clamped to the bracket (`clampGcCap`): a cap at or above the bracket's is stored as `null` ("bracket default").
+- **Builder rules** — `tutorCap`, `noLandHate`, `noStax` on top of bracket / GC cap / power / budget. **Bracket presets**
+  (`BRACKET_PRESETS`: GC 0/0/3/–/–, no MLD at B1–3, tutor cap 1/3 at B1/B2): `gameChangerCap` / `tutorCap` / `noLandHate`
+  stored `null` = follow the current bracket's preset, a value = override; `effectiveRules(rawRules)` is the one merge
+  (makeCtx keeps it as `ctx.eff`; never feed it its own output). Rules carry `v:2`; `migrateRules` reads an unversioned
+  `noLandHate:false` (old default "off") as `null`. The GC cap is clamped to the bracket (`clampGcCap`); tutor overrides aren't.
+  Extra turns stay blocked at B1–3 (not overridable). No "no limit" tutor override at B1–2 (blank = preset).
 - **Builder cuts** — over 100 cards, the build view shows EDHREC cuts: `getRecs` from content code + `cutRecs`, cached per
   card list in the module-level `cutsCache` (failures evicted); `cleanupCuts` skips commanders and multi-copy lines. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option
   `landFormula`), article rules verbatim; land/spell MDFCs are partial lands, never cheap spells.
