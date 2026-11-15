@@ -839,8 +839,9 @@ span.solring-picker-entry { display: inline; }
 .solring-builder { margin: 0 0 0.75rem; }
 /* Not overflow:hidden like the report card: the rules bar is sticky inside the panel. */
 .solring-builder-panel { overflow: visible; margin: 0; }
-.solring-builder-panel .solring-panel-bar { border-radius: 8px 8px 0 0; }
-.solring-builder-panel:not(.solring-open) .solring-panel-bar { border-radius: 8px; }
+/* Inner radius = panel radius (8px) − its 1px border, so the bar's corners run parallel to the border. */
+.solring-builder-panel .solring-panel-bar { border-radius: 7px 7px 0 0; }
+.solring-builder-panel:not(.solring-open) .solring-panel-bar { border-radius: 7px; }
 .solring-builder-body { border-radius: 0 0 8px 8px; }
 .solring-builder-label {
   margin: 0 0 0.4rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
