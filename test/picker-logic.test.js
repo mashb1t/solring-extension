@@ -73,3 +73,12 @@ test('deckName', () => {
   assert.equal(deckName('Ms. Bumbleflower', 'Group Hug'), 'Ms. Bumbleflower – Group Hug');
   assert.equal(deckName('Ms. Bumbleflower', null), 'Ms. Bumbleflower');
 });
+
+test('themeHelp: EDHREC description, else built-in text, else the fallback', async () => {
+  const { themeHelp, THEME_HELP, THEME_HELP_FALLBACK } = await import('../src/picker-logic.js');
+  assert.equal(themeHelp('group-hug', 'From EDHREC.'), 'From EDHREC.');
+  assert.equal(themeHelp('group-hug', '  '), THEME_HELP['group-hug']);
+  assert.equal(themeHelp('Voltron', ''), THEME_HELP.voltron);
+  assert.equal(themeHelp('some-new-theme', null), THEME_HELP_FALLBACK);
+  assert.equal(THEME_HELP_FALLBACK, "Playstyle from EDHREC's theme lists.");
+});

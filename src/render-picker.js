@@ -25,7 +25,7 @@ import { setPendingBuild, setDeckBuild } from './build-store.js';
 import { prefillNewDeck, setCommanderViaBulk } from './moxfield-ui.js';
 import { parseDeckId } from './moxfield.js';
 import { cardPopAttrs, cardPopFocus } from './render-card-modal.js';
-import { slugifyQuery, groupResults, namesNeedingInfo, applyInfo, deckName } from './picker-logic.js';
+import { slugifyQuery, groupResults, namesNeedingInfo, applyInfo, deckName, themeHelp } from './picker-logic.js';
 
 const DEBOUNCE_MS = 250;
 const decks = (n) => `${Number(n || 0).toLocaleString('en-US')} decks`;
@@ -321,6 +321,7 @@ function buildPicker({ anchor, hint, onUse }) {
   }
 
   function renderRight() {
+    closeHelp(); // its button is about to be replaced
     const kids = [];
     if (!selected) {
       kids.push(el('div', { class: 'solring-picker-colh', text: 'Playstyles' }));
@@ -335,7 +336,7 @@ function buildPicker({ anchor, hint, onUse }) {
           const on = theme && theme.slug === t.slug;
           const fill = el('i');
           fill.style.width = `${Math.round(((t.decks || 0) / max) * 100)}%`;
-          kids.push(btn({
+          const play = btn({
             class: `solring-picker-play${on ? ' solring-on' : ''}`,
             attrs: { 'aria-pressed': String(!!on) },
             on: { click: () => { theme = t; renderRight(); renderUse(); } },
@@ -345,11 +346,72 @@ function buildPicker({ anchor, hint, onUse }) {
               el('span', { class: 'solring-picker-bar' }, [fill]),
             ]),
             el('small', { text: decks(t.decks) }),
-          ]));
+          ]);
+          kids.push(el('div', { class: 'solring-picker-playrow' }, [play, infoBtn(t)]));
         }
       }
     }
     right.replaceChildren(...kids);
+  }
+
+  // ---- playstyle ⓘ popover ------------------------------------------------------------------
+  // Hover / focus opens it, click pins it; Escape or an outside click closes. Text: EDHREC's tag
+  // description (fetched on first open, cached by the worker), else a built-in line, else a generic
+  // fallback (picker-logic.themeHelp). A sibling of the playstyle button (never nested in it), so
+  // its clicks don't select the playstyle; type=button, so it never submits Moxfield's form.
+  const help = el('div', { class: 'solring-picker-help', attrs: { role: 'tooltip', id: `solring-picker-help-${anchor}`, hidden: '' } });
+  root.append(help);
+  let helpFor = null; let helpPinned = false; let helpBtn = null;
+  const onHelpKey = (e) => { if (e.key === 'Escape' && helpFor) { e.preventDefault(); e.stopPropagation(); closeHelp(); } };
+  const onHelpDown = (e) => { if (helpFor && !help.contains(e.target) && !(helpBtn && helpBtn.contains(e.target))) closeHelp(); };
+  function closeHelp() {
+    help.setAttribute('hidden', ''); help.textContent = '';
+    if (helpBtn) helpBtn.setAttribute('aria-expanded', 'false');
+    helpFor = null; helpPinned = false; helpBtn = null;
+    document.removeEventListener('keydown', onHelpKey, true);
+    document.removeEventListener('pointerdown', onHelpDown, true);
+    document.removeEventListener('scroll', closeHelp, true);
+  }
+  function placeHelp(b) {
+    const r = b.getBoundingClientRect();
+    const w = help.offsetWidth || 260; const h = help.offsetHeight || 80;
+    const below = r.bottom + 6 + h <= window.innerHeight - 4;
+    help.style.left = `${Math.max(4, Math.min(r.right - w, window.innerWidth - w - 4))}px`;
+    help.style.top = `${below ? r.bottom + 6 : Math.max(4, r.top - h - 6)}px`;
+  }
+  function openHelp(t, b, pin) {
+    if (helpFor !== t.slug || helpBtn !== b) {
+      if (helpFor) closeHelp();
+      helpFor = t.slug; helpBtn = b;
+      b.setAttribute('aria-expanded', 'true');
+      help.replaceChildren(el('strong', { text: t.name || t.slug }), el('span', { text: themeHelp(t.slug, '') }));
+      help.removeAttribute('hidden');
+      document.addEventListener('keydown', onHelpKey, true);
+      document.addEventListener('pointerdown', onHelpDown, true);
+      document.addEventListener('scroll', closeHelp, true);
+      const slug = t.slug;
+      getBuildData({ op: 'themeInfo', theme: slug }).catch(() => null).then((res) => {
+        const d = res && !res.miss && !res.error ? res.description : '';
+        if (helpFor !== slug || !d || !root.isConnected) return;
+        help.lastChild.textContent = themeHelp(slug, d);
+        placeHelp(b);
+      });
+    }
+    if (pin) helpPinned = true;
+    placeHelp(b);
+  }
+  function infoBtn(t) {
+    const label = t.name || t.slug;
+    const b = btn({ class: 'solring-picker-info', text: 'ⓘ', attrs: { 'aria-label': `About ${label}`, 'aria-describedby': help.id, 'aria-expanded': 'false' } });
+    b.addEventListener('mouseenter', () => openHelp(t, b, false));
+    b.addEventListener('mouseleave', () => { if (!helpPinned && helpBtn === b) closeHelp(); });
+    b.addEventListener('focus', () => openHelp(t, b, false));
+    b.addEventListener('blur', () => { if (!helpPinned && helpBtn === b) closeHelp(); });
+    b.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (helpBtn === b && helpPinned) closeHelp(); else openHelp(t, b, true);
+    });
+    return b;
   }
 
   function renderUse() {
@@ -363,7 +425,7 @@ function buildPicker({ anchor, hint, onUse }) {
     root,
     isOpen: () => !root.hasAttribute('hidden'),
     setOpen: (open) => {
-      if (open) { root.removeAttribute('hidden'); input.focus(); } else { root.setAttribute('hidden', ''); cardPopFocus(null, false); }
+      if (open) { root.removeAttribute('hidden'); input.focus(); } else { root.setAttribute('hidden', ''); cardPopFocus(null, false); closeHelp(); }
     },
   };
 }
