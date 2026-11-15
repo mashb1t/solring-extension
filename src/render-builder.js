@@ -34,6 +34,7 @@ import { comboBracketLabel } from './labels.js';
 const ROW_SEL = 'li[data-row-key] a.table-deck-row-link[href^="/cards/"]';
 const THEME_SHOWN = 18;
 const LANDS_SHOWN = 12;
+const RELOAD_COOLDOWN_MS = 3000;
 
 let mountToken = null; // identity of the live mount; teardown clears it (stale-async guard)
 let writing = null; // in-flight applyBulkEdit promise; survives teardown/remount on purpose
@@ -185,6 +186,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   let themeSeq = 0; // playstyle-switch sequence: a slower earlier switch must not win
   let started = false; // start() ran (declared before the bar is clickable: no TDZ on an early expand)
   let reloading = false; // the reload button's fresh re-read + refetch is in flight
+  let reloadedAt = 0; // last reload's end: clicks within RELOAD_COOLDOWN_MS are ignored (no API hammering)
+  let ownedSeq = 0; // "Only cards I own" toggles / Reset: a collection load that lost the race is dropped
   // Manual-edit sync (deck edited in Moxfield itself / another tab). Declared before the channel
   // listener is attached (no TDZ on an early message). syncWant = pending { version, unknown }.
   let syncWant = null; let syncTimer = 0; let refreshing = false; let rowSig = null;
@@ -354,8 +357,10 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // write, sync or reload is in flight.
   async function reload() {
     if (reloading || writing || S.busy || refreshing || (started && S.loading) || !alive()) return;
+    if (Date.now() - reloadedAt < RELOAD_COOLDOWN_MS) return;
     setOpen(true);
-    if (!started) { reloading = true; try { await start(true); } finally { reloading = false; if (alive()) syncReloadBtn(); } return; }
+    themeSeq++; // a playstyle switch still in flight loses to the reload's loadAll
+    if (!started) { reloading = true; try { await start(true); } finally { reloading = false; endReload(); } return; }
     reloading = true; S.loading = true; render();
     try {
       const fresh = await readDeckAny(publicId);
@@ -372,13 +377,23 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     } finally {
       reloading = false; S.loading = false;
       if (alive()) { recompute(); render(); syncPicks(); }
+      endReload();
     }
+  }
+  function endReload() {
+    reloadedAt = Date.now();
+    if (!alive()) return;
+    syncReloadBtn();
+    const t = setTimeout(() => { if (alive()) syncReloadBtn(); }, RELOAD_COOLDOWN_MS + 50);
+    own(() => clearTimeout(t));
   }
   function syncReloadBtn() {
     const busy = reloading || (started && S.loading);
     reloadIcon.classList.toggle('solring-spin', busy);
-    reloadBtn.disabled = busy || !!S.busy || !!writing;
+    reloadBtn.disabled = busy || !!S.busy || !!writing || Date.now() - reloadedAt < RELOAD_COOLDOWN_MS;
   }
+  // A load (start / reload / playstyle switch) is in flight: suggestions and rules state are stale.
+  const loadingNow = () => reloading || S.loading;
 
   // ---- manual edits (Moxfield's own add/remove/quantity, another tab) ---------------------------
   // Moxfield posts { kind:'deck', publicId, prevVersion, version, … } on BroadcastChannel
@@ -457,7 +472,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
 
   // Back to RULES_DEFAULT (Bracket 3, no GC cap / power / budget, owned-only off).
   async function resetRules() {
-    if (!alive()) return;
+    if (!alive() || loadingNow()) return;
+    ownedSeq++; // an "Only cards I own" load still in flight must not re-enable the rule afterwards
     S.rulesOpen = false; S.rulesError = null; S.power = null;
     if (S.ownedState !== 'unavailable') S.ownedState = 'idle';
     S.build.rules = { ...RULES_DEFAULT };
@@ -468,10 +484,12 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   async function setOwnedOnly(on) {
+    const seq = ++ownedSeq;
     if (!on) { S.ownedState = S.ownedState === 'unavailable' ? 'unavailable' : 'idle'; return saveRules({ ownedOnly: false }); }
     S.ownedState = 'loading'; render();
     const set = await ownedNames().catch(() => null);
     if (!alive()) return abandon();
+    if (seq !== ownedSeq) return; // Reset (or an untick) happened meanwhile: it wins
     // Keep the saved rule: a failed load must not silently switch it off (adds stay paused instead).
     if (!set) { S.owned = null; S.ownedState = 'unavailable'; recompute(); render(); return; }
     S.owned = set; S.ownedState = 'ready';
@@ -479,6 +497,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   async function setTheme(slug) {
+    if (reloading) return; // the reload's loadAll owns the theme cards right now
     const seq = ++themeSeq; // a slower earlier switch must not overwrite a newer one
     S.theme = slug; S.build.theme = slug; S.loading = true; render();
     await setDeckBuild(publicId, { theme: slug }).catch(() => {});
@@ -544,9 +563,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     // Reset: only while the rules differ from the defaults; no confirm (re-adding a rule undoes it).
     const reset = V.rulesAreDefault(S.build.rules) ? null
       : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3, no caps, no budget)' } });
-    if (reset) reset.addEventListener('click', resetRules);
+    if (reset) { reset.disabled = loadingNow() || !!S.busy; reset.addEventListener('click', resetRules); }
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
-    ac.disabled = !!S.busy || !S.ctx || addsPaused() || !S.flagsOk;
+    ac.disabled = !!S.busy || !S.ctx || addsPaused() || !S.flagsOk || loadingNow();
     ac.addEventListener('click', openPreview);
     return el('div', { class: 'solring-builder-rules' }, [...items, owned, ruleBtn, reset, el('span', { class: 'solring-builder-spacer' }), ac]);
   }
@@ -732,13 +751,14 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   function openPreview() {
-    if (!S.ctx || S.busy || addsPaused() || !S.flagsOk) return;
+    if (!S.ctx || S.busy || addsPaused() || !S.flagsOk || loadingNow()) return;
     closeModal();
     const propose = (lands) => proposeFill({ tiers: S.tiers, ctx: S.ctx, size: V.DECK_SIZE, lands, colorIdentity: deck.colorIdentity, current: S.comp.current });
     let lands = landGoal();
     let fill = propose(lands);
     // Karsten: the proposed spells change the average MV / cheap count / MDFC credit. Recompute over
-    // deck + proposed picks and re-propose once if the target moved.
+    // deck + proposed picks and re-propose once if the target moved. Intentionally a single extra
+    // pass (no fixpoint loop): a third target would differ by at most a land and could oscillate.
     if (S.landFormula) {
       const second = landCalc(fill.picks).target;
       if (second != null && second !== lands) { lands = second; fill = propose(lands); }
