@@ -49,13 +49,13 @@
       <h2>Analysis</h2>
       <div class="row">
         <span class="label">Automatically analyze uncached decks
-          <small>Get statistics for decks not yet cached, and re-analyze decks edited since their last scan. Off = show cached only. Reload page for auto-analysis after edit.</small>
+          <small>Get statistics for decks not yet cached, and re-analyze decks edited since their last scan. Off = show cached only. Reload page for auto-analysis after edit. CommanderSalt analyses only: builder and picker data follow Data sources.</small>
         </span>
         <input type="checkbox" id="autoFetch">
       </div>
       <div class="row">
         <span class="label">Cache lifetime
-          <small>Cached analyses older than this count as stale (re-analyzed on page load when auto-analysis is on).</small>
+          <small>Cached analyses older than this count as stale (re-analyzed on page load when auto-analysis is on). EDHREC, Spellbook and card-price data keep their own fixed lifetimes.</small>
         </span>
         <select id="cacheLifetimeDays">
           <option value="1">1 day</option>
@@ -77,13 +77,13 @@
       <h2>Data sources</h2>
       <div class="row">
         <span class="label">EDHREC enrichment
-          <small>Stock-o-meter, commander popularity, and per-card inclusion %. Fetched on demand, cached 7 days. Community data from EDHREC.</small>
+          <small>Stock-o-meter, commander popularity, and per-card inclusion %. Fetched on demand, cached 7 days. Community data from EDHREC. Also powers the Solring Builder, the commander picker and the Cuts tab.</small>
         </span>
         <input type="checkbox" id="src-edhrec">
       </div>
       <div class="row">
         <span class="label">Commander Spellbook combos
-          <small>"One card away" - combos your deck is a single card short of. Fetched on demand, cached 30 days. Combo data from Commander Spellbook.</small>
+          <small>"One card away" - combos your deck is a single card short of. Fetched on demand, cached 30 days. Combo data from Commander Spellbook. Also the builder's combo suggestions.</small>
         </span>
         <input type="checkbox" id="src-spellbook">
       </div>
