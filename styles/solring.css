@@ -1021,6 +1021,8 @@ li.solring-builder-sel { background: color-mix(in srgb, var(--solring-rating-a) 
 }
 .solring-builder-pv .form-check-input { margin: 0; float: none; flex: none; }
 .solring-builder-pvname { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.solring-builder-pv .solring-cardname { white-space: normal; }
+.solring-builder-pv .solring-cardname:hover { color: var(--solring-accent); text-decoration: underline; }
 .solring-builder-pvfoot {
   position: sticky; bottom: 0; display: flex; justify-content: space-between; gap: 0.5rem;
   margin-top: auto; padding: 0.75rem 0; border-top: 1px solid var(--solring-border); background: inherit;

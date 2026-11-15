@@ -757,8 +757,14 @@ export async function installBuilder({ waitFor, rebuild = false }) {
         const cb = el('input', { class: 'form-check-input', attrs: { type: 'checkbox', 'aria-label': r.name } });
         cb.checked = true;
         cb.addEventListener('change', () => { if (cb.checked) ticked.add(r.i); else ticked.delete(r.i); update(); });
-        return el('label', { class: 'solring-builder-pv' }, [cb, el('span', { class: 'solring-builder-pvname', text: r.qty > 1 ? `${r.name} ×${r.qty}` : r.name }),
+        // A div, not a <label>: the name is a card ref (hover preview, click opens the card), so
+        // clicking it must not toggle the row. The rest of the row still toggles the checkbox.
+        const i = S.info[frontFace(r.name)];
+        const [ref] = cardRefs([{ name: r.name, image: (i && i.image) || null, resolve: true }]);
+        const row = el('div', { class: 'solring-builder-pv' }, [cb, el('span', { class: 'solring-builder-pvname' }, [ref, r.qty > 1 ? ` ×${r.qty}` : null]),
           el('span', { class: 'solring-builder-price', text: V.priceText(r.price == null ? null : r.price * r.qty, S.pricing), title: approxNote(S.pricing) })]);
+        row.addEventListener('click', (e) => { if (e.target !== cb && !e.target.closest('.solring-cardname')) cb.click(); });
+        return row;
       }),
     ]));
     const short = V.shortfallText(fill);
