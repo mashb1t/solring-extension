@@ -45,6 +45,9 @@ through any Solring backend — all data is fetched straight from the third-part
 - **CORS drives `host_permissions`**: only hosts that DON'T serve permissive CORS are declared
   (`api.commandersalt.com`, `backend.commanderspellbook.com`, `edhrec.com` for the recs POST). `json.edhrec.com`,
   `api.scryfall.com` + `api2.moxfield.com` serve ACAO, so no grant.
+- **Settings**: `OPTIONS_DEFAULT` in `prefs.js` ↔ `options.html`/`options.js`. Colour tokens are applied on every route
+  by `option-colors.js`; feature on/off switches (`builderEnabled`, `pickerEnabled`, `cutsEnabled`, sources) apply live
+  via the diffing `watchFeatureToggles` listener in `content.js`. Each installer also checks its own gate.
 - All third-party text goes in via `textContent` / `el(...)`, never `innerHTML`.
 - `el(tag, {class, text, attrs}, children)` from `dom.js` is the DOM builder. Numbers are formatted via `format.js`
   (`num`, `exact`); identifiers humanized via `labels.js`.

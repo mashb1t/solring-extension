@@ -96,7 +96,8 @@ per-card contributions — powering the deck panel, per-card columns, and deck-l
 The extension's [options page](chrome-extension://odjkckchpflbblnnngjmapjdmdfcihfb/options.html).
 
 Here you can customize the cache lifetime, color thresholds for the card metrics (Power, Saltiness, Synergy), panel
-display toggles, and enable/disable the **EDHREC** and **Commander Spellbook** data sources.
+display toggles, enable/disable the **EDHREC** and **Commander Spellbook** data sources, and switch the **Solring
+Builder** (on/off and its default state), the **Find with Solring** commander picker and the **Cuts** tab.
 
 ## Installation
 
