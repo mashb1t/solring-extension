@@ -641,7 +641,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const tutorNoLimit = el('button', { class: 'solring-builder-linkbtn', text: 'no limit', attrs: { type: 'button', title: 'No tutor cap, even where the bracket preset has one' } });
     const syncTutors = () => {
       const p = bracketPreset(Number(bracket.value)).tutorCap;
-      tutors.placeholder = p == null ? 'preset: no limit' : `preset: ${p}`;
+      tutors.placeholder = p == null ? 'preset: ∞' : `preset: ${p}`; // ∞: "no limit" clips at the field width
+      tutors.title = p == null ? `Bracket ${bracket.value} preset: no limit. Type a number, or “no limit”.` : `Bracket ${bracket.value} preset: ${p}. Type a number, or “no limit”.`;
       tutorPreset.hidden = tutors.value.trim() === '';
       tutorNoLimit.hidden = p == null || tutors.value.trim().toLowerCase() === 'no limit';
     };
@@ -677,7 +678,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
       field('Tutor cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [tutors, tutorPreset, tutorNoLimit])),
-      el('div', { class: 'solring-builder-checks' }, [noLandHate.node, lhPreset, noStax.node]),
+      // The preset link sits inline after "No land hate" so the checks column keeps one row per rule.
+      el('div', { class: 'solring-builder-checks' }, [el('span', { class: 'solring-builder-checkrow' }, [noLandHate.node, lhPreset]), noStax.node]),
       el('div', { class: 'solring-builder-formfoot' }, [
         S.rulesError ? el('span', { class: 'solring-builder-err', text: S.rulesError }) : null, save,
       ]),
