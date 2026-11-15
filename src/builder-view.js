@@ -41,6 +41,36 @@ export function deckSizeStatus(cards, size = DECK_SIZE) {
 }
 
 /**
+ * Deck cleanup: EDHREC's cut suggestions (cutRecs → [{ name, score }], strongest first) shown while
+ * the deck is `over` the legal size. Only mainboard cards (never a commander, the sideboard or a
+ * card no longer in the deck), and only single-copy lines: a Bulk Edit `remove` drops the whole
+ * line, so a "−" on Forest ×8 would cut all 8. Names map to the mainboard entry's (full DFC) name;
+ * EDHREC order kept; at most over + 5. → [{ name, score }]
+ */
+export function cleanupCuts({ cuts, deck, over }) {
+  const n = Number(over) || 0;
+  if (n <= 0 || !Array.isArray(cuts)) return [];
+  const boards = (deck && deck.boards) || {};
+  const commanders = new Set([
+    ...((deck && deck.commanders) || []),
+    ...Object.values(boards.commanders || {}).map((e) => e.name),
+  ].filter(Boolean).map(frontFace));
+  const main = new Map(Object.values(boards.mainboard || {}).map((e) => [frontFace(e.name), e]));
+  const out = [];
+  const seen = new Set();
+  for (const c of cuts) {
+    if (!c || !c.name) continue;
+    const k = frontFace(c.name);
+    const e = main.get(k);
+    if (seen.has(k) || commanders.has(k) || !e || (e.quantity || 1) > 1) continue;
+    seen.add(k);
+    out.push({ name: e.name, score: c.score ?? null });
+    if (out.length >= n + 5) break;
+  }
+  return out;
+}
+
+/**
  * Initial state of the build view (options.builderPanelDefault). Decks you can't edit always start
  * collapsed. 'open' / 'collapsed' force it; 'auto' (and anything unknown) opens while the deck is
  * below the legal size (`cards` = commanders + mainboard copies, deckComposition().current.cards).

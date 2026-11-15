@@ -949,6 +949,13 @@ span.solring-picker-entry { display: inline; }
   background-image: linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor);
   background-size: 0.75rem 2px, 2px 0.75rem; background-position: center; background-repeat: no-repeat;
 }
+/* Deck-cleanup "−": one CSS bar (a font minus sits off-centre in the round button, like "+"). */
+.btn.solring-builder-cut-icon, .solring-builder-cut-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0.75rem 2px; background-position: center; background-repeat: no-repeat;
+}
+.solring-builder-cutscore { color: var(--solring-rating-a); font-weight: 600; }
 .solring-builder-tile.solring-blocked > :not(.solring-builder-why) { opacity: 0.45; }
 .solring-builder-tile.solring-blocked .solring-builder-add { display: none; }
 .solring-builder-why {

@@ -24,6 +24,8 @@ import { proposeFill } from './autocomplete.js';
 import { landTarget, splitCards, landBasis, FIXED_LANDS, LAND_FORMULA_URL, LAND_FORMULA_TEXT } from './land-formula.js';
 import { DEFAULT_PRICING, pricedInfo, approxNote, deckPrices, chooseProvider, pricingFor } from './pricing.js';
 import { getBuildData, getCardData, importDeck } from './messaging.js';
+import { getRecs } from './messaging.js';
+import { cutRecs } from './sources/edhrec-recs.js';
 import { applyBulkEdit, canEdit } from './moxfield-ui.js';
 import { ownedNames } from './moxfield-collection.js';
 import { readDeckAny, bulkEditRead } from './moxfield-edit.js';
@@ -39,6 +41,7 @@ const RELOAD_COOLDOWN_MS = 3000;
 
 let mountToken = null; // identity of the live mount; teardown clears it (stale-async guard)
 let writing = null; // in-flight applyBulkEdit promise; survives teardown/remount on purpose
+const cutsCache = new Map(); // deck card list → Promise<EDHREC cuts | null>, for the session (failures evicted)
 let mountDisposers = []; // the live mount's listeners/observers (also registered with the router)
 
 export function teardownBuilder() {
@@ -175,6 +178,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
+    cuts: null, // EDHREC cutRecs for the current card list while over 100 (null: not over / failed)
     landFormula: opts.landFormula === true, land: null, // TCGplayer land target (recompute), null when off
   };
   const selected = new Map(); // front-face key → mainboard name (decklist checkboxes)
@@ -249,6 +253,21 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // fresh = the reload button: the worker skips its caches and overwrites them.
   const loadCombos = (fresh = false) => (spellbookOn ? send(() => getBuildData({ op: 'combos', commanders: deck.commanders, cards: mainNames(), fresh })) : Promise.resolve(null))
     .then((r) => (ok(r) ? r.results : null));
+  // Deck cleanup: EDHREC's least-played cuts (the Cuts tab's recs POST, via the worker), fetched only
+  // while over 100. Cached per card list for the session (promise, so concurrent loads share one
+  // POST); fresh = the reload button evicts it. A failed POST isn't cached (a later refresh retries).
+  const loadCuts = (fresh = false) => {
+    if (V.deckSizeStatus(S.comp.current.cards).diff <= 0) return Promise.resolve(null);
+    const key = [publicId, ...deck.commanders.map(frontFace).sort(), '|', ...mainNames().map(frontFace).sort()].join('\n');
+    if (fresh) cutsCache.delete(key);
+    let p = cutsCache.get(key);
+    if (!p) {
+      p = send(() => getRecs(deck.commanders, mainNames())).then((r) => (ok(r) ? cutRecs(r, Infinity) : null));
+      cutsCache.set(key, p);
+      p.then((v) => { if (!v && cutsCache.get(key) === p) cutsCache.delete(key); });
+    }
+    return p;
+  };
   const loadThemeCards = (slug, fresh = false) => (slug ? send(() => getBuildData({ op: 'theme', commanders: deck.commanders, theme: slug, fresh })) : Promise.resolve(null))
     .then((r) => (ok(r) && Array.isArray(r.cards) ? r.cards : []));
   const loadInfo = async (fresh = false) => {
@@ -269,7 +288,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
 
   async function loadAll(fresh = false) {
     const themesP = send(() => getBuildData({ op: 'themes', commanders: deck.commanders, fresh }));
-    const [themesRes, flagsRes, combos] = await Promise.all([themesP, send(() => getCardData({ op: 'flags', fresh })), loadCombos(fresh)]);
+    const [themesRes, flagsRes, combos, cuts] = await Promise.all([themesP, send(() => getCardData({ op: 'flags', fresh })), loadCombos(fresh), loadCuts(fresh)]);
+    S.cuts = cuts;
     S.themes = ok(themesRes) && Array.isArray(themesRes.themes) ? themesRes.themes : [];
     S.flags = V.flagSets(ok(flagsRes) ? flagsRes : null);
     S.flagsOk = V.flagsAvailable(flagsRes); // false → chip + no Auto-complete (single "+" stays)
@@ -339,7 +359,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
         deck = fresh;
         S.comp = V.deckComposition(deck);
         if (started) { // a never-expanded panel stays unloaded: no suggestion fetches after an edit
-          S.comboResults = await loadCombos();
+          [S.comboResults, S.cuts] = await Promise.all([loadCombos(), loadCuts()]);
           await loadInfo();
           if (!alive()) return abandon();
           recompute();
@@ -609,6 +629,10 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     for (const th of S.themes || []) themeSel.append(el('option', { text: `${th.name} (${th.decks.toLocaleString('en-US')} decks)`, attrs: { value: th.slug } }));
     if (S.theme) themeSel.value = S.theme;
     themeSel.addEventListener('change', () => setTheme(themeSel.value));
+    // Over the legal size: the cleanup cuts come first (the add tiers below matter less now).
+    // Filtered against the CURRENT deck at render time, so it disappears at ≤ 100 on its own.
+    const over = V.deckSizeStatus(S.comp.current.cards).diff;
+    if (over > 0) out.push(cutsSection(over));
     out.push(el('div', { class: 'solring-builder-head' }, [
       el('span', { class: 'solring-builder-label', text: 'Playstyle' }),
       (S.themes || []).length ? themeSel : el('span', { class: 'solring-builder-note', text: 'No playstyles on EDHREC yet: Auto-complete still adds lands, and your rules apply.' }),
@@ -727,6 +751,30 @@ export async function installBuilder({ waitFor, rebuild = false }) {
         el('span', { class: 'solring-builder-bracket', text: bracket ? bracket.text : 'Combo', title: bracket && bracket.title }),
         spellbookLink(combo.id),
         addBtn(label, `Add ${st.add.join(' + ')} via Moxfield`, !st.ok, () => write({ add: st.add.map((name) => ({ name, qty: 1 })) }, `Added ${st.add.join(' + ')}`, 'add')),
+      ]),
+    ]);
+  }
+
+  // ✂ Deck cleanup: EDHREC's suggested cuts while the deck is `over` 100.
+  function cutsSection(over) {
+    const cuts = V.cleanupCuts({ cuts: S.cuts, deck, over });
+    const note = el('div', { class: 'solring-builder-note', text: S.cuts
+      ? 'Least-played cards for this commander on EDHREC. Multi-copy cards (basics) aren’t listed.'
+      : 'EDHREC’s cut suggestions couldn’t load. Use the reload button to try again.' });
+    return section(`✂ Over by ${over} — suggested cuts`, cuts.map(cutTile), null, note);
+  }
+
+  function cutTile(c) {
+    const title = editable ? `Remove ${c.name} via Moxfield` : 'Open the deck in edit mode (logged in) to edit cards';
+    const b = el('button', { class: 'btn btn-danger btn-sm solring-builder-add solring-builder-cut-icon', attrs: { type: 'button', title, 'aria-label': title } });
+    b.disabled = !!S.busy || !editable;
+    b.addEventListener('click', (e) => { e.stopPropagation(); write({ remove: [c.name] }, `Removed ${c.name}`, 'rm'); });
+    return el('div', { class: 'solring-builder-tile solring-builder-cut', attrs: { 'data-card': c.name } }, [
+      art(c.name),
+      b,
+      el('div', { class: 'solring-builder-name', text: c.name, attrs: cardHoverAttrs(c.name, (S.info[frontFace(c.name)] || {}).image || null, { focus: false }) }),
+      el('div', { class: 'solring-builder-meta' }, [
+        el('span', { class: 'solring-builder-cutscore', text: `cut ${c.score == null ? '—' : c.score}`, title: 'EDHREC cut score (higher = cut sooner)' }),
       ]),
     ]);
   }

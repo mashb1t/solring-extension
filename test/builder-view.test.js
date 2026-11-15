@@ -5,6 +5,7 @@ import {
   previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault, deckSizeStatus,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
+import { cleanupCuts } from '../src/builder-view.js';
 
 const flags = (o = {}) => ({ gameChangers: new Set(), extraTurns: new Set(), massLandDenial: new Set(), ...o });
 const entry = (name, quantity = 1, isLand = false) => ({ name, quantity, isLand });
@@ -291,4 +292,44 @@ test('deckSizeStatus: exactly 100 is legal, anything else is flagged with how fa
   assert.deepEqual(deckSizeStatus(101), { legal: false, diff: 1, label: 'Not legal: 101 / 100 cards (1 over)' });
   assert.deepEqual(deckSizeStatus(0), { legal: false, diff: -100, label: 'Not legal: 0 / 100 cards (100 under)' });
   assert.equal(deckSizeStatus(60, 60).legal, true);
+});
+
+const cutDeck = {
+  commanders: ['Ms. Bumbleflower'],
+  boards: {
+    commanders: { 'ms. bumbleflower': entry('Ms. Bumbleflower') },
+    mainboard: {
+      forest: entry('Forest', 8, true), 'howling mine': entry('Howling Mine'), 'sol ring': entry('Sol Ring'),
+      'brightclimb pathway': entry('Brightclimb Pathway // Grimclimb Pathway', 1, true), 'arcane signet': entry('Arcane Signet'),
+      'mind stone': entry('Mind Stone'), 'fellwar stone': entry('Fellwar Stone'), 'swiftfoot boots': entry('Swiftfoot Boots'),
+    },
+    sideboard: { 'rhystic study': entry('Rhystic Study') },
+  },
+};
+
+test('cleanupCuts: nothing when the deck is not over', () => {
+  const cuts = [{ name: 'Howling Mine', score: 9 }];
+  assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 0 }), []);
+  assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: -3 }), []);
+  assert.deepEqual(cleanupCuts({ cuts: null, deck: cutDeck, over: 2 }), []);
+});
+
+test('cleanupCuts: never the commander, sideboard or not-in-deck cards; multi-copy lines skipped', () => {
+  const cuts = [
+    { name: 'Ms. Bumbleflower', score: 99 }, { name: 'Rhystic Study', score: 80 }, { name: 'Not A Card', score: 70 },
+    { name: 'Forest', score: 60 }, { name: 'Howling Mine', score: 50 },
+  ];
+  assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 1 }), [{ name: 'Howling Mine', score: 50 }]);
+});
+
+test('cleanupCuts: keeps EDHREC order, maps to the mainboard name (DFC), dedupes, caps at over + 5', () => {
+  const cuts = [
+    { name: 'Sol Ring', score: 1 }, { name: 'Brightclimb Pathway', score: 5 }, { name: 'sol ring', score: 1 },
+    { name: 'Arcane Signet', score: 3 }, { name: 'Mind Stone', score: 2 }, { name: 'Fellwar Stone', score: 2 },
+    { name: 'Swiftfoot Boots', score: 2 }, { name: 'Howling Mine', score: 9 },
+  ];
+  const out = cleanupCuts({ cuts, deck: cutDeck, over: 1 });
+  assert.equal(out.length, 6);
+  assert.deepEqual(out.slice(0, 2), [{ name: 'Sol Ring', score: 1 }, { name: 'Brightclimb Pathway // Grimclimb Pathway', score: 5 }]);
+  assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 3 }).map((c) => c.name).at(-1), 'Howling Mine');
 });
