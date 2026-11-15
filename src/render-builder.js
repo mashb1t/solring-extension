@@ -33,6 +33,8 @@ import { deckMd5, canonicalDeckUrl } from './md5.js';
 import * as V from './builder-view.js';
 import { cardRefs, cardHoverAttrs } from './render-card-modal.js';
 import { comboBracketLabel } from './labels.js';
+import { comboBreakers } from './combo-breakers.js';
+import { breakerBadge, closeBreakerPop, confirmRemove, cancelBreakerConfirm } from './combo-breaker-ui.js';
 
 const ROW_SEL = 'li[data-row-key] a.table-deck-row-link[href^="/cards/"]';
 const THEME_SHOWN = 18;
@@ -234,6 +236,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   setOpen(startOpen);
   const alive = () => live() && root.isConnected;
   own(() => closeModal());
+  own(() => { closeBreakerPop(); cancelBreakerConfirm(); }); // an open cut confirm resolves as Cancel
   // A later abort of a mount that lost its token removes the root it inserted (no orphan panel).
   const abandon = () => { if (mountToken !== token) root.remove(); };
   render(); // cheap: just the "x / 100 cards" summary until start() has loaded
@@ -781,22 +784,32 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     ]);
   }
 
-  // ✂ Deck cleanup: EDHREC's suggested cuts while the deck is `over` 100.
+  // ✂ Deck cleanup: EDHREC's suggested cuts while the deck is `over` 100. A cut that is a piece of a
+  // complete combo in the deck gets the Cuts tab's red ⓘ and a confirm before removing (Spellbook on).
   function cutsSection(over) {
     const cuts = V.cleanupCuts({ cuts: S.cuts, deck, over });
+    const breakers = spellbookOn ? comboBreakers(S.comboResults, [...(deck.commanders || []), ...mainNames()]) : new Map();
+    closeBreakerPop(); // a re-render drops the badge an open popover was anchored to
     const note = el('div', { class: 'solring-builder-note', text: S.cuts
       ? 'Least-played cards for this commander on EDHREC. Multi-copy cards (basics) aren’t listed.'
       : 'EDHREC’s cut suggestions couldn’t load. Use the reload button to try again.' });
-    return section(`✂ Over by ${over} — suggested cuts`, cuts.map(cutTile), null, note);
+    return section(`✂ Over by ${over} — suggested cuts`, cuts.map((c) => cutTile(c, breakers.get(frontFace(c.name)) || [])), null, note);
   }
 
-  function cutTile(c) {
+  // Cut tiles are single-copy cards (cleanupCuts skips multiples), so a remove always breaks the
+  // card's combos: confirm first; Cancel writes nothing.
+  function cutTile(c, combos = []) {
     const title = editable ? `Remove ${c.name} via Moxfield` : 'Open the deck in edit mode (logged in) to edit cards';
     const b = el('button', { class: 'btn btn-danger btn-sm solring-builder-add solring-builder-cut-icon', attrs: { type: 'button', title, 'aria-label': title } });
     b.disabled = !!S.busy || !editable;
-    b.addEventListener('click', (e) => { e.stopPropagation(); write({ remove: [c.name] }, `Removed ${c.name}`, 'rm'); });
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (combos.length && !(await confirmRemove(c.name, combos, b))) return;
+      write({ remove: [c.name] }, `Removed ${c.name}`, 'rm');
+    });
     return el('div', { class: 'solring-builder-tile solring-builder-cut', attrs: { 'data-card': c.name } }, [
       art(c.name),
+      combos.length ? breakerBadge(() => combos) : null,
       b,
       el('div', { class: 'solring-builder-name', text: c.name, attrs: cardHoverAttrs(c.name, (S.info[frontFace(c.name)] || {}).image || null, { focus: false }) }),
       el('div', { class: 'solring-builder-meta' }, [

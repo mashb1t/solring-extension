@@ -1000,6 +1000,8 @@ span.solring-picker-entry { display: inline; }
   background-size: 0.75rem 2px; background-position: center; background-repeat: no-repeat;
 }
 .solring-builder-cutscore { color: var(--solring-rating-a); font-weight: 600; }
+/* Combo-breaker ⓘ on a builder cut: top-left, the "−" owns the top-right corner. */
+.solring-builder-cut .solring-breaker { top: 0.35rem; left: 0.35rem; right: auto; z-index: 2; }
 .solring-builder-tile.solring-blocked > :not(.solring-builder-why) { opacity: 0.45; }
 .solring-builder-tile.solring-blocked .solring-builder-add { display: none; }
 .solring-builder-why {
