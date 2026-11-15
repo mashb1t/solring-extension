@@ -28,7 +28,7 @@ const reasonGroup = (reason) => reason.split('(')[0].trim();
  * @param {{cards:number, lands:number}} [a.current]  current deck composition (card count incl.
  *   commanders and basic copies, and how many of those are lands). ctx.deckKeys is a Set so it
  *   cannot carry basic copy counts. Defaults to { cards: ctx.deckKeys.size, lands: 0 }.
- * @returns {{picks:Array<{name,tier,qty,usd}>, total:number, cost:number, shortfall:number, binding:string|null}}
+ * @returns {{picks:Array<{name,tier,qty,price}>, total:number, cost:number, shortfall:number, binding:string|null}}
  */
 export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity = [], current }) {
   const cur = current || { cards: ctx.deckKeys.size, lands: 0 };
@@ -45,9 +45,11 @@ export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity 
   const rejections = [];
   let run = ctx;
 
-  const usdOf = (name) => {
-    const u = run.info[frontFace(name)] && run.info[frontFace(name)].usd;
-    return typeof u === 'number' ? u : null;
+  // Per-copy price in the ctx's provider currency (info[key].price), null when unknown (an unpriced
+  // basic still costs 0 toward the budget: that's in run.spent / `cost`, not here).
+  const priceOfName = (name) => {
+    const p = run.info[frontFace(name)] && run.info[frontFace(name)].price;
+    return typeof p === 'number' ? p : null;
   };
   const tryAdd = (name) => {
     const c = checkCard(name, run);
@@ -59,7 +61,7 @@ export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity 
     return true;
   };
   const take = (name, tier) => {
-    picks.push({ name, tier, qty: 1, usd: usdOf(name) });
+    picks.push({ name, tier, qty: 1, price: priceOfName(name) });
     nonLandSlots--;
   };
 
@@ -86,7 +88,7 @@ export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity 
     if (landSlots <= 0) break;
     if (!s || !s.name || BASICS.has(frontFace(s.name))) continue;
     if (tryAdd(s.name)) {
-      picks.push({ name: s.name, tier: 'land', qty: 1, usd: usdOf(s.name) });
+      picks.push({ name: s.name, tier: 'land', qty: 1, price: priceOfName(s.name) });
       landSlots--;
     }
   }
@@ -96,7 +98,7 @@ export function proposeFill({ tiers, ctx, size = 100, lands = 36, colorIdentity 
     for (const { name, qty } of splitEvenly(landSlots, names.length ? names : [WASTES])) {
       let got = 0;
       while (got < qty && tryAdd(name)) got++;
-      if (got) picks.push({ name, tier: 'land', qty: got, usd: usdOf(name) });
+      if (got) picks.push({ name, tier: 'land', qty: got, price: priceOfName(name) });
     }
   }
 

@@ -36,13 +36,13 @@ export function buildTiers({ themeCards, combos, ctx, keyCount = 15 }) {
   }
   const suggest = (c) => {
     const key = frontFace(c.name);
-    const usd = ctx.info[key] ? ctx.info[key].usd : null;
+    const price = ctx.info[key] ? ctx.info[key].price : null;
     return {
       name: c.name,
       synergy: c.synergy,
       inclusionPct: c.inclusionPct,
       gameChanger: isGcKey(key, ctx.info, ctx.flags),
-      usd: typeof usd === 'number' ? usd : null,
+      price: typeof price === 'number' ? price : null,
       check: checkCard(c.name, ctx),
     };
   };

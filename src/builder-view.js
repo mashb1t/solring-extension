@@ -2,6 +2,7 @@
 // composition, rule chips, auto-complete preview grouping/totals, power verdict). No DOM.
 import { frontFace } from './sources/scryfall.js';
 import { checkCard, addToCtx } from './build-rules.js';
+import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
 export const DECK_SIZE = 100;
 export const LAND_TARGET = 36;
@@ -71,8 +72,9 @@ export function infoNames({ deckNames = [], themeCards = [], comboResults = null
   return [...out.values()];
 }
 
-export const usd = (n) => (typeof n === 'number' ? `$${n.toFixed(2)}` : 'no price');
-const dollars = (n) => `$${Math.round(n)}`;
+/** A price in the pricing's currency ("$1.50" / "€1.50" / "1.50 tix"), or 'no price'. */
+export const priceText = (n, pricing = DEFAULT_PRICING) => formatPrice(n, pricing);
+const whole = (n, pricing = DEFAULT_PRICING) => formatPrice(n, pricing, { whole: true });
 
 /**
  * ruleUsage(ctx) → chips: { key, text, pct (0–1 meter fill, or null), warn, hint }.
@@ -86,7 +88,7 @@ export function ruleChips(usage, { flagsMissing = false } = {}) {
       return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'budget') {
-      return { key: 'budget', text: `Budget ${dollars(u.used)} / ${dollars(u.max)}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
+      return { key: 'budget', text: `Budget ${whole(u.used, u.pricing)} / ${whole(u.max, u.pricing)}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'power') return { key: 'power', text: u.label, pct: null, warn: false, hint: 'target' };
     return { key: u.key, text: u.label, pct: null, warn: false };
@@ -112,12 +114,12 @@ export function comboCheck(combo, ctx) {
 
 const TIER_LABEL = { key: 'Key cards', theme: 'Theme cards', land: 'Lands' };
 
-/** proposeFill picks → [{ tier, label, rows:[{ i, name, qty, usd }] }] in key/theme/land order. */
+/** proposeFill picks → [{ tier, label, rows:[{ i, name, qty, price }] }] in key/theme/land order. */
 export function groupPicks(picks) {
   const groups = [];
   for (const tier of ['key', 'theme', 'land']) {
     const rows = [];
-    (picks || []).forEach((p, i) => { if (p.tier === tier) rows.push({ i, name: p.name, qty: p.qty, usd: p.usd }); });
+    (picks || []).forEach((p, i) => { if (p.tier === tier) rows.push({ i, name: p.name, qty: p.qty, price: p.price }); });
     if (rows.length) groups.push({ tier, label: TIER_LABEL[tier], rows, count: rows.reduce((n, r) => n + r.qty, 0) });
   }
   return groups;
@@ -132,7 +134,7 @@ export function previewTotals({ picks, ticked, ctx, current }) {
   (picks || []).forEach((p, i) => {
     if (!ticked.has(i)) return;
     count += p.qty;
-    cost += (p.usd || 0) * p.qty;
+    cost += (p.price || 0) * p.qty;
     if (p.tier === 'land') landsAdded += p.qty;
     const key = frontFace(p.name);
     if (ctx.flags.gameChangers.has(key) || (ctx.info[key] && ctx.info[key].gameChanger)) gcAdded += p.qty;
@@ -146,12 +148,12 @@ export function previewTotals({ picks, ticked, ctx, current }) {
   };
 }
 
-/** The preview's one-line summary under the title. */
-export function previewSummary(t, rules, gcCap) {
+/** The preview's one-line summary under the title (amounts in `pricing`'s currency). */
+export function previewSummary(t, rules, gcCap, pricing = DEFAULT_PRICING) {
   const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${LAND_TARGET}`, `Bracket ${rules.bracket}`];
   parts.push(gcCap === Infinity ? `Game Changers ${t.gcAfter}` : `Game Changers ${t.gcAfter} / ${gcCap}`);
-  if (rules.budget != null) parts.push(`${usd(t.spentAfter)} / ${dollars(rules.budget)}`);
-  else parts.push(`adds ${usd(t.cost)}`);
+  if (rules.budget != null) parts.push(`${priceText(t.spentAfter, pricing)} / ${whole(rules.budget, pricing)}`);
+  else parts.push(`adds ${priceText(t.cost, pricing)}`);
   return parts.join(' · ');
 }
 
@@ -181,7 +183,7 @@ export function powerVerdict(res, target) {
  * The "+ rule" form values → a rules patch, or { error }. Blank fields clear a rule.
  * Inputs are strings (form values); bracket 1–5, GC cap ≥ 0, power 1–10 with min ≤ max, budget > 0.
  */
-export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }) {
+export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }, pricing = DEFAULT_PRICING) {
   const num = (s) => (String(s ?? '').trim() === '' ? null : Number(s));
   const b = Number(bracket);
   if (!(Number.isInteger(b) && b >= 1 && b <= 5)) return { error: 'Bracket must be 1–5' };
@@ -194,7 +196,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }) {
     power = { min: lo, max: hi };
   }
   const bud = num(budget);
-  if (bud != null && !(bud > 0)) return { error: 'Budget must be more than $0' };
+  if (bud != null && !(bud > 0)) return { error: `Budget must be more than ${whole(0, pricing)}` };
   return { rules: { bracket: b, gameChangerCap: cap, power, budget: bud } };
 }
 

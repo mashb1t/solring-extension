@@ -20,6 +20,7 @@ import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
 import { proposeFill } from './autocomplete.js';
+import { DEFAULT_PRICING, pricedInfo, approxNote } from './pricing.js';
 import { getBuildData, getCardData, importDeck } from './messaging.js';
 import { applyBulkEdit, canEdit } from './moxfield-ui.js';
 import { ownedNames } from './moxfield-collection.js';
@@ -140,6 +141,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const S = {
     build,
     themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), flagsOk: true, info: {},
+    pricing: DEFAULT_PRICING, // the user's Moxfield price provider (pricing.pricingFor)
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
@@ -210,7 +212,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
 
   function recompute() {
     const rules = { ...S.build.rules, ownedOnly: !!(S.build.rules.ownedOnly && S.owned) };
-    S.ctx = makeCtx({ rules, info: S.info, flags: S.flags, owned: S.owned, deckNames: S.comp.names, combos: comboGuards(S.comboResults) });
+    S.ctx = makeCtx({ rules, info: pricedInfo(S.info, S.pricing), pricing: S.pricing, flags: S.flags, owned: S.owned, deckNames: S.comp.names, combos: comboGuards(S.comboResults) });
     const combos = keyCombos(S.comboResults, S.comp.unique, rules.bracket, 3);
     S.tiers = buildTiers({ themeCards: S.themeCards, combos, ctx: S.ctx, keyCount: 15 });
   }
@@ -444,14 +446,14 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const form = el('form', { class: 'solring-builder-ruleform' }, [
       field('Bracket', bracket), field('Game Changer cap', gc),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
-      field('Budget (whole deck, $)', budget),
+      field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
       el('div', { class: 'solring-builder-formfoot' }, [
         S.rulesError ? el('span', { class: 'solring-builder-err', text: S.rulesError }) : null, save,
       ]),
     ]);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value });
+      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value }, S.pricing);
       if (res.error) { S.rulesError = res.error; render(); return; }
       S.rulesOpen = false; S.rulesError = null;
       if (!res.rules.power) S.power = null;
@@ -529,7 +531,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const meta = el('div', { class: 'solring-builder-meta' }, [
       el('span', { class: 'solring-builder-syn', text: `syn ${Math.round((s.synergy || 0) * 100)}%`, title: `EDHREC synergy · in ${s.inclusionPct || 0}% of decks` }),
       s.gameChanger ? el('span', { class: 'solring-builder-gc', text: 'GC', title: 'Game Changer' }) : null,
-      el('span', { class: 'solring-builder-price', text: V.usd(s.usd) }),
+      el('span', { class: 'solring-builder-price', text: V.priceText(s.price, S.pricing), title: approxNote(S.pricing) }),
     ]);
     return el('div', { class: `solring-builder-tile${blocked ? ' solring-blocked' : ''}`, attrs: { 'data-card': s.name } }, [
       art(s.name),
@@ -619,7 +621,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const confirm = el('button', { class: 'btn btn-primary btn-sm', attrs: { type: 'button' } });
     const update = () => {
       const t = V.previewTotals({ picks: fill.picks, ticked, ctx: S.ctx, current: S.comp.current });
-      summary.textContent = `${V.previewSummary(t, S.ctx.rules, effectiveGcCap(S.ctx.rules))} · nothing is added until you confirm`;
+      summary.textContent = `${V.previewSummary(t, S.ctx.rules, effectiveGcCap(S.ctx.rules), S.pricing)} · nothing is added until you confirm`;
       confirm.textContent = `Add ${t.count} card${t.count === 1 ? '' : 's'} via Moxfield`;
       confirm.disabled = t.count === 0;
     };
@@ -630,7 +632,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
         cb.checked = true;
         cb.addEventListener('change', () => { if (cb.checked) ticked.add(r.i); else ticked.delete(r.i); update(); });
         return el('label', { class: 'solring-builder-pv' }, [cb, el('span', { class: 'solring-builder-pvname', text: r.qty > 1 ? `${r.name} ×${r.qty}` : r.name }),
-          el('span', { class: 'solring-builder-price', text: V.usd(r.usd == null ? null : r.usd * r.qty) })]);
+          el('span', { class: 'solring-builder-price', text: V.priceText(r.price == null ? null : r.price * r.qty, S.pricing), title: approxNote(S.pricing) })]);
       }),
     ]));
     const short = V.shortfallText(fill);

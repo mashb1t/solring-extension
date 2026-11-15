@@ -26,7 +26,7 @@ test('deckComposition: commanders + mainboard only, names repeated by quantity, 
 });
 
 test('deckComposition: repeated basics count toward the budget in the rules ctx', () => {
-  const info = { forest: { usd: 0.25 } };
+  const info = { forest: { price: 0.25 } };
   const ctx = makeCtx({ rules: { ...RULES_DEFAULT, budget: 50 }, info, flags: flags(), owned: null, deckNames: deckComposition(deck).names });
   assert.equal(Math.round(ctx.spent * 100), 200);
 });
@@ -87,10 +87,10 @@ test('comboCheck: all pieces must fit in sequence; already-owned pieces are skip
 });
 
 const picks = [
-  { name: 'Rhystic Study', tier: 'key', qty: 1, usd: 40 },
-  { name: 'Howling Mine', tier: 'theme', qty: 1, usd: 2.5 },
-  { name: 'Seedborn Muse', tier: 'key', qty: 1, usd: null },
-  { name: 'Forest', tier: 'land', qty: 10, usd: 0.2 },
+  { name: 'Rhystic Study', tier: 'key', qty: 1, price: 40 },
+  { name: 'Howling Mine', tier: 'theme', qty: 1, price: 2.5 },
+  { name: 'Seedborn Muse', tier: 'key', qty: 1, price: null },
+  { name: 'Forest', tier: 'land', qty: 10, price: 0.2 },
 ];
 
 test('groupPicks: key/theme/land order, original indices kept, copy counts', () => {

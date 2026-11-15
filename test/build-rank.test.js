@@ -35,12 +35,12 @@ test('buildTiers: tiers from fixture', () => {
 test('buildTiers: GC beyond cap stays with check.ok false; usd; deck cards excluded', () => {
   const top = buildTiers({ themeCards: cards, combos: [], ctx: ctxOf() }).key[0].name;
   const f = flags(); f.gameChangers.add(top.toLowerCase());
-  const ctx = ctxOf({ flags: f, rules: { ...RULES_DEFAULT, bracket: 2 }, info: { [top.toLowerCase()]: { usd: 1.5 } } });
+  const ctx = ctxOf({ flags: f, rules: { ...RULES_DEFAULT, bracket: 2 }, info: { [top.toLowerCase()]: { price: 1.5 } } });
   const t = buildTiers({ themeCards: cards, combos: [], ctx });
   const s = t.key.find((x) => x.name === top);
   assert.equal(s.gameChanger, true);
   assert.equal(s.check.ok, false);
-  assert.equal(s.usd, 1.5);
+  assert.equal(s.price, 1.5);
   const t2 = buildTiers({ themeCards: cards, combos: [], ctx: ctxOf({ deckNames: [top] }) });
   assert.ok(![...t2.key, ...t2.theme, ...t2.lands].some((x) => x.name === top));
 });

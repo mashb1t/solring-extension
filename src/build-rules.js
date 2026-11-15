@@ -3,6 +3,7 @@
 // lowercased front face (scryfall.frontFace); `owned` is a Set of such keys.
 import { frontFace } from './sources/scryfall.js';
 import { BASICS } from './sources/edhrec.js';
+import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
 export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false };
 
@@ -26,12 +27,13 @@ export function comboAllowed(bracketTag, bracket) {
 }
 
 const isGc = (key, ctx) => ctx.flags.gameChangers.has(key) || !!(ctx.info[key] && ctx.info[key].gameChanger);
-// Absent from info counts as unknown price (null), never free; except basics, which are $0
-// whenever no price is known (absent from info, or Scryfall's usd is null as it often is for a
-// basic's default printing). A basic with a known price uses it.
-const priceOf = (key, ctx) => {
-  const usd = ctx.info[key] && ctx.info[key].usd;
-  if (typeof usd === 'number') return usd;
+// `info[key].price` is in the user's provider currency (pricing.pricedInfo). Absent from info
+// counts as unknown price (null), never free; except basics, which are 0 whenever no price is known
+// (absent from info, or Scryfall's price is null as it often is for a basic's default printing).
+// A basic with a known price uses it.
+export const priceOf = (key, ctx) => {
+  const p = ctx.info[key] && ctx.info[key].price;
+  if (typeof p === 'number') return p;
   return BASICS.has(key) ? 0 : null;
 };
 
@@ -59,9 +61,10 @@ export function comboGuards(results) {
 // `combos` (comboGuards output) is optional: the ones not allowed at the bracket are kept so
 // checkCard can refuse the last missing piece of any of them. addToCtx carries them along, so a
 // running ctx (auto-complete, combo tiles) also catches two picks that complete one together.
-export function makeCtx({ rules, info, flags, owned, deckNames, combos }) {
+// `pricing` (pricing.pricingFor) is the currency budget texts are shown in; default TCGplayer/USD.
+export function makeCtx({ rules, info, flags, owned, deckNames, combos, pricing }) {
   const forbidden = (combos || []).filter((c) => !comboAllowed(c.bracketTag, rules.bracket)).map((c) => c.keys);
-  let ctx = { rules, info: info || {}, flags, owned: owned || null, deckKeys: new Set(), gcUsed: 0, spent: 0, forbidden };
+  let ctx = { rules, info: info || {}, pricing: pricing || DEFAULT_PRICING, flags, owned: owned || null, deckKeys: new Set(), gcUsed: 0, spent: 0, forbidden };
   for (const n of deckNames || []) ctx = addToCtx(ctx, n);
   return ctx;
 }
@@ -92,10 +95,10 @@ export function checkCard(name, ctx) {
     }
   }
   if (rules.budget != null) {
-    const usd = priceOf(key, ctx);
-    if (usd == null) return { ok: false, reason: 'No price (budget set)' };
+    const price = priceOf(key, ctx);
+    if (price == null) return { ok: false, reason: 'No price (budget set)' };
     const left = rules.budget - ctx.spent;
-    if (usd > left) return { ok: false, reason: `Over budget ($${Math.max(left, 0).toFixed(2)} left)` };
+    if (price > left) return { ok: false, reason: `Over budget (${formatPrice(Math.max(left, 0), ctx.pricing || DEFAULT_PRICING)} left)` };
   }
   // Basics are free and collections rarely list them, so owned-only never blocks them.
   if (rules.ownedOnly && !basic && ctx.owned && !ctx.owned.has(key)) return { ok: false, reason: 'Not in your collection' };
@@ -106,7 +109,7 @@ export function ruleUsage(ctx) {
   const { rules } = ctx;
   const out = [{ key: 'bracket', label: `Bracket ${rules.bracket}`, used: null, max: null }];
   out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules) });
-  if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget });
+  if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget, pricing: ctx.pricing || DEFAULT_PRICING });
   if (rules.power) out.push({ key: 'power', label: `Power ${rules.power.min}–${rules.power.max}`, used: null, max: null });
   return out;
 }

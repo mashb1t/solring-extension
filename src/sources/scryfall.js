@@ -43,15 +43,22 @@ export async function searchCommanders(q) {
   }));
 }
 
-// /cards/collection response → { frontKey: {name, usd, gameChanger, colorIdentity, typeLine, image} }.
+// /cards/collection response → { frontKey: {name, usd, eur, tix, gameChanger, colorIdentity, typeLine,
+// image} }. Prices are number|null; the builder picks one per the user's provider (pricing.js).
+const priceField = (c, k) => {
+  const v = c.prices && c.prices[k] != null ? Number(c.prices[k]) : NaN;
+  return Number.isFinite(v) ? v : null;
+};
+
 export function shapeCards(json) {
   const out = {};
   for (const c of (json && Array.isArray(json.data) ? json.data : [])) {
     if (!c || !c.name) continue;
-    const usd = c.prices && c.prices.usd != null ? Number(c.prices.usd) : NaN;
     out[frontFace(c.name)] = {
       name: c.name,
-      usd: Number.isFinite(usd) ? usd : null,
+      usd: priceField(c, 'usd'),
+      eur: priceField(c, 'eur'),
+      tix: priceField(c, 'tix'),
       gameChanger: c.game_changer === true,
       colorIdentity: c.color_identity || [],
       typeLine: c.type_line || '',

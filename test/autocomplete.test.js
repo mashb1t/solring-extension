@@ -60,7 +60,7 @@ test('no duplicates when the deck holds a DFC by full name', () => {
 test('budget $20 caps cost, reports shortfall and Over budget binding', () => {
   const cards = spells(90);
   const info = {};
-  for (const c of cards) info[c.name.toLowerCase()] = { name: c.name, usd: 2 };
+  for (const c of cards) info[c.name.toLowerCase()] = { name: c.name, price: 2 };
   const ctx = mk({ rules: { ...RULES_DEFAULT, budget: 20 }, info });
   const r = proposeFill({ tiers: tiersOf(ctx, cards), ctx, colorIdentity: CI });
   assert.ok(r.cost <= 20);
@@ -99,7 +99,7 @@ test('combo pieces are taken all-or-nothing and first', () => {
 });
 
 test('basics use the budget at their info price; absent basics are free', () => {
-  const info = { forest: { name: 'Forest', usd: 1 } };
+  const info = { forest: { name: 'Forest', price: 1 } };
   const ctx = mk({ rules: { ...RULES_DEFAULT, budget: 3 }, info });
   const r = proposeFill({ tiers: tiersOf(ctx, []), ctx, colorIdentity: ['G'], current: { cards: 1, lands: 0 } });
   assert.equal(r.picks.find((p) => p.name === 'Forest').qty, 3);

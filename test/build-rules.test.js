@@ -4,7 +4,7 @@ import {
   RULES_DEFAULT, effectiveGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
 } from '../src/build-rules.js';
 
-const card = (name, o = {}) => ({ name, usd: 1, gameChanger: false, colorIdentity: [], typeLine: '', image: '', ...o });
+const card = (name, o = {}) => ({ name, price: 1, gameChanger: false, colorIdentity: [], typeLine: '', image: '', ...o });
 const flags = (o = {}) => ({ gameChangers: new Set(), extraTurns: new Set(), massLandDenial: new Set(), ...o });
 const ctxOf = (o = {}) => makeCtx({
   rules: { ...RULES_DEFAULT }, info: {}, flags: flags(), owned: null, deckNames: [], ...o,
@@ -46,7 +46,7 @@ test('extra turn and mass land denial by bracket', () => {
 
 test('budget: over budget, unknown price, absent card', () => {
   const rules = { ...RULES_DEFAULT, budget: 10 };
-  const info = { owned1: card('Owned1', { usd: 8 }), pricey: card('Pricey', { usd: 3 }), cheap: card('Cheap', { usd: 2 }), nop: card('Nop', { usd: null }) };
+  const info = { owned1: card('Owned1', { price: 8 }), pricey: card('Pricey', { price: 3 }), cheap: card('Cheap', { price: 2 }), nop: card('Nop', { price: null }) };
   const ctx = ctxOf({ rules, info, deckNames: ['Owned1'] });
   assert.equal(ctx.spent, 8);
   assert.deepEqual(checkCard('Pricey', ctx), { ok: false, reason: 'Over budget ($2.00 left)' });
@@ -85,7 +85,7 @@ test('comboAllowed', () => {
 });
 
 test('addToCtx returns a new ctx with the card counted', () => {
-  const info = { a: card('A', { usd: 4, gameChanger: true }) };
+  const info = { a: card('A', { price: 4, gameChanger: true }) };
   const ctx = ctxOf({ info, rules: { ...RULES_DEFAULT, budget: 10 } });
   const next = addToCtx(ctx, 'A');
   assert.equal(ctx.gcUsed, 0);
@@ -109,20 +109,20 @@ test('ruleUsage', () => {
 
 test('budget: basics absent from info count as $0, basics in info use their price', () => {
   const rules = { ...RULES_DEFAULT, budget: 10 };
-  const ctx = ctxOf({ rules, info: { island: { name: 'Island', usd: 3 } } });
+  const ctx = ctxOf({ rules, info: { island: { name: 'Island', price: 3 } } });
   assert.deepEqual(checkCard('Forest', ctx), { ok: true });
   assert.deepEqual(checkCard('Snow-Covered Swamp', ctx), { ok: true });
   assert.deepEqual(checkCard('Island', ctx), { ok: true });
   assert.equal(addToCtx(ctx, 'Forest').spent, 0);
   assert.equal(addToCtx(ctx, 'Island').spent, 3);
-  const tight = ctxOf({ rules: { ...RULES_DEFAULT, budget: 2 }, info: { island: { name: 'Island', usd: 3 } } });
+  const tight = ctxOf({ rules: { ...RULES_DEFAULT, budget: 2 }, info: { island: { name: 'Island', price: 3 } } });
   assert.equal(checkCard('Island', tight).ok, false);
   assert.equal(checkCard('Nonbasic', ctx).reason, 'No price (budget set)');
 });
 
 test('budget: a basic in info with no price (Scryfall usd null) counts as $0, not blocked', () => {
   const rules = { ...RULES_DEFAULT, budget: 10 };
-  const ctx = ctxOf({ rules, info: { forest: { name: 'Forest', usd: null }, nonbasic: { name: 'Nonbasic', usd: null } } });
+  const ctx = ctxOf({ rules, info: { forest: { name: 'Forest', price: null }, nonbasic: { name: 'Nonbasic', price: null } } });
   assert.deepEqual(checkCard('Forest', ctx), { ok: true });
   assert.equal(addToCtx(ctx, 'Forest').spent, 0);
   assert.equal(checkCard('Nonbasic', ctx).reason, 'No price (budget set)');
