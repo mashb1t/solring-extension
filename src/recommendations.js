@@ -115,21 +115,25 @@ export async function installRecommendations({ waitFor }) {
 // deck was never analyzed.
 async function annotatePreview(publicId) {
   const md5 = deckMd5(canonicalDeckUrl(publicId));
-  const res = await getDeck(md5).catch(() => null);
+  // Live options: the card panels read them through a getter and re-apply on change.
+  let opts = await getOptions().catch(() => ({}));
+  // Same read policy as the deck view: auto-analysis off = cache only, never a CommanderSalt GET
+  // for an uncached deck; the cache lifetime marks older analyses stale.
+  const maxAgeMs = opts.cacheLifetimeDays > 0 ? opts.cacheLifetimeDays * 86400000 : 0;
+  const res = await getDeck(md5, { allowFetch: opts.autoFetch !== false, maxAgeMs }).catch(() => null);
   const fields = res && res.fields;
   if (!fields || !fields.cards) return;
   try { const e = await getEnrichment('edhrec', md5); if (e && e.inclusion) fields.edhrecInclusion = e.inclusion; } catch { /* EDHREC% column stays blank */ }
 
   // Card-detail panel (power / saltiness / tags / synergy) below the Deck Preview's card image —
   // the preview uses the same aside.deckview-image-container the deck-view sidebar anchors on.
-  const opts0 = await getOptions().catch(() => ({}));
-  installCardSidebar(() => fields, () => opts0); // panel below the preview image
-  installCardModal(() => fields, () => opts0);   // Solring Info panel inside the card-detail modal
+  installCardSidebar(() => fields, () => opts); // panel below the preview image
+  installCardModal(() => fields, () => opts);   // Solring Info panel inside the card-detail modal
 
   let obs = null, timer = null;
   const apply = async () => {
     if (!document.querySelector('.deck-preview.expanded')) return; // only when the preview list is shown
-    const [prefs, cardSort, opts] = await Promise.all([getCardPrefs(), getCardSortView(), getOptions()]);
+    const [prefs, cardSort] = await Promise.all([getCardPrefs(), getCardSortView()]);
     if (obs) obs.disconnect(); // annotate() clears+re-adds nodes — don't let that retrigger us
     try { annotate(fields, prefs, opts, cardSort); } finally { if (obs) obs.observe(document.body, { childList: true, subtree: true }); }
   };
@@ -138,7 +142,11 @@ async function annotatePreview(publicId) {
   obs.observe(document.body, { childList: true, subtree: true });
   // Column-label clicks cycle the card-sort pref → re-annotate immediately (don't wait on the
   // debounced DOM observer, which made sorting feel unresponsive).
-  const offPref = onPrefChange((which) => { if (which === 'card') apply(); });
+  // Options (thresholds, panel toggles) refresh the shared snapshot, then re-mark the rows.
+  const offPref = onPrefChange(async (which) => {
+    if (which === 'card') apply();
+    if (which === 'options') { opts = await getOptions().catch(() => opts); apply(); }
+  });
   registerDisposable(() => { if (obs) obs.disconnect(); clearTimeout(timer); offPref(); });
   schedule();
 }
