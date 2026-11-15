@@ -14,12 +14,26 @@ through any Solring backend — all data is fetched straight from the third-part
   (both need `host_permissions` — neither serves CORS). Content scripts talk to it via `messaging.js`
   (`getDeck`, `importDeck`, `getEnrichment(source, md5)`, `getRecs`, `getBuildData` ops `themes`/`theme`/`byTheme`/`byCard`/`combos`,
   `getCardData` ops `search`/`info`/`flags`); responses may carry `{error}` / `{miss}`.
-- **`src/sources/`** — worker-only pure fetch+shape helpers: `edhrec.js` (commander page, `json.edhrec.com`, ACAO:\*),
+- **`src/sources/`** — fetch+shape helpers: `edhrec.js` (commander page, `json.edhrec.com`, ACAO:\*),
   `edhrec-recs.js` (`edhrec.com/api/recs` cuts, no ACAO → `getRecs` message), `spellbook.js` (`find-my-combos`),
   `edhrec-build.js` (deck-builder theme/commander pages, `json.edhrec.com`), `scryfall.js` (`api.scryfall.com` card info + flag lists).
+  The `fetch*` functions are worker-only; the pure, fetch-free exports are shared with content code: `edhrec-recs.cutRecs`,
+  `spellbook.spellbookComboUrl` / `keyCombos`, `scryfall.frontFace`, `edhrec.BASICS`. Keep those free of `fetch`/`chrome`.
 - **Builder data** — `getBuildData` / `getCardData` take `fresh:true` (the builder header's ↻ reload): skip the TTL,
   overwrite the entry, fall back to the cached copy if the fetch fails. `scry:` entries missing a newly kept field
-  (`eur`, `oracle`) are refetched once. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option
+  (`eur`, `oracle`) are refetched once. Scryfall `/cards/collection` is queried by **front face** (full "A // B" names
+  miss); `{notFound:true, v:2}` entries are trusted, older not-found entries are refetched.
+- **Bracket flag lists** (`scry:flags`, `scryfall.fetchFlagSets`) — base lists `gameChangers` (`is:gamechanger`),
+  `extraTurns`, `massLandDenial` are all-or-nothing (any failure → none cached → stale copy or the "checks unavailable"
+  chip). Optional lists `tutors` (`otag:tutor -otag:tutor-land`) and `stax` (`otag:rule-of-law or otag:cost-increaser`;
+  `otag:stax` doesn't exist) fail on their own → `null`; a 404 `not_found` search is an empty list. Stored as `v:2`
+  (`flagsEntry`); `flagsNeedFetch` refetches pre-v2 once, and a v2 entry with a failed optional (`optFailedAt`) at most
+  daily. `builder-view.flagsAvailable(res, rules)` requires only the lists active rules need (`tutorCap` → tutors,
+  `noStax` → stax; `noLandHate` uses the base MLD list), so a null optional only blocks its own rule's Auto-complete.
+- **Builder rules** — `tutorCap` (null = none), `noLandHate`, `noStax` on top of bracket / GC cap / power / budget. The
+  GC cap is clamped to the bracket (`clampGcCap`): a cap at or above the bracket's is stored as `null` ("bracket default").
+- **Builder cuts** — over 100 cards, the build view shows EDHREC cuts: `getRecs` from content code + `cutRecs`, cached per
+  card list in the module-level `cutsCache` (failures evicted); `cleanupCuts` skips commanders and multi-copy lines. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option
   `landFormula`), article rules verbatim; land/spell MDFCs are partial lands, never cheap spells.
 - **Picker** — commander rows use `cardPopAttrs` (shared `.solring-cardpop`, `data-pop="left"` of the dialog); the
   playstyle ⓘ popover is built-in text only (`picker-logic.themeHelp`: `THEME_HELP`, a typal line, a fallback), no
@@ -33,6 +47,10 @@ through any Solring backend — all data is fetched straight from the third-part
   `a.table-deck-row-link` rows, sortable), `render-card-modal.js` + `render-card-sidebar.js` (per-card Info panel in
   Moxfield's card modal / image sidebar), `render-combos.js`, `render-user.js`, `decklist.js` (deck-manager columns).
 - **`src/recommendations.js`** — the `/decks/{id}/recommendations` "Cuts" tab + Deck-Preview enhancements (see below).
+- **Combo breakers** — `combo-breakers.js` (pure, tested): `comboBreakers(results, deckNames)` maps each card to the
+  complete (`included`) Spellbook combos it is a piece of. `combo-breaker-ui.js` = the red ⓘ badge + popover and the
+  "Removing X breaks N combo(s) … Remove anyway?" confirm, used by the Cuts tab's last-copy `−` and the builder's cut
+  tiles. Off (no badge, no confirm) when `sources.spellbook === false`.
 - **Guided Deck Builder** — pure: `build-rules.js`, `build-rank.js`, `autocomplete.js`, `build-store.js` (`build:` state),
   `builder-view.js`, `picker-logic.js`. `moxfield-ui.js` = builder card writes via Moxfield's Bulk Edit API request
   (`applyBulkEdit`) + Moxfield's **own** New-deck / Change Commander dialogs. `moxfield-collection.js` = read-only collection GET. `render-picker.js` = "✨ Find with Solring" in the Create New
@@ -60,7 +78,8 @@ through any Solring backend — all data is fetched straight from the third-part
   by `option-colors.js`; feature on/off switches apply live via the diffing
   `watchFeatureToggles` listener in `content.js` (builder/picker both ways; Cuts and EDHREC-on-the-reco-page only when
   turned off — turning them back on needs a reload). Default states (`deckPanelDefault`, `builderPanelDefault`) apply on
-  the next load. Each installer also checks its own gate.
+  the next load. Each installer also checks its own gate. The Options "wide" checkbox IS `prefs:wide` (same key as the
+  page's wide toggle), not an `OPTIONS_DEFAULT` field.
 - All third-party text goes in via `textContent` / `el(...)`, never `innerHTML`.
 - `el(tag, {class, text, attrs}, children)` from `dom.js` is the DOM builder. Numbers are formatted via `format.js`
   (`num`, `exact`); identifiers humanized via `labels.js`.
@@ -125,6 +144,7 @@ ToS-/CWS-sensitive area as above.
 - EDHREC GETs must be simple requests (no custom headers) or the CORS preflight returns 403.
 - `readDeck` 404s on private decks; `readDeckAny` falls back to `authedGet`.
 - Scryfall returns basics with `usd: null`; the builder prices them at $0 under a budget.
+- Moxfield's Bulk Edit text writes DFCs with a **single** " / " (`Front / Back`), not Scryfall's " // "; match both.
 - `content.js`'s patched pushState runs in the isolated world and misses Moxfield's own pushState; the Navigation API
   listener is what catches it (live-verified 2026-11-14: panel follows deck→deck moves in ~160 ms). Builder writes no longer navigate, so the build view re-renders in
   place after a write.
