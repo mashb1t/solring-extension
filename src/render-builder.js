@@ -107,15 +107,16 @@ function toast(msg, isError) {
 // The user's Moxfield price provider. The mount uses the stored value right away (initialPricing,
 // a storage read); on a deck they own the Bulk Edit GET (the same GET Bulk Edit itself issues)
 // refreshes it in the background at most ONCE per page load (a failed GET isn't retried on SPA
-// remounts), stores it for decks they don't own, and reports a change via onChange.
+// remounts), stores it for decks they don't own, and reports a change via onChange. `force` (the
+// reload button) re-runs the GET anyway.
 let pageProvider = null; // from this page's Bulk Edit GET
 let bulkTried = false;
 async function initialPricing() {
   if (pageProvider) return pricingFor(pageProvider);
   return pricingFor(chooseProvider(null, await getPricingProvider().catch(() => null)).provider);
 }
-function refreshProvider(publicId, editable, onChange) {
-  if (pageProvider || bulkTried || !editable) return;
+function refreshProvider(publicId, editable, onChange, force = false) {
+  if (!editable || (!force && (pageProvider || bulkTried))) return;
   bulkTried = true;
   (async () => {
     const bulk = await bulkEditRead(publicId);
@@ -181,6 +182,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   let modalKey = null; // the open preview's Escape listener (closeModal removes it)
   let themeSeq = 0; // playstyle-switch sequence: a slower earlier switch must not win
   let started = false; // start() ran (declared before the bar is clickable: no TDZ on an early expand)
+  let reloading = false; // the reload button's fresh re-read + refetch is in flight
   // Manual-edit sync (deck edited in Moxfield itself / another tab). Declared before the channel
   // listener is attached (no TDZ on an early message). syncWant = pending { version, unknown }.
   let syncWant = null; let syncTimer = 0; let refreshing = false; let rowSig = null;
@@ -190,9 +192,13 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const body = el('div', { class: 'solring-panel-body solring-builder-body' });
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
   const barInfo = el('span', { class: 'solring-synced' });
+  // Reload (the Stats panel's ↻ look + spin): re-reads the deck and refetches every builder source
+  // past the worker caches. Its clicks / keys must not reach the bar's expand/collapse toggle.
+  const reloadIcon = el('span', { class: 'solring-spin-icon', text: '↻' });
+  const reloadBtn = el('button', { class: 'solring-refresh solring-builder-reload', attrs: { type: 'button', 'aria-label': 'Reload suggestions', title: 'Reload suggestions' } }, [reloadIcon]);
   const bar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'true' } }, [
     el('span', { class: 'solring-wordmark', text: 'Solring Builder' }),
-    el('span', { class: 'solring-bar-right' }, [barInfo, chevron]),
+    el('span', { class: 'solring-bar-right' }, [barInfo, reloadBtn, chevron]),
   ]);
   const panel = el('div', { class: `solring-panel solring-builder-panel${isDark() ? ' solring-dark' : ''}` }, [bar, body]);
   const root = el('div', { class: 'solring-builder', attrs: { 'data-solring-root': '' } }, [panel]);
@@ -224,15 +230,16 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const mainNames = () => Object.values(deck.boards.mainboard).map((e) => e.name);
   // Spellbook source off: no fetch, no combo tiles, and no combo guard (comboGuards(null) → []).
   const spellbookOn = !(opts.sources && opts.sources.spellbook === false);
-  const loadCombos = () => (spellbookOn ? send(() => getBuildData({ op: 'combos', commanders: deck.commanders, cards: mainNames() })) : Promise.resolve(null))
+  // fresh = the reload button: the worker skips its caches and overwrites them.
+  const loadCombos = (fresh = false) => (spellbookOn ? send(() => getBuildData({ op: 'combos', commanders: deck.commanders, cards: mainNames(), fresh })) : Promise.resolve(null))
     .then((r) => (ok(r) ? r.results : null));
-  const loadThemeCards = (slug) => (slug ? send(() => getBuildData({ op: 'theme', commanders: deck.commanders, theme: slug })) : Promise.resolve(null))
+  const loadThemeCards = (slug, fresh = false) => (slug ? send(() => getBuildData({ op: 'theme', commanders: deck.commanders, theme: slug, fresh })) : Promise.resolve(null))
     .then((r) => (ok(r) && Array.isArray(r.cards) ? r.cards : []));
-  const loadInfo = async () => {
+  const loadInfo = async (fresh = false) => {
     const names = V.infoNames({ deckNames: S.comp.unique, themeCards: S.themeCards, comboResults: S.comboResults })
-      .filter((n) => !S.info[frontFace(n)]);
+      .filter((n) => fresh || !S.info[frontFace(n)]);
     if (!names.length) return;
-    const r = await send(() => getCardData({ op: 'info', names }));
+    const r = await send(() => getCardData({ op: 'info', names, fresh }));
     if (ok(r) && r.info) Object.assign(S.info, r.info);
   };
 
@@ -243,29 +250,32 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     S.tiers = buildTiers({ themeCards: S.themeCards, combos, ctx: S.ctx, keyCount: 15 });
   }
 
-  async function loadAll() {
-    const themesP = send(() => getBuildData({ op: 'themes', commanders: deck.commanders }));
-    const [themesRes, flagsRes, combos] = await Promise.all([themesP, send(() => getCardData({ op: 'flags' })), loadCombos()]);
+  async function loadAll(fresh = false) {
+    const themesP = send(() => getBuildData({ op: 'themes', commanders: deck.commanders, fresh }));
+    const [themesRes, flagsRes, combos] = await Promise.all([themesP, send(() => getCardData({ op: 'flags', fresh })), loadCombos(fresh)]);
     S.themes = ok(themesRes) && Array.isArray(themesRes.themes) ? themesRes.themes : [];
     S.flags = V.flagSets(ok(flagsRes) ? flagsRes : null);
     S.flagsOk = V.flagsAvailable(flagsRes); // false → chip + no Auto-complete (single "+" stays)
     S.comboResults = combos;
     // A stored playstyle wins; otherwise preview the most-played one (not persisted until picked).
     S.theme = S.build.theme || (S.themes[0] && S.themes[0].slug) || null;
-    S.themeCards = await loadThemeCards(S.theme);
-    await loadInfo();
+    S.themeCards = await loadThemeCards(S.theme, fresh);
+    await loadInfo(fresh);
   }
 
-  async function start() {
+  const onProvider = (p) => {
+    if (!alive() || p.provider === S.pricing.provider) return;
+    S.pricing = p;
+    if (!S.loading) { recompute(); render(); } // a re-render also redraws an open "+ rule" form's label
+  };
+
+  async function start(fresh = false) {
     if (started || !alive()) return;
     started = true;
-    refreshProvider(publicId, editable, (p) => {
-      if (!alive() || p.provider === S.pricing.provider) return;
-      S.pricing = p;
-      if (!S.loading) { recompute(); render(); } // a re-render also redraws an open "+ rule" form's label
-    });
+    refreshProvider(publicId, editable, onProvider, fresh);
     body.replaceChildren(el('div', { class: 'solring-msg', text: 'Loading suggestions…' }));
-    await loadAll();
+    syncReloadBtn();
+    await loadAll(fresh);
     if (!alive()) return abandon();
     S.loading = false;
     if (S.build.rules.ownedOnly) S.ownedState = 'loading'; // adds stay paused until it's loaded
@@ -276,6 +286,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // The bar becomes clickable only now: an expand before this point would run start() ahead of the
   // pending-playstyle adoption and the loader consts above (TDZ → stuck on "Loading suggestions…").
   bar.addEventListener('click', toggle);
+  reloadBtn.addEventListener('click', (e) => { e.stopPropagation(); reload(); });
+  reloadBtn.addEventListener('keydown', (e) => e.stopPropagation()); // the bar's Enter/Space toggle must not fire
   bar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   // Row checkboxes + "Remove selected" (in the header bar, so also while collapsed) only where you
   // can write. They need just the deck read above, not start()'s suggestion data.
@@ -314,6 +326,38 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     } finally { refreshing = false; }
   }
 
+  // Reload button: a fresh deck read, then every builder source refetched past the worker caches
+  // (themes, theme cards, combos, card info, flags) and the price provider re-read. A collapsed or
+  // never-opened panel opens; one that never started just starts (fresh). Ignored while a load,
+  // write, sync or reload is in flight.
+  async function reload() {
+    if (reloading || writing || S.busy || refreshing || (started && S.loading) || !alive()) return;
+    setOpen(true);
+    if (!started) { reloading = true; try { await start(true); } finally { reloading = false; if (alive()) syncReloadBtn(); } return; }
+    reloading = true; S.loading = true; render();
+    try {
+      const fresh = await readDeckAny(publicId);
+      if (!alive()) return abandon();
+      if (fresh) {
+        deck = fresh;
+        S.comp = V.deckComposition(deck);
+        const kept = V.pruneSelection(selected, deck.boards.mainboard);
+        selected.clear(); for (const [k, n] of kept) selected.set(k, n);
+      }
+      refreshProvider(publicId, editable, onProvider, true);
+      await loadAll(true);
+      if (!alive()) return abandon();
+    } finally {
+      reloading = false; S.loading = false;
+      if (alive()) { recompute(); render(); syncPicks(); }
+    }
+  }
+  function syncReloadBtn() {
+    const busy = reloading || (started && S.loading);
+    reloadIcon.classList.toggle('solring-spin', busy);
+    reloadBtn.disabled = busy || !!S.busy || !!writing;
+  }
+
   // ---- manual edits (Moxfield's own add/remove/quantity, another tab) ---------------------------
   // Moxfield posts { kind:'deck', publicId, prevVersion, version, … } on BroadcastChannel
   // `moxfield-sync-{ownerUserId}` for its OWN edits too (same tab included; LIVE-VERIFY 2026-11-15 in moxfield-ui.js),
@@ -334,7 +378,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     // write, which refreshDeck has applied meanwhile) is moot.
     if (syncWant && syncWant.unknown && syncWant.version == null && !V.rowsAhead(readRows(), deck)) syncWant = null;
     if (!V.syncNeeded(syncWant, deck.version)) { syncWant = null; return; } // e.g. our own write's echo
-    if (writing || S.busy || refreshing || (started && S.loading) || modalKey) { syncTimer = setTimeout(runSync, 800); return; }
+    if (writing || S.busy || refreshing || reloading || (started && S.loading) || modalKey) { syncTimer = setTimeout(runSync, 800); return; }
     const want = syncWant; syncWant = null;
     refreshDeck(want);
   }
@@ -418,6 +462,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   function render() {
     if (!alive()) return abandon();
     barInfo.textContent = `${S.comp.current.cards} / ${V.DECK_SIZE} cards · ${S.comp.current.lands} / ${V.LAND_TARGET} lands`;
+    syncReloadBtn();
     if (!started) return; // collapsed, not loaded yet: the bar summary is all there is
     if (S.loading || !S.ctx) { body.replaceChildren(rulesBar(), el('div', { class: 'solring-msg', text: 'Loading suggestions…' })); return; }
     const kids = [rulesBar()];

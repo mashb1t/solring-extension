@@ -144,14 +144,15 @@ const getRecs = ({ commanders, cards }) => fetchRecs(commanders, cards);
 // Guided Deck Builder: the SHAPED result of one EDHREC page per op, cached TTL-only
 // (ebuild:<op>:<path>). Raw pages run ~120 KB each and would crowd deck:* analyses out of the
 // storage quota; cache.js keeps display fields only. Old raw ebuild:<path> entries are never read
-// again and age out through eviction.
-async function buildPage(op, path, shape) {
+// again and age out through eviction. fresh (the builder's reload button) skips the TTL and
+// overwrites the entry; a failed fresh fetch still serves the cached copy.
+async function buildPage(op, path, shape, fresh = false) {
   const key = `ebuild:${op}:${path}`;
-  const entry = await dedupe(key, async () => {
+  const entry = await dedupe(fresh ? `${key}:fresh` : key, async () => {
     const cached = await getEntry(key);
-    if (isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
+    if (!fresh && isFreshTtl(cached, ENRICH_TTL_MS)) return cached;
     const json = await fetchEdhrecPage(path);
-    if (!json) return null;
+    if (!json) return fresh && cached && cached.data ? cached : null;
     return setEntry(key, shape(json));
   });
   return entry && entry.data ? entry.data : null;
@@ -159,23 +160,23 @@ async function buildPage(op, path, shape) {
 
 // Raw Spellbook find-my-combos results for an arbitrary in-progress deck (content scripts
 // compute keyCombos from them). Cached by a hash of the sorted card list, like spellbookEnrichment.
-async function buildCombos(commanders, cards) {
+async function buildCombos(commanders, cards, fresh = false) {
   const cmds = (commanders || []).filter(Boolean);
   const names = (cards || []).filter(Boolean);
   if (!cmds.length) return { miss: true };
   const key = `sbook:${md5Hex([...cmds, ...names].sort().join('|'))}`;
-  const entry = await dedupe(key, async () => {
+  const entry = await dedupe(fresh ? `${key}:fresh` : key, async () => {
     const cached = await getEntry(key);
-    if (isFreshTtl(cached, SBOOK_TTL_MS)) return cached;
+    if (!fresh && isFreshTtl(cached, SBOOK_TTL_MS)) return cached;
     const results = await fetchMyCombos(cmds.map((card) => ({ card, quantity: 1 })), names.map((card) => ({ card, quantity: 1 })));
-    if (!results) return null;
+    if (!results) return fresh && cached && cached.data ? cached : null;
     return setEntry(key, results);
   });
   return entry && entry.data ? { results: entry.data } : { miss: true };
 }
 
-async function getBuildData({ op, commanders, theme, card, cards }) {
-  if (op === 'combos') return buildCombos(commanders, cards);
+async function getBuildData({ op, commanders, theme, card, cards, fresh = false }) {
+  if (op === 'combos') return buildCombos(commanders, cards, !!fresh);
   let path = null; let shape = null;
   if (op === 'themes') {
     const slug = commanderSlug(commanders);
@@ -190,14 +191,16 @@ async function getBuildData({ op, commanders, theme, card, cards }) {
     if (slug) { path = `cards/${slug}`; shape = (j) => ({ commanders: topCommanders(j) }); }
   }
   if (!path) return { miss: true };
-  return (await buildPage(op, path, shape)) || { miss: true };
+  return (await buildPage(op, path, shape, !!fresh)) || { miss: true };
 }
 
 // Guided Deck Builder: Scryfall data. Card info is cached per front-face key (scry:<key>, 1 day);
 // only uncached names hit the network. Flag lists are cached whole (scry:flags, 7 days, served
-// stale when a refresh fails) and go over the wire as arrays.
+// stale when a refresh fails) and go over the wire as arrays. fresh (the builder's reload button)
+// refetches every name / the flag lists regardless of age and overwrites the entries; a name the
+// fresh fetch couldn't get still falls back to its cached entry.
 
-async function cardInfo(names) {
+async function cardInfo(names, fresh = false) {
   const info = {};
   const missing = [];
   for (const name of (names || [])) {
@@ -205,7 +208,7 @@ async function cardInfo(names) {
     const cached = await getEntry(`scry:${key}`);
     // An entry cached before a field was kept is refetched once: eur/tix (non-USD prices aren't
     // "unknown"), cmc/oracle (the Karsten land formula).
-    if (!isFreshTtl(cached, SCRY_INFO_TTL_MS) || (!cached.data.notFound && !('eur' in cached.data && 'oracle' in cached.data))) missing.push(name);
+    if (fresh || !isFreshTtl(cached, SCRY_INFO_TTL_MS) || (!cached.data.notFound && !('eur' in cached.data && 'oracle' in cached.data))) missing.push(name);
     else if (!cached.data.notFound) info[key] = cached.data; // negative entries stay absent
   }
   if (missing.length) {
@@ -215,15 +218,24 @@ async function cardInfo(names) {
       await setEntry(`scry:${key}`, card);
     }
     for (const key of notFound) await setEntry(`scry:${key}`, { notFound: true });
+    if (fresh) { // a failed batch: keep serving what was cached
+      const nf = new Set(notFound);
+      for (const name of missing) {
+        const key = frontFace(name);
+        if (info[key] || nf.has(key)) continue;
+        const cached = await getEntry(`scry:${key}`);
+        if (cached && cached.data && !cached.data.notFound) info[key] = cached.data;
+      }
+    }
   }
   return info;
 }
 
-async function flagLists() {
+async function flagLists(fresh = false) {
   const key = 'scry:flags';
-  const entry = await dedupe(key, async () => {
+  const entry = await dedupe(fresh ? `${key}:fresh` : key, async () => {
     const cached = await getEntry(key);
-    if (isFreshTtl(cached, SCRY_FLAGS_TTL_MS)) return cached;
+    if (!fresh && isFreshTtl(cached, SCRY_FLAGS_TTL_MS)) return cached;
     const sets = await fetchFlagSets();
     // Stale-on-error: an expired copy beats none (empty lists would lift the bracket limits).
     if (!sets) return cached && cached.data ? cached : null;
@@ -236,10 +248,10 @@ async function flagLists() {
   return entry && entry.data ? entry.data : { miss: true };
 }
 
-async function getCardData({ op, q, names }) {
+async function getCardData({ op, q, names, fresh = false }) {
   if (op === 'search') return { commanders: q && String(q).trim() ? await searchCommanders(String(q).trim()) : [] };
-  if (op === 'info') return { info: await cardInfo(names) };
-  if (op === 'flags') return flagLists();
+  if (op === 'info') return { info: await cardInfo(names, !!fresh) };
+  if (op === 'flags') return flagLists(!!fresh);
   return { miss: true };
 }
 
