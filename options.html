@@ -77,7 +77,7 @@
       <h2>Data sources</h2>
       <div class="row">
         <span class="label">EDHREC enrichment
-          <small>Stock-o-meter, commander popularity, and per-card inclusion %. Fetched on demand, cached 7 days. Community data from EDHREC. Also powers the Solring Builder, the commander picker and the Cuts tab.</small>
+          <small>How often each card shows up in other decks for your commander, and how popular the commander is. The Builder, the commander picker and the Cuts tab need it too. Data from EDHREC, kept for 7 days.</small>
         </span>
         <input type="checkbox" id="src-edhrec">
       </div>
@@ -140,13 +140,21 @@
     <section>
       <h2>Panels</h2>
       <div class="row">
-        <span class="label">Card Info panel - card-detail page</span>
+        <span class="label">Card Info panel - card-detail page
+          <small>Adds the card's power, salt, synergy and tags to the window that opens when you click a card.</small>
+        </span>
         <input type="checkbox" id="cardPanelModal">
       </div>
       <div class="row">
-        <span class="label">Card Info panel - deck page</span>
+        <span class="label">Card Info panel - deck page
+          <small>Shows the same details under the card image on the deck page when you hover a card.</small>
+        </span>
         <input type="checkbox" id="cardPanelSidebar">
       </div>
+    </section>
+
+    <section>
+      <h2>Stats</h2>
       <div class="row">
         <span class="label">Solring Stats panel on deck pages
           <small>The deck report card (Power, Bracket, grades). Per-card columns and Card Info panels stay available when off.</small>
