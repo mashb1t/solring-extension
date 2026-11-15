@@ -77,3 +77,10 @@ test('backdropDismisses: only a full click on the backdrop after the grace perio
   assert.equal(backdropDismisses({ ...base, now: 5000, clickOnBackdrop: false }), false); // click inside
   assert.equal(backdropDismisses({ ...base, now: 1100, graceMs: 0 }), true);
 });
+
+test('removeClickCounts: a pointer click on Remove within the grace is ignored; keyboard is immediate', async () => {
+  const { removeClickCounts } = await import('../src/combo-breakers.js');
+  assert.equal(removeClickCounts({ openedAt: 1000, now: 1200, keyboard: false }), false);
+  assert.equal(removeClickCounts({ openedAt: 1000, now: 1400, keyboard: false }), true);
+  assert.equal(removeClickCounts({ openedAt: 1000, now: 1001, keyboard: true }), true);
+});

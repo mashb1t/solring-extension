@@ -3,7 +3,7 @@
 // Data comes from the pure combo-breakers.js. All text via textContent; one popover / confirm at a time.
 
 import { el } from './dom.js';
-import { comboUrl, backdropDismisses } from './combo-breakers.js';
+import { comboUrl, backdropDismisses, removeClickCounts } from './combo-breakers.js';
 
 const MAX_COMBOS_SHOWN = 5;
 const plural = (n) => `${n} combo${n === 1 ? '' : 's'}`;
@@ -128,10 +128,10 @@ export function confirmRemove(name, combos, returnTo) {
       }
     };
     cancel.addEventListener('click', () => done(false));
-    ok.addEventListener('click', () => done(true));
     // A double-click on "−" must not dismiss the confirm its first click opened: the backdrop
     // only cancels for a click whose pointerdown also began on it, after a short grace period.
     const openedAt = Date.now();
+    ok.addEventListener('click', (e) => { if (removeClickCounts({ openedAt, now: Date.now(), keyboard: e.detail === 0 })) done(true); });
     let downOnBackdrop = false;
     backdrop.addEventListener('pointerdown', (e) => { downOnBackdrop = e.target === backdrop; });
     backdrop.addEventListener('click', (e) => {

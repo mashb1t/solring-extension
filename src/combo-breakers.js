@@ -55,3 +55,10 @@ export const BACKDROP_GRACE_MS = 400;
 export function backdropDismisses({ openedAt, now, downOnBackdrop, clickOnBackdrop, graceMs = BACKDROP_GRACE_MS }) {
   return !!(clickOnBackdrop && downOnBackdrop && now - openedAt >= graceMs);
 }
+
+// The confirm's Remove button gets the same grace: a pointer click within `graceMs` of opening is
+// a double-click's stray second click (its pointerdown also happens after the open, so where it
+// landed can't tell it apart) and is ignored. Keyboard activation (click.detail 0) is immediate.
+export function removeClickCounts({ openedAt, now, keyboard, graceMs = BACKDROP_GRACE_MS }) {
+  return !!keyboard || now - openedAt >= graceMs;
+}
