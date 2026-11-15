@@ -225,3 +225,11 @@ test('unmatchedRemovals: names with no card line in the bulk text (front face, c
   assert.deepEqual(unmatchedRemovals(BULK, []), []);
   assert.deepEqual(unmatchedRemovals('', ['Forest']), ['Forest']);
 });
+
+test("editBulkText: a DFC written with Moxfield's single slash matches the // name", () => {
+  const text = "1 Sol Ring (CMM) 400\n1 Toralf, God of Fury / Toralf's Hammer (KHM) 154\n1 Island";
+  const out = editBulkText(text, { remove: ["Toralf, God of Fury // Toralf's Hammer"] });
+  assert.equal(out, '1 Sol Ring (CMM) 400\n1 Island');
+  assert.deepEqual(unmatchedRemovals(text, ["Toralf, God of Fury // Toralf's Hammer"]), []);
+  assert.equal(bulkCount(text), 3);
+});

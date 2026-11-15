@@ -81,7 +81,9 @@ function parseLine(line) {
   name = name.replace(/\s+\([A-Za-z0-9]{2,8}\)(\s+\S+)?(\s+\*[A-Za-z]+\*)*(\s+#.*)?\s*$/, '');
   name = name.replace(/(\s+\*[A-Za-z]+\*)+(\s+#.*)?\s*$/, '').replace(/\s+#.*$/, '').trim();
   if (!name) return null;
-  return { qty: Number(m[2]), key: frontFace(name) };
+  // Moxfield's Bulk Edit writes double-faced cards with ONE slash ("Toralf, God of Fury / Toralf's
+  // Hammer"), Solring/Scryfall names use " // ": key both by the front face.
+  return { qty: Number(m[2]), key: frontFace(name.split(' / ')[0]) };
 }
 
 // Pure text transform over Moxfield's Bulk Edit text. Removes lines whose front-face name is in
