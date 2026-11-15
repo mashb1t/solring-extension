@@ -752,6 +752,41 @@ html.solring-wide .container { max-width: unset !important; }
   position: absolute; top: 4px; left: 4px; z-index: 3;
   background: rgba(0,0,0,0.72); font-variant-numeric: tabular-nums;
 }
+/* Combo breaker: red ⓘ (top-right of the art) on a cut that is a piece of one of the deck's
+   combos; hover/click opens a red-accented popover, and its "−" asks first (confirm dialog). */
+.solring-breaker {
+  position: absolute; top: 4px; right: 4px; z-index: 4;
+  display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem;
+  border-radius: 50%; background: var(--solring-rating-a); color: var(--bs-white, #fff);
+  font-size: 1rem; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+.solring-breaker:focus-visible { outline: 2px solid var(--solring-text); outline-offset: 2px; }
+.solring-breaker-pop, .solring-breaker-dialog {
+  border: 1px solid var(--solring-rating-a); border-left-width: 4px; border-radius: 6px;
+  background: var(--bs-body-bg, var(--solring-surface)); color: var(--solring-text);
+  font-size: 0.8rem; line-height: 1.35; box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+}
+.solring-breaker-pop { position: fixed; z-index: 2147482000; width: 300px; max-width: calc(100vw - 8px); padding: 0.5rem 0.65rem; }
+.solring-breaker-title { font-weight: 700; color: var(--solring-rating-a); margin-bottom: 0.3rem; }
+.solring-breaker-list { list-style: none; margin: 0; padding: 0; }
+.solring-breaker-list li { padding: 0.25rem 0; border-top: 1px solid var(--solring-border); }
+.solring-breaker-list li:first-child { border-top: 0; }
+.solring-breaker-pieces { display: block; font-weight: 600; }
+.solring-breaker-produces { display: block; color: var(--solring-text-2); }
+.solring-breaker-link { font-size: 0.75rem; color: var(--solring-accent); }
+.solring-breaker-more { color: var(--solring-text-2); }
+.solring-breaker-confirm {
+  position: fixed; inset: 0; z-index: 2147482500; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgb(0 0 0 / 0.45);
+}
+.solring-breaker-dialog { width: 420px; max-width: 100%; padding: 0.9rem 1rem; font-size: 0.875rem; }
+.solring-breaker-ask { margin-top: 0.6rem; font-weight: 600; }
+.solring-breaker-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem; }
+.solring-breaker-remove { background: var(--solring-rating-a); border-color: var(--solring-rating-a); color: var(--bs-white, #fff); }
+.solring-breaker-remove:hover, .solring-breaker-remove:focus-visible { background: var(--solring-rating-a); color: var(--bs-white, #fff); filter: brightness(1.1); }
+/* Dark mode's brighter red needs dark text for contrast. */
+.darkmode .solring-breaker, .darkmode .solring-breaker-remove,
+.darkmode .solring-breaker-remove:hover, .darkmode .solring-breaker-remove:focus-visible { color: #1b1f24; }
 /* Removal toast reuses Moxfield's own .autosave-notification class for styling (see toast() in
    recommendations.js) — no custom rules needed. */
 

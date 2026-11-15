@@ -15,7 +15,8 @@ import { getOptions, getCardPrefs, getCardSortView, onPrefChange } from './prefs
 import { cutRecs } from './sources/edhrec-recs.js';
 import { readDeck, frontKey, hasToken, setCardQuantity, removeCard } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
-import { getDeck, getEnrichment, getRecs } from './messaging.js';
+import { getDeck, getEnrichment, getRecs, getBuildData } from './messaging.js';
+import { comboBreakers, dropCombosWith, comboUrl } from './combo-breakers.js';
 import { annotate } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCardSidebar } from './render-card-sidebar.js';
@@ -31,8 +32,10 @@ let restoreFoundLine = null; // puts Moxfield's own "We found N recommendations"
 
 export function teardownRecommendations() {
   installed = false;
+  closeBreakerPop();
+  if (cancelConfirm) cancelConfirm(); // an open combo-breaker confirm resolves as Cancel
   if (restoreFoundLine) { try { restoreFoundLine(); } catch { /* never throw into the page */ } restoreFoundLine = null; }
-  document.querySelectorAll('.solring-cuts-tabs, .solring-cuts-view, .solring-autosave, .solring-score-badge').forEach((n) => n.remove());
+  document.querySelectorAll('.solring-cuts-tabs, .solring-cuts-view, .solring-autosave, .solring-score-badge, .solring-breaker-pop, .solring-breaker-confirm').forEach((n) => n.remove());
   document.querySelectorAll('[data-solring-recohidden]').forEach((n) => { n.style.display = ''; n.removeAttribute('data-solring-recohidden'); });
 }
 
@@ -76,6 +79,10 @@ export async function installRecommendations({ waitFor }) {
 
   // Load EDHREC recs once (used by both tabs): deck read → recs POST.
   const deck = await readDeck(publicId).catch(() => null);
+  // Combo breakers: cut cards that are pieces of a combo the deck already has. Loads alongside
+  // the recs (never blocks the tabs); cells rendered before it lands get their badge when it does.
+  const ctx = { publicId, editId: deck && deck.editId, breakers: new Map(), view: cutsView };
+  if (deck && !(opts.sources && opts.sources.spellbook === false)) loadBreakers(deck, ctx);
   const json = deck ? await getRecs(deck.commanders, Object.values(deck.boards.mainboard).map((e) => e.name)).catch(() => null) : null;
   const inScore = new Map();
   for (const r of (json && json.inRecs) || []) if (r && r.name && typeof r.score === 'number') inScore.set(frontKey(r.name), r.score);
@@ -113,7 +120,7 @@ export async function installRecommendations({ waitFor }) {
         foundLine.innerHTML = foundOrig;
       }
     }
-    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, { publicId, editId: deck && deck.editId }); }
+    if (showCuts && !cutsRendered) { cutsRendered = true; renderCuts(cutsView, template, grid.className, cuts, ctx); }
   };
   tabAdd.addEventListener('click', () => show(false));
   tabCut.addEventListener('click', () => show(true));
@@ -261,6 +268,7 @@ function renderCuts(view, template, gridClass, cuts, ctx) {
 function buildCutCard(template, cut, ctx) {
   const cell = template.cloneNode(true);
   cell.classList.add('solring-cut-cell');
+  cell.setAttribute('data-solring-cut', frontKey(cut.name));
   const card = cell.querySelector('.decklist-card') || cell;
   const ph = card.querySelector('.decklist-card-phantomsearch');
   if (ph) ph.textContent = cut.name;
@@ -314,6 +322,7 @@ function buildCutCard(template, cut, ctx) {
   const visual = card.querySelector('.img-card-visual') || card;
   visual.appendChild(scoreBadge(cut.score));
   if (cut.faces && cut.faces.length > 1) visual.appendChild(flipButton(img, cut.faces)); // MDFC face switch
+  syncBreakerBadge(cell, ctx);
   return cell;
 }
 
@@ -340,6 +349,10 @@ function wireRemove(btn, cut, ctx, cell) {
   btn.addEventListener('click', async (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!hasToken()) { toast('Interact with Moxfield once so it authenticates, then retry.', true); return; }
+    // Removing the last copy of a combo piece breaks the combo: confirm first. (A decrement
+    // leaves a copy, so nothing breaks; non-combo cards remove straight away.)
+    const combos = cut.quantity > 1 ? null : ctx.breakers.get(frontKey(cut.name));
+    if (combos && combos.length && !(await confirmRemove(cut.name, combos, btn))) return;
     cell.classList.add('solring-cut-busy'); btn.disabled = true;
     try {
       if (cut.quantity > 1) {
@@ -354,12 +367,165 @@ function wireRemove(btn, cut, ctx, cell) {
         await removeCard(ctx.editId, 'mainboard', cut.cardId);
         toast('Successfully removed one from main deck!');
         cell.remove();
+        if (ctx.breakers.size) { dropCombosWith(ctx.breakers, cut.name); syncBreakerBadges(ctx); } // its partners no longer combo
         bumpCount(-1);
       }
     } catch (err) {
       cell.classList.remove('solring-cut-busy'); btn.disabled = false;
       toast(`Couldn’t remove “${cut.name}” (${(err && err.message) || 'error'}).`, true);
     }
+  });
+}
+
+// ---- Combo breakers ----
+
+const MAX_COMBOS_SHOWN = 5;
+const plural = (n) => `${n} combo${n === 1 ? '' : 's'}`;
+
+// Spellbook find-my-combos for the live deck (worker, cached under sbook:). Any failure → no map,
+// no badges, no confirm (fail-silent).
+async function loadBreakers(deck, ctx) {
+  try {
+    const main = Object.values(deck.boards.mainboard).map((e) => e.name);
+    const res = await getBuildData({ op: 'combos', commanders: deck.commanders, cards: main });
+    if (!res || !res.results || !installed || !isRecoRoute()) return;
+    ctx.breakers = comboBreakers(res.results, [...(deck.commanders || []), ...main]);
+    syncBreakerBadges(ctx);
+  } catch { /* no combo data → no warnings */ }
+}
+
+function syncBreakerBadges(ctx) {
+  if (!ctx.view || !ctx.view.isConnected) return;
+  ctx.view.querySelectorAll('.solring-cut-cell[data-solring-cut]').forEach((cell) => syncBreakerBadge(cell, ctx));
+  closeBreakerPop();
+}
+
+// Add / drop the red ⓘ on one cut cell to match ctx.breakers.
+function syncBreakerBadge(cell, ctx) {
+  const current = () => ctx.breakers.get(cell.getAttribute('data-solring-cut')) || [];
+  const existing = cell.querySelector('.solring-breaker');
+  if (!current().length) { if (existing) existing.remove(); return; }
+  if (existing) return;
+  const visual = cell.querySelector('.img-card-visual') || cell.querySelector('.decklist-card') || cell;
+  const badge = el('span', {
+    class: 'solring-breaker', text: 'ⓘ',
+    attrs: { role: 'button', tabindex: '0', 'aria-label': 'Part of a combo', 'aria-haspopup': 'dialog', 'aria-expanded': 'false' },
+  });
+  // The badge sits inside the card's <a>: swallow the click so it neither navigates nor opens
+  // the card modal.
+  const toggle = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (pop.anchor === badge && pop.pinned) closeBreakerPop();
+    else openBreakerPop(badge, current(), true);
+  };
+  badge.addEventListener('click', toggle);
+  badge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
+  badge.addEventListener('mouseenter', () => { if (!pop.pinned) openBreakerPop(badge, current(), false); });
+  badge.addEventListener('mouseleave', scheduleHoverClose);
+  visual.appendChild(badge);
+}
+
+// The combo list shared by the popover and the confirm dialog: pieces, what it produces, and a
+// Spellbook link; the first few most popular, then "+N more". All text via textContent.
+function comboList(combos) {
+  const list = el('ul', { class: 'solring-breaker-list' }, combos.slice(0, MAX_COMBOS_SHOWN).map((c) => el('li', {}, [
+    el('span', { class: 'solring-breaker-pieces', text: c.pieces.join(' + ') }),
+    c.produces.length ? el('span', { class: 'solring-breaker-produces', text: `→ ${c.produces.join(', ')}` }) : null,
+    el('a', { class: 'solring-breaker-link', text: 'Spellbook ↗', attrs: { href: comboUrl(c.id), target: '_blank', rel: 'noopener' } }),
+  ])));
+  const more = combos.length - MAX_COMBOS_SHOWN;
+  if (more > 0) list.append(el('li', { class: 'solring-breaker-more', text: `+${more} more` }));
+  return list;
+}
+
+// One body-level popover (fixed, so the card grid can't clip it). Hover opens it; leaving both
+// the badge and the popover closes it; a click pins it until Escape / outside click / re-click.
+const pop = { node: null, anchor: null, pinned: false, timer: null, docOff: null };
+
+function openBreakerPop(badge, combos, pinned) {
+  if (!combos.length) return;
+  clearTimeout(pop.timer);
+  if (pop.anchor && pop.anchor !== badge) pop.anchor.setAttribute('aria-expanded', 'false');
+  if (!pop.node || !pop.node.isConnected) {
+    pop.node = el('div', { class: 'solring-breaker-pop', attrs: { role: 'dialog', 'aria-label': 'Combos this card is part of' } });
+    pop.node.addEventListener('mouseenter', () => clearTimeout(pop.timer));
+    pop.node.addEventListener('mouseleave', scheduleHoverClose);
+    document.body.appendChild(pop.node);
+  }
+  pop.node.replaceChildren(
+    el('div', { class: 'solring-breaker-title', text: `Part of ${plural(combos.length)} in this deck. Cutting it breaks ${combos.length === 1 ? 'it' : 'them'}.` }),
+    comboList(combos),
+  );
+  pop.anchor = badge; pop.pinned = pinned;
+  badge.setAttribute('aria-expanded', 'true');
+  const r = badge.getBoundingClientRect();
+  const w = pop.node.offsetWidth, h = pop.node.offsetHeight;
+  const left = Math.max(4, Math.min(r.right - w, window.innerWidth - w - 4));
+  const top = r.bottom + 6 + h > window.innerHeight ? Math.max(4, r.top - h - 6) : r.bottom + 6;
+  pop.node.style.left = `${left}px`; pop.node.style.top = `${top}px`;
+  if (!pop.docOff) {
+    const onKey = (e) => { if (e.key === 'Escape') closeBreakerPop(); };
+    const onDown = (e) => { if (pop.node && !pop.node.contains(e.target) && !(pop.anchor && pop.anchor.contains(e.target))) closeBreakerPop(); };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onDown, true);
+    pop.docOff = () => { document.removeEventListener('keydown', onKey, true); document.removeEventListener('pointerdown', onDown, true); };
+  }
+}
+
+function scheduleHoverClose() {
+  if (pop.pinned) return;
+  clearTimeout(pop.timer);
+  pop.timer = setTimeout(closeBreakerPop, 200);
+}
+
+function closeBreakerPop() {
+  clearTimeout(pop.timer);
+  if (pop.anchor) pop.anchor.setAttribute('aria-expanded', 'false');
+  if (pop.node) pop.node.remove();
+  if (pop.docOff) pop.docOff();
+  pop.node = null; pop.anchor = null; pop.pinned = false; pop.docOff = null;
+}
+
+// Red-accented confirm before removing a combo piece. Resolves true only on "Remove"; Cancel,
+// Escape and a backdrop click resolve false. Focus starts on Cancel and returns to `returnTo`.
+let cancelConfirm = null; // resolves an open confirm as "Cancel" (route teardown)
+function confirmRemove(name, combos, returnTo) {
+  closeBreakerPop();
+  if (cancelConfirm) cancelConfirm();
+  return new Promise((resolve) => {
+    const cancel = el('button', { class: 'btn btn-outline-secondary', text: 'Cancel', attrs: { type: 'button' } });
+    const ok = el('button', { class: 'btn solring-breaker-remove', text: 'Remove', attrs: { type: 'button' } });
+    const dialog = el('div', {
+      class: 'solring-breaker-dialog',
+      attrs: { role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'solring-breaker-confirm-title' },
+    }, [
+      el('div', { class: 'solring-breaker-title', text: `Removing ${name} breaks ${plural(combos.length)}:`, attrs: { id: 'solring-breaker-confirm-title' } }),
+      comboList(combos),
+      el('div', { class: 'solring-breaker-ask', text: 'Remove anyway?' }),
+      el('div', { class: 'solring-breaker-actions' }, [cancel, ok]),
+    ]);
+    const backdrop = el('div', { class: 'solring-breaker-confirm' }, [dialog]);
+    const done = (yes) => {
+      cancelConfirm = null;
+      document.removeEventListener('keydown', onKey, true);
+      backdrop.remove();
+      if (returnTo && returnTo.isConnected) returnTo.focus();
+      resolve(yes);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); }
+      else if (e.key === 'Tab') { // keep focus inside: cycle Cancel <-> Remove
+        e.preventDefault();
+        (document.activeElement === cancel ? ok : cancel).focus();
+      }
+    };
+    cancel.addEventListener('click', () => done(false));
+    ok.addEventListener('click', () => done(true));
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done(false); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(backdrop);
+    cancelConfirm = () => done(false);
+    cancel.focus();
   });
 }
 
