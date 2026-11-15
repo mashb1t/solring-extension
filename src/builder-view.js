@@ -28,6 +28,18 @@ export function deckComposition(deck) {
   return { names, unique, current: { cards, lands } };
 }
 
+/**
+ * Initial state of the build view (options.builderPanelDefault). Decks you can't edit always start
+ * collapsed. 'open' / 'collapsed' force it; 'auto' (and anything unknown) opens while the deck is
+ * below the legal size (`cards` = commanders + mainboard copies, deckComposition().current.cards).
+ */
+export function builderStartsOpen({ setting, editable, cards }) {
+  if (!editable) return false;
+  if (setting === 'open') return true;
+  if (setting === 'collapsed') return false;
+  return Number.isFinite(cards) ? cards < DECK_SIZE : true;
+}
+
 /** getCardData({op:'flags'}) → Sets for makeCtx. A miss/error/missing list → empty Set. */
 export function flagSets(res) {
   const set = (k) => new Set(res && Array.isArray(res[k]) ? res[k] : []);

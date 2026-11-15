@@ -31,6 +31,8 @@ async function render() {
   $('synergyPercentile').value = o.synergyPercentile;
   $('cacheLifetimeDays').value = String(o.cacheLifetimeDays);
   $('deckPanelDefault').value = o.deckPanelDefault;
+  $('builderEnabled').checked = o.builderEnabled !== false;
+  $('builderPanelDefault').value = o.builderPanelDefault;
   for (const c of COLORS) {
     const v = c.get(o);
     $(c.id).value = v || c.def;
@@ -54,6 +56,7 @@ function bind() {
   onCheck('cardPanelModal', 'cardPanelModal');
   onCheck('cardPanelSidebar', 'cardPanelSidebar');
   onCheck('accordion', 'accordion');
+  onCheck('builderEnabled', 'builderEnabled');
 
   const onNum = (id, key) => {
     $(id).addEventListener('change', () => {
@@ -67,6 +70,7 @@ function bind() {
 
   $('cacheLifetimeDays').addEventListener('change', () => setOptions({ cacheLifetimeDays: Number($('cacheLifetimeDays').value) }));
   $('deckPanelDefault').addEventListener('change', () => setOptions({ deckPanelDefault: $('deckPanelDefault').value }));
+  $('builderPanelDefault').addEventListener('change', () => setOptions({ builderPanelDefault: $('builderPanelDefault').value }));
 
   for (const c of COLORS) {
     const input = $(c.id);

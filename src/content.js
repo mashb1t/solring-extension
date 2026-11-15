@@ -11,7 +11,7 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors, prefs] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
@@ -23,9 +23,38 @@
       import(u('render-picker.js')),
       import(u('render-builder.js')),
       import(u('option-colors.js')),
+      import(u('prefs.js')),
     ]);
-    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors };
+    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors, prefs };
+    watchFeatureToggles(mods);
     return mods;
+  }
+
+  // Live feature toggles from the options page: tear down / reinstall only the installers whose
+  // switches changed (a diff, so a colour drag or threshold edit never remounts the builder and
+  // refetches). One listener for the page's lifetime. builderPanelDefault / deckPanelDefault are
+  // initial states and deliberately don't remount anything.
+  function watchFeatureToggles({ prefs, moxfield, builder }) {
+    const snap = (o) => {
+      const edhrec = !(o.sources && o.sources.edhrec === false);
+      return {
+        builder: `${o.builderEnabled !== false && edhrec}|${!(o.sources && o.sources.spellbook === false)}`,
+      };
+    };
+    let last = null;
+    prefs.getOptions().then((o) => { if (!last) last = snap(o); }).catch(() => {});
+    prefs.onPrefChange(async (which) => {
+      if (which !== 'options') return;
+      const o = await prefs.getOptions().catch(() => null);
+      if (!o) return;
+      const next = snap(o);
+      const prev = last || next;
+      last = next;
+      if (next.builder !== prev.builder) {
+        builder.teardownBuilder();
+        if (moxfield.pageType(location.href) === 'deck') builder.installBuilder({ waitFor }).catch((e) => console.warn('[solring] builder', e));
+      }
+    });
   }
 
   // The username whose decks a list page shows. On /users/{name} it comes from the

@@ -90,6 +90,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const publicId = parseDeckId(location.href);
   if (!publicId) return;
   const opts = await getOptions().catch(() => ({}));
+  if (opts.builderEnabled === false) return; // turned off in the options
   if (opts.sources && opts.sources.edhrec === false) return; // gated on the EDHREC source
   const token = {};
   mountToken = token;
@@ -147,16 +148,19 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const panel = el('div', { class: `solring-panel solring-builder-panel${isDark() ? ' solring-dark' : ''}` }, [bar, body]);
   const root = el('div', { class: 'solring-builder', attrs: { 'data-solring-root': '' } }, [panel]);
   const setOpen = (open) => { panel.classList.toggle('solring-open', open); bar.setAttribute('aria-expanded', String(open)); };
-  // Decks you can't edit start collapsed and fetch nothing until the first expand (start()).
+  // A collapsed panel (always on decks you can't edit; per builderPanelDefault otherwise) fetches
+  // nothing until the first expand (start()).
   const toggle = () => { const open = !panel.classList.contains('solring-open'); setOpen(open); if (open) start(); };
   bar.addEventListener('click', toggle);
   bar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   deckview.parentElement.insertBefore(root, deckview);
-  setOpen(editable); // open on decks you can edit; collapsed (one click away) otherwise
+  const startOpen = V.builderStartsOpen({ setting: opts.builderPanelDefault, editable, cards: S.comp.current.cards });
+  setOpen(startOpen);
   const alive = () => live() && root.isConnected;
   own(() => closeModal());
   // A later abort of a mount that lost its token removes the root it inserted (no orphan panel).
   const abandon = () => { if (mountToken !== token) root.remove(); };
+  render(); // cheap: just the "x / 100 cards" summary until start() has loaded
 
   // ---- data ----------------------------------------------------------------------------------
   // R4: a build started in Moxfield's New-deck dialog lands here; adopt its playstyle only when
@@ -215,10 +219,12 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     if (S.build.rules.ownedOnly) S.ownedState = 'loading'; // adds stay paused until it's loaded
     recompute();
     render();
-    if (editable) installRowPicks(); // row checkboxes + "Remove selected" only where you can write
     if (S.build.rules.ownedOnly) setOwnedOnly(true); // persisted: load the collection now (loading state)
   }
-  if (editable) await start();
+  // Row checkboxes + "Remove selected" (in the header bar, so also while collapsed) only where you
+  // can write. They need just the deck read above, not start()'s suggestion data.
+  if (editable) installRowPicks();
+  if (startOpen) await start();
 
   // Re-read the deck after a write and re-render in place.
   async function refreshDeck() {
@@ -229,11 +235,13 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     if (fresh) {
       deck = fresh;
       S.comp = V.deckComposition(deck);
-      S.comboResults = await loadCombos();
-      await loadInfo();
-      if (!alive()) return abandon();
+      if (started) { // a never-expanded panel stays unloaded: no suggestion fetches after a remove
+        S.comboResults = await loadCombos();
+        await loadInfo();
+        if (!alive()) return abandon();
+        recompute();
+      }
       selected.clear();
-      recompute();
     }
     render(); syncPicks(); // always leave the busy state, even if the re-read failed
   }
@@ -310,6 +318,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   function render() {
     if (!alive()) return abandon();
     barInfo.textContent = `${S.comp.current.cards} / ${V.DECK_SIZE} cards · ${S.comp.current.lands} / ${V.LAND_TARGET} lands`;
+    if (!started) return; // collapsed, not loaded yet: the bar summary is all there is
     if (S.loading || !S.ctx) { body.replaceChildren(rulesBar(), el('div', { class: 'solring-msg', text: 'Loading suggestions…' })); return; }
     const kids = [rulesBar()];
     if (S.rulesOpen) kids.push(rulesForm());

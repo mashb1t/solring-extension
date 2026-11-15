@@ -161,6 +161,26 @@
       </div>
     </section>
 
+    <section>
+      <h2>Deck builder</h2>
+      <div class="row">
+        <span class="label">Solring Builder on Commander decks
+          <small>Suggestions, Auto-complete and decklist checkboxes above the deck. Needs EDHREC enrichment.</small>
+        </span>
+        <input type="checkbox" id="builderEnabled">
+      </div>
+      <div class="row">
+        <span class="label">Solring Builder default state
+          <small>Decks you can't edit always start collapsed. A collapsed builder loads nothing until opened.</small>
+        </span>
+        <select id="builderPanelDefault">
+          <option value="auto">Auto (open when below legal deck size)</option>
+          <option value="open">Always open</option>
+          <option value="collapsed">Always collapsed</option>
+        </select>
+      </div>
+    </section>
+
     <footer>Solring - Stats for Moxfield<br><br>Icon derived from <a href="https://www.vecteezy.com/free-png/brush" target="_blank" rel="noopener">Brush PNGs by Vecteezy</a></footer>
   </main>
   <script type="module" src="options.js"></script>

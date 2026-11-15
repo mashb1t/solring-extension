@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   deckComposition, flagSets, flagsAvailable, commanderMatches, infoNames, ruleChips, comboCheck, groupPicks,
-  previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm,
+  previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
 
@@ -171,4 +171,24 @@ test('ruleChips: "Bracket checks unavailable" warning chip when flags are missin
   assert.equal(f.text, 'Bracket checks unavailable');
   assert.equal(f.warn, true);
   assert.equal(ruleChips([{ key: 'bracket', label: 'Bracket 3' }]).some((c) => c.key === 'flags'), false);
+});
+
+test('builderStartsOpen: non-editable decks always start collapsed', () => {
+  for (const setting of ['auto', 'open', 'collapsed']) {
+    assert.equal(builderStartsOpen({ setting, editable: false, cards: 40 }), false);
+  }
+});
+
+test('builderStartsOpen: auto opens below the legal size only', () => {
+  assert.equal(builderStartsOpen({ setting: 'auto', editable: true, cards: 1 }), true);
+  assert.equal(builderStartsOpen({ setting: 'auto', editable: true, cards: 99 }), true);
+  assert.equal(builderStartsOpen({ setting: 'auto', editable: true, cards: 100 }), false);
+  assert.equal(builderStartsOpen({ setting: 'auto', editable: true, cards: 104 }), false);
+  assert.equal(builderStartsOpen({ setting: undefined, editable: true, cards: 100 }), false); // missing → auto
+  assert.equal(builderStartsOpen({ setting: 'auto', editable: true, cards: undefined }), true); // unknown size → open
+});
+
+test('builderStartsOpen: open / collapsed force the state on editable decks', () => {
+  assert.equal(builderStartsOpen({ setting: 'open', editable: true, cards: 100 }), true);
+  assert.equal(builderStartsOpen({ setting: 'collapsed', editable: true, cards: 10 }), false);
 });

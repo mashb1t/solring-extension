@@ -42,3 +42,30 @@ test('setOptions deep-merges sources: patching one source preserves the others',
   assert.equal(o.sources.edhrec, false);
   assert.equal(o.sources.spellbook, true); // sibling preserved, not dropped
 });
+
+test('getOptions: builder settings default on, builder panel auto', async () => {
+  const { chrome } = makeChrome();
+  global.chrome = chrome;
+  const { getOptions } = await import('../src/prefs.js');
+  const o = await getOptions();
+  assert.equal(o.builderEnabled, true);
+  assert.equal(o.builderPanelDefault, 'auto');
+});
+
+test('setOptions: new builder keys persist and merge with stored options', async () => {
+  const { store, chrome } = makeChrome();
+  global.chrome = chrome;
+  // An options blob saved before these keys existed keeps its values and gains the defaults.
+  store['prefs:options'] = { autoFetch: false, sources: { spellbook: false } };
+  const { setOptions, getOptions } = await import('../src/prefs.js');
+  let o = await getOptions();
+  assert.equal(o.autoFetch, false);
+  assert.equal(o.builderEnabled, true);
+  assert.equal(o.sources.edhrec, true);
+  await setOptions({ builderEnabled: false, builderPanelDefault: 'collapsed' });
+  o = await getOptions();
+  assert.equal(o.builderEnabled, false);
+  assert.equal(o.builderPanelDefault, 'collapsed');
+  assert.equal(o.autoFetch, false); // unrelated stored value untouched
+  assert.equal(o.sources.spellbook, false);
+});

@@ -68,6 +68,8 @@ export const OPTIONS_DEFAULT = {
   cardPanelSidebar: true,
   deckPanelDefault: 'auto', // 'auto' | 'open' | 'collapsed'
   accordion: true, // deck report-card: only one metric tile open at a time
+  builderEnabled: true, // Guided Deck Builder build view (+ decklist checkboxes) on Commander decks
+  builderPanelDefault: 'auto', // 'auto' (open below the legal size) | 'open' | 'collapsed'
   cacheLifetimeDays: 30,
   // External enrichment sources (Phase 4). Disabling one leaves its panel slot empty.
   sources: { edhrec: true, spellbook: true },
