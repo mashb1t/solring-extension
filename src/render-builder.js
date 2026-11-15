@@ -171,7 +171,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   const mainNames = () => Object.values(deck.boards.mainboard).map((e) => e.name);
-  const loadCombos = () => send(() => getBuildData({ op: 'combos', commanders: deck.commanders, cards: mainNames() }))
+  // Spellbook source off: no fetch, no combo tiles, and no combo guard (comboGuards(null) → []).
+  const spellbookOn = !(opts.sources && opts.sources.spellbook === false);
+  const loadCombos = () => (spellbookOn ? send(() => getBuildData({ op: 'combos', commanders: deck.commanders, cards: mainNames() })) : Promise.resolve(null))
     .then((r) => (ok(r) ? r.results : null));
   const loadThemeCards = (slug) => (slug ? send(() => getBuildData({ op: 'theme', commanders: deck.commanders, theme: slug })) : Promise.resolve(null))
     .then((r) => (ok(r) && Array.isArray(r.cards) ? r.cards : []));
