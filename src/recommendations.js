@@ -27,9 +27,11 @@ const recoMatch = () => /^\/decks\/([A-Za-z0-9_-]+)\/recommendations\/?$/.exec(l
 const isRecoRoute = () => !!recoMatch();
 
 let installed = false;
+let restoreFoundLine = null; // puts Moxfield's own "We found N recommendations" line back
 
 export function teardownRecommendations() {
   installed = false;
+  if (restoreFoundLine) { try { restoreFoundLine(); } catch { /* never throw into the page */ } restoreFoundLine = null; }
   document.querySelectorAll('.solring-cuts-tabs, .solring-cuts-view, .solring-autosave, .solring-score-badge').forEach((n) => n.remove());
   document.querySelectorAll('[data-solring-recohidden]').forEach((n) => { n.style.display = ''; n.removeAttribute('data-solring-recohidden'); });
 }
@@ -88,6 +90,8 @@ export async function installRecommendations({ waitFor }) {
   const foundLine = [...document.querySelectorAll('.text-muted')].find((e) => /We found .*recommendations from edhrec/i.test(e.textContent || ''));
   const foundOrig = foundLine ? foundLine.innerHTML : null;
   const foundLink = foundLine ? foundLine.querySelector('a') : null;
+  // Teardown (nav, or Cuts turned off live while the Cuts tab shows) must not leave our wording behind.
+  if (foundLine && foundOrig != null) restoreFoundLine = () => { if (foundLine.isConnected) foundLine.innerHTML = foundOrig; };
 
   let cutsRendered = false;
   const show = (showCuts) => {
