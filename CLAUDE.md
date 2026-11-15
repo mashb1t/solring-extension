@@ -103,8 +103,10 @@ ToS-/CWS-sensitive area as above.
 - Card art: `card-{id}` works for normal/adventure/split; only `transform`/`modal_dfc` fronts need
   `card-face-{frontFaceId}` (drives the DFC image + flip button).
 - Moxfield posts `{kind:'deck', publicId, prevVersion, version, isTruncated:false, boards}` on BroadcastChannel
-  `moxfield-sync-{ownerUserId}` for its OWN edits (same tab too); the builder listens there to refresh on manual edits.
-  Our `applyBulkEdit` post echoes back to that listener, so it's version-gated against the deck it holds.
+  `moxfield-sync-{userId}` for its OWN edits (same tab too; LIVE-VERIFY 2026-11-15); the builder listens there to
+  refresh on manual edits. Our `applyBulkEdit` post echoes back to that listener, so it's version-gated against the
+  deck it holds. Known limit: Moxfield keys the channel by the SESSION user; we use the deck's `ownerUserId` (no cheap
+  way to get the session id), so a co-author editing someone else's deck gets neither the refresh nor the view sync.
 - Moxfield's deck-edit resources are keyed by **cardId**, not the internal board-entry id (a DELETE by entry id 404s).
 - Moxfield dark mode is the `.darkmode` class on html/body, not `[data-bs-theme]` (see `dom.isDark`, `styles/solring.css`).
 - The Bulk Edit API request/response + the sync channel (2026-11-14) and the dialog selectors (2026-11-13) are recorded in

@@ -194,7 +194,7 @@ test('builderStartsOpen: open / collapsed force the state on editable decks', ()
 });
 
 import {
-  deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckStateSignature, pruneSelection,
+  deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckRowEntries, rowsAhead, pruneSelection,
 } from '../src/builder-view.js';
 
 test('deckSyncTarget: this deck → version / unknown; other decks and non-deck messages → null', () => {
@@ -238,10 +238,33 @@ test('deckSignature: order-insensitive, front face, quantities; empty → null',
   assert.equal(deckSignature(null), null);
 });
 
-test('deckStateSignature: commanders + mainboard of a shaped deck match the rows it renders', () => {
-  const rows = [{ name: 'Ms. Bumbleflower', qty: 1 }, { name: 'Forest', qty: 8 }, { name: 'Command Tower', qty: 1 }, { name: 'Howling Mine', qty: 1 }];
-  assert.equal(deckStateSignature(deck), deckSignature(rows)); // sideboard Sol Ring excluded
-  assert.equal(deckStateSignature({ boards: {} }), null);
+// Rows shaped like the decklist DOM path (render-builder deckRows): row keys as Moxfield renders
+// them (LIVE-VERIFY 2026-11-15), names from the row link, qty from the quantity input (a string).
+const domRows = [
+  { rowKey: 'mainboard-commander-0|7vaMd', name: 'Ms. Bumbleflower', qty: '1' },
+  { rowKey: 'mainboard-main-0|aa', name: 'Forest', qty: '8' },
+  { rowKey: 'mainboard-main-1|bb', name: 'Command Tower', qty: '1' },
+  { rowKey: 'mainboard-main-2|cc', name: 'Howling Mine', qty: '1' },
+  { rowKey: 'mainboard-sideboard-0|dd', name: 'Sol Ring', qty: '1' },
+  { rowKey: 'maybeboard-main-0|ee', name: 'Seedborn Muse', qty: '1' },
+];
+
+test('deckRowEntries: commander + main sections only (sideboard / maybeboard rows dropped)', () => {
+  assert.deepEqual(deckRowEntries(domRows).map((e) => e.name), ['Ms. Bumbleflower', 'Forest', 'Command Tower', 'Howling Mine']);
+  assert.deepEqual(deckRowEntries(null), []);
+});
+
+test('rowsAhead: rows matching the deck state (incl. commander, sideboard present) are not ahead', () => {
+  assert.equal(rowsAhead(deckRowEntries(domRows), deck), false);
+});
+
+test('rowsAhead: an added card or a changed quantity is ahead; a filtered subset is not', () => {
+  const added = [...domRows, { rowKey: 'mainboard-main-3|ff', name: 'Consecrated Sphinx', qty: '1' }];
+  assert.equal(rowsAhead(deckRowEntries(added), deck), true);
+  const qty = domRows.map((r) => (r.name === 'Forest' ? { ...r, qty: '7' } : r));
+  assert.equal(rowsAhead(deckRowEntries(qty), deck), true);
+  assert.equal(rowsAhead(deckRowEntries(domRows.slice(0, 2)), deck), false); // Moxfield search/filter
+  assert.equal(rowsAhead([], deck), false);
 });
 
 test('pruneSelection: keeps selected cards still in the mainboard, drops removed ones', () => {

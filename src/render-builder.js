@@ -156,7 +156,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // Manual-edit sync (deck edited in Moxfield itself / another tab). Declared before the channel
   // listener is attached (no TDZ on an early message). syncWant = pending { version, unknown }.
   let syncWant = null; let syncTimer = 0; let refreshing = false; let rowSig = null;
-  let readRowSig = () => null; // set by installRowPicks: the decklist rows' deckSignature
+  let readRows = () => []; // set by installRowPicks: the decklist rows that count toward the 100
 
   // ---- skeleton ------------------------------------------------------------------------------
   const body = el('div', { class: 'solring-panel-body solring-builder-body' });
@@ -283,7 +283,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
 
   // ---- manual edits (Moxfield's own add/remove/quantity, another tab) ---------------------------
   // Moxfield posts { kind:'deck', publicId, prevVersion, version, … } on BroadcastChannel
-  // `moxfield-sync-{ownerUserId}` for its OWN edits too (same tab included; LIVE-VERIFY 2026-11-15),
+  // `moxfield-sync-{ownerUserId}` for its OWN edits too (same tab included; LIVE-VERIFY 2026-11-15 in moxfield-ui.js),
   // and the content script's channel object receives them. Our own applyBulkEdit post arrives here
   // as well: the version gate (syncNeeded vs deck.version) absorbs it once refreshDeck has run.
   // Debounced (a burst → one refresh); deferred while a write / load / modal is in flight.
@@ -297,8 +297,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   function runSync() {
     syncTimer = 0;
     if (!alive()) return;
-    // A row-change trigger whose rows now match the state (Moxfield re-rendered our own write) is moot.
-    if (syncWant && syncWant.unknown && syncWant.version == null && readRowSig() === V.deckStateSignature(deck)) syncWant = null;
+    // A row-change trigger whose rows are no longer ahead of the state (Moxfield re-rendered our own
+    // write, which refreshDeck has applied meanwhile) is moot.
+    if (syncWant && syncWant.unknown && syncWant.version == null && !V.rowsAhead(readRows(), deck)) syncWant = null;
     if (!V.syncNeeded(syncWant, deck.version)) { syncWant = null; return; } // e.g. our own write's echo
     if (writing || S.busy || refreshing || (started && S.loading) || modalKey) { syncTimer = setTimeout(runSync, 800); return; }
     const want = syncWant; syncWant = null;
@@ -688,27 +689,26 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       remove.textContent = S.busy === 'rm' ? 'Removing via Moxfield…' : 'Remove selected';
       remove.disabled = !!S.busy;
     }
-    // Fallback trigger for manual edits: the decklist rows (commanders + mainboard, name + qty) no
-    // longer match the builder's deck state AND changed since the last look → a version-checked
-    // sync. Our own writes re-render rows that already match the state, so they trigger nothing.
-    function rowSignature() {
-      const entries = [];
-      for (const link of rows()) {
+    // Fallback trigger for manual edits: the decklist rows that count toward the 100 (commander +
+    // main sections, name + qty) changed since the last look AND show a card / quantity the
+    // builder's deck state doesn't → a version-checked sync. Our own writes re-render rows that
+    // already match the state, and a filtered list is a subset of it: neither triggers a re-read.
+    function deckRows() {
+      return V.deckRowEntries(rows().map((link) => {
         const li = link.closest('li[data-row-key]');
-        if (!li || !/^mainboard-/.test(li.getAttribute('data-row-key') || '')) continue;
-        const q = li.querySelector('input[value]');
+        const q = li && li.querySelector('input[value]');
         const name = [...link.querySelectorAll('.underline')].map((s) => s.textContent).join('') || link.textContent || '';
-        entries.push({ name: name.replace(/\s+/g, ' ').trim(), qty: q ? q.value : 1 });
-      }
-      return V.deckSignature(entries);
+        return { rowKey: li ? li.getAttribute('data-row-key') : '', name: name.replace(/\s+/g, ' ').trim(), qty: q ? q.value : 1 };
+      }));
     }
-    readRowSig = rowSignature;
+    readRows = deckRows;
     function decorate() {
       if (!alive()) return abandon();
-      const sig = rowSignature();
+      const entries = deckRows();
+      const sig = V.deckSignature(entries);
       if (sig && sig !== rowSig) {
         const prev = rowSig; rowSig = sig;
-        if (prev && sig !== V.deckStateSignature(deck)) scheduleSync('unknown');
+        if (prev && V.rowsAhead(entries, deck)) scheduleSync('unknown');
       }
       for (const link of rows()) {
         const ent = entryOf(link);

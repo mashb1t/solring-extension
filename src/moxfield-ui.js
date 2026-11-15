@@ -35,6 +35,14 @@
 //   isolated world, i.e. a content script) makes the deck view refetch GET /v3/decks/all/{id} and
 //   re-render in place: section.deckview, its parent and the decklist <li> rows keep their
 //   identity. `userId` = the deck JSON's `ownerUserId` (= the session user for the owner).
+// - LIVE-VERIFY 2026-11-15: Moxfield also posts on that channel for its OWN edits, same tab
+//   included: the "Find and add cards…" box (POST …/cards/mainboard) and the row menu "Remove"
+//   (DELETE …/cards/mainboard/{cardId}) each post { v: 1, kind: 'deck', publicId, prevVersion,
+//   version, isTruncated: false, boards, fields }; an isolated-world listener receives them
+//   (render-builder.js uses this to refresh on manual edits). Its bundle names the channel after
+//   the SESSION user (redux `state.user.userId`, only while logged in), not the deck owner: for a
+//   co-author editing someone else's deck the owner-keyed channel used here doesn't match. The
+//   session id isn't the JWT's UserId claim, so the extension can't derive it cheaply.
 //
 // LIVE-VERIFY 2026-11-13 (still current; UI paths used by canEdit / setCommanderViaBulk /
 // prefillNewDeck):

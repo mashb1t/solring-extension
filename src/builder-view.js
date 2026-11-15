@@ -255,13 +255,27 @@ export function deckSignature(entries) {
   return [...m].map(([k, q]) => `${k}:${q}`).sort().join('|');
 }
 
-/** deckSignature of a shapeDeck() result's commanders + mainboard (what the decklist rows show). */
-export function deckStateSignature(deck) {
-  const entries = [];
+// Decklist row keys are "{view section}-{index}|{hash}"; the section is what the row is listed
+// under: mainboard-commander / mainboard-main are the 100, while sideboard and maybeboard cards
+// show as mainboard-sideboard-… / maybeboard-main-… (LIVE-VERIFY 2026-11-15).
+const DECK_ROW_RE = /^mainboard-(commander|main)-/;
+
+/** Decklist rows [{ rowKey, name, qty }] → the [{ name, qty }] that count toward the 100. */
+export function deckRowEntries(rows) {
+  return (rows || []).filter((r) => r && DECK_ROW_RE.test(r.rowKey || '')).map((r) => ({ name: r.name, qty: r.qty }));
+}
+
+/**
+ * Do the decklist rows show something the builder's deck state (shapeDeck result) doesn't: a card
+ * outside its commanders + mainboard, or another quantity? A filtered/searched list (a subset of
+ * the state) is not ahead, so it triggers no re-read; removals are left to the sync broadcast.
+ */
+export function rowsAhead(entries, deck) {
+  const have = new Map();
   for (const b of ['commanders', 'mainboard']) {
-    for (const e of Object.values((deck && deck.boards && deck.boards[b]) || {})) entries.push({ name: e.name, qty: e.quantity });
+    for (const e of Object.values((deck && deck.boards && deck.boards[b]) || {})) have.set(frontFace(e.name), Math.max(1, e.quantity || 1));
   }
-  return deckSignature(entries);
+  return (entries || []).some((e) => e && e.name && have.get(frontFace(e.name)) !== Math.max(1, Number(e.qty) || 1));
 }
 
 /** The selection (front-face key → name) kept after a re-read: only cards still in the mainboard. */
