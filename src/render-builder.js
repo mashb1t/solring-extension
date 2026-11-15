@@ -151,8 +151,6 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // A collapsed panel (always on decks you can't edit; per builderPanelDefault otherwise) fetches
   // nothing until the first expand (start()).
   const toggle = () => { const open = !panel.classList.contains('solring-open'); setOpen(open); if (open) start(); };
-  bar.addEventListener('click', toggle);
-  bar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   deckview.parentElement.insertBefore(root, deckview);
   const startOpen = V.builderStartsOpen({ setting: opts.builderPanelDefault, editable, cards: S.comp.current.cards });
   setOpen(startOpen);
@@ -221,6 +219,10 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     render();
     if (S.build.rules.ownedOnly) setOwnedOnly(true); // persisted: load the collection now (loading state)
   }
+  // The bar becomes clickable only now: an expand before this point would run start() ahead of the
+  // pending-playstyle adoption and the loader consts above (TDZ → stuck on "Loading suggestions…").
+  bar.addEventListener('click', toggle);
+  bar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   // Row checkboxes + "Remove selected" (in the header bar, so also while collapsed) only where you
   // can write. They need just the deck read above, not start()'s suggestion data.
   if (editable) installRowPicks();
@@ -267,7 +269,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     if (!alive()) return abandon();
     S.busy = null;
     await refreshDeck();
-    if (alive()) powerCheck();
+    if (alive() && started) powerCheck(); // a never-opened panel stays unloaded (no CommanderSalt import)
   }
 
   async function powerCheck() {
