@@ -90,3 +90,18 @@ test('peekPendingBuild reads without consuming; stale reads as null', async () =
   store['build:pending'].at -= 10 * 60 * 1000 + 1;
   assert.equal(await peekPendingBuild(), null);
 });
+
+test('legacy rules are migrated BEFORE the merge: an unrelated patch does not turn an old false into an override', async () => {
+  const { getDeckBuild, setDeckBuild, store, RULES_DEFAULT } = await load();
+  store['build:leg'] = { theme: null, rules: { bracket: 2, noLandHate: false } };
+  assert.equal((await getDeckBuild('leg')).rules.noLandHate, null);
+  await setDeckBuild('leg', { rules: { budget: 80 } });
+  assert.deepEqual(store['build:leg'].rules, { bracket: 2, noLandHate: null, v: RULES_DEFAULT.v, budget: 80 });
+  assert.equal((await getDeckBuild('leg')).rules.noLandHate, null);
+  // A v2 stored false is the user's override and survives both paths.
+  store['build:v2'] = { theme: null, rules: { v: 2, bracket: 3, noLandHate: false } };
+  assert.equal((await getDeckBuild('v2')).rules.noLandHate, false);
+  await setDeckBuild('v2', { rules: { budget: 10 } });
+  assert.equal(store['build:v2'].rules.noLandHate, false);
+  assert.equal((await getDeckBuild('v2')).rules.noLandHate, false);
+});
