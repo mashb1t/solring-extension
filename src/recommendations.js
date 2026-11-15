@@ -42,6 +42,16 @@ export async function installRecommendations({ waitFor }) {
   const publicId = m && m[1];
   if (!publicId) return;
 
+  if (opts.cutsEnabled === false) {
+    // Cuts tab off: no tab, no "−" edit buttons. The Deck Preview still mirrors the deck view's
+    // per-card columns (that is CommanderSalt data, not the cuts feature).
+    installed = true;
+    registerDisposable(teardownRecommendations);
+    annotatePreview(publicId);
+    installCustomizeViewToggles();
+    return;
+  }
+
   const firstCard = await waitFor('.decklist-card');
   if (!firstCard || !isRecoRoute()) return;
   const cell = firstCard.closest('[class*="col"]') || firstCard.parentElement;

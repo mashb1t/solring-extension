@@ -34,6 +34,7 @@ async function render() {
   $('builderEnabled').checked = o.builderEnabled !== false;
   $('builderPanelDefault').value = o.builderPanelDefault;
   $('pickerEnabled').checked = o.pickerEnabled !== false;
+  $('cutsEnabled').checked = o.cutsEnabled !== false;
   for (const c of COLORS) {
     const v = c.get(o);
     $(c.id).value = v || c.def;
@@ -59,6 +60,7 @@ function bind() {
   onCheck('accordion', 'accordion');
   onCheck('builderEnabled', 'builderEnabled');
   onCheck('pickerEnabled', 'pickerEnabled');
+  onCheck('cutsEnabled', 'cutsEnabled');
 
   const onNum = (id, key) => {
     $(id).addEventListener('change', () => {

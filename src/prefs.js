@@ -71,6 +71,7 @@ export const OPTIONS_DEFAULT = {
   builderEnabled: true, // Guided Deck Builder build view (+ decklist checkboxes) on Commander decks
   builderPanelDefault: 'auto', // 'auto' (open below the legal size) | 'open' | 'collapsed'
   pickerEnabled: true, // "Find with Solring" in the New-deck dialog + "Pick a Commander" alert
+  cutsEnabled: true, // EDHREC "Cuts" tab on /decks/{id}/recommendations (edits the deck)
   cacheLifetimeDays: 30,
   // External enrichment sources (Phase 4). Disabling one leaves its panel slot empty.
   sources: { edhrec: true, spellbook: true },

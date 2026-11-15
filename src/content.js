@@ -34,12 +34,13 @@
   // switches changed (a diff, so a colour drag or threshold edit never remounts the builder and
   // refetches). One listener for the page's lifetime. builderPanelDefault / deckPanelDefault are
   // initial states and deliberately don't remount anything.
-  function watchFeatureToggles({ prefs, moxfield, builder, picker }) {
+  function watchFeatureToggles({ prefs, moxfield, builder, picker, recommendations }) {
     const snap = (o) => {
       const edhrec = !(o.sources && o.sources.edhrec === false);
       return {
         builder: `${o.builderEnabled !== false && edhrec}|${!(o.sources && o.sources.spellbook === false)}`,
         picker: o.pickerEnabled !== false && edhrec,
+        cuts: o.cutsEnabled !== false && edhrec,
       };
     };
     let last = null;
@@ -59,6 +60,9 @@
         picker.teardownPicker();
         picker.installPicker({ waitFor }).catch((e) => console.warn('[solring] picker', e));
       }
+      // Off applies live; on reinstalls with the next navigation / reload (a live reinstall would
+      // stack the Deck Preview's annotation observers).
+      if (prev.cuts && !next.cuts) recommendations.teardownRecommendations();
     });
   }
 
