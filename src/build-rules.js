@@ -5,7 +5,8 @@ import { frontFace } from './sources/scryfall.js';
 import { BASICS } from './sources/edhrec.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
-export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false };
+// tutorCap: max tutors (Scryfall otag:tutor minus land tutors) in the deck; null = no limit.
+export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null };
 
 // Spellbook bracket tags → minimum bracket. 'B' (Banned: uses a banned card) is never allowed.
 const COMBO_MIN_BRACKET = { E: 1, O: 2, C: 2, S: 3, P: 3, R: 4, B: Infinity };
@@ -33,6 +34,8 @@ export function comboAllowed(bracketTag, bracket) {
   return min == null ? bracket >= 4 : min <= bracket;
 }
 
+// Flag lists added later (tutors, …) may be absent from an older ctx/flags object: never matches.
+const inFlag = (ctx, list, key) => !!(ctx.flags && ctx.flags[list] && ctx.flags[list].has(key));
 const isGc = (key, ctx) => ctx.flags.gameChangers.has(key) || !!(ctx.info[key] && ctx.info[key].gameChanger);
 // `info[key].price` is in the user's provider currency (pricing.pricedInfo). Absent from info
 // counts as unknown price (null), never free; except basics, which are 0 whenever no price is known
@@ -48,6 +51,7 @@ function count(ctx, name) {
   const key = frontFace(name);
   return {
     gcUsed: ctx.gcUsed + (isGc(key, ctx) ? 1 : 0),
+    tutorUsed: (ctx.tutorUsed || 0) + (inFlag(ctx, 'tutors', key) ? 1 : 0),
     spent: ctx.spent + (priceOf(key, ctx) || 0),
     key,
   };
@@ -71,14 +75,14 @@ export function comboGuards(results) {
 // `pricing` (pricing.pricingFor) is the currency budget texts are shown in; default TCGplayer/USD.
 export function makeCtx({ rules, info, flags, owned, deckNames, combos, pricing }) {
   const forbidden = (combos || []).filter((c) => !comboAllowed(c.bracketTag, rules.bracket)).map((c) => c.keys);
-  let ctx = { rules, info: info || {}, pricing: pricing || DEFAULT_PRICING, flags, owned: owned || null, deckKeys: new Set(), gcUsed: 0, spent: 0, forbidden };
+  let ctx = { rules, info: info || {}, pricing: pricing || DEFAULT_PRICING, flags, owned: owned || null, deckKeys: new Set(), gcUsed: 0, tutorUsed: 0, spent: 0, forbidden };
   for (const n of deckNames || []) ctx = addToCtx(ctx, n);
   return ctx;
 }
 
 export function addToCtx(ctx, name) {
-  const { gcUsed, spent, key } = count(ctx, name);
-  return { ...ctx, deckKeys: new Set(ctx.deckKeys).add(key), gcUsed, spent };
+  const { gcUsed, tutorUsed, spent, key } = count(ctx, name);
+  return { ...ctx, deckKeys: new Set(ctx.deckKeys).add(key), gcUsed, tutorUsed, spent };
 }
 
 export function checkCard(name, ctx) {
@@ -89,6 +93,9 @@ export function checkCard(name, ctx) {
   const cap = effectiveGcCap(rules);
   if (isGc(key, ctx) && ctx.gcUsed + 1 > cap) {
     return { ok: false, reason: `Would be Game Changer #${ctx.gcUsed + 1} (cap ${cap})` };
+  }
+  if (rules.tutorCap != null && inFlag(ctx, 'tutors', key) && (ctx.tutorUsed || 0) + 1 > rules.tutorCap) {
+    return { ok: false, reason: `Would be tutor #${(ctx.tutorUsed || 0) + 1} (cap ${rules.tutorCap})` };
   }
   // Deliberately conservative: the official brackets only bar CHAINED extra turns at B1–3, but a
   // builder can't tell a lone extra-turn card from a future chain, so every one is blocked there.
@@ -116,6 +123,7 @@ export function ruleUsage(ctx) {
   const { rules } = ctx;
   const out = [{ key: 'bracket', label: `Bracket ${rules.bracket}`, used: null, max: null }];
   out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules), bracket: rules.bracket, custom: clampGcCap(rules.gameChangerCap, rules.bracket) != null });
+  if (rules.tutorCap != null) out.push({ key: 'tutors', label: 'Tutors', used: ctx.tutorUsed || 0, max: rules.tutorCap });
   if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget, pricing: ctx.pricing || DEFAULT_PRICING });
   if (rules.power) out.push({ key: 'power', label: `Power ${rules.power.min}–${rules.power.max}`, used: null, max: null });
   return out;

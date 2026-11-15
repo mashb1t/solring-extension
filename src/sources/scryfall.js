@@ -136,6 +136,8 @@ const FLAG_QUERIES = {
   gameChangers: 'is:gamechanger',
   extraTurns: 'otag:extra-turn',
   massLandDenial: 'otag:mass-land-denial',
+  // otag:tutor also tags land fetchers (Cultivate, Evolving Wilds: otag:tutor-land), which are ramp.
+  tutors: 'otag:tutor -otag:tutor-land',
 };
 
 // Front-face keys for every result of a search, following next_page. null if any page fails.

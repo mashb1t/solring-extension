@@ -173,7 +173,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // ---- state -------------------------------------------------------------------------------
   const S = {
     build,
-    themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), flagsOk: true, info: {},
+    themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), flagsRes: undefined, info: {},
     pricing: pricing0, // the user's Moxfield price provider (pricing.pricingFor)
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
@@ -185,6 +185,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // "Only cards I own" is saved on but the collection isn't loaded (yet, or it failed): the rule
   // can't be enforced, so every add (tiles, combos, Auto-complete) is paused. Removes stay allowed.
   // A fresh tick (rule not saved until the load succeeds) pauses adds while it loads, too.
+  // The flag lists the current rules need loaded (tutors only while a tutor cap is set). Not loaded
+  // yet (undefined) counts as fine: the loading state gates adds on its own.
+  const flagsOk = () => S.flagsRes === undefined || V.flagsAvailable(S.flagsRes, S.build.rules);
   const addsPaused = () => S.ownedState === 'loading' || (!!S.build.rules.ownedOnly && S.ownedState !== 'ready');
   let syncPicks = () => {}; // set by installRowPicks: re-applies checkbox state to the rows
   let modalKey = null; // the open preview's Escape listener (closeModal removes it)
@@ -292,7 +295,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     S.cuts = cuts;
     S.themes = ok(themesRes) && Array.isArray(themesRes.themes) ? themesRes.themes : [];
     S.flags = V.flagSets(ok(flagsRes) ? flagsRes : null);
-    S.flagsOk = V.flagsAvailable(flagsRes); // false → chip + no Auto-complete (single "+" stays)
+    S.flagsRes = flagsRes; // flagsOk() false → chip + no Auto-complete (single "+" stays)
     S.comboResults = combos;
     // A stored playstyle wins; otherwise preview the most-played one (not persisted until picked).
     S.theme = S.build.theme || (S.themes[0] && S.themes[0].slug) || null;
@@ -555,7 +558,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   function rulesBar() {
-    const chips = S.ctx ? V.ruleChips(ruleUsage(S.ctx), { flagsMissing: !S.flagsOk }) : [];
+    const chips = S.ctx ? V.ruleChips(ruleUsage(S.ctx), { flagsMissing: !flagsOk() }) : [];
     const items = [el('span', { class: 'solring-builder-label', text: 'Rules' })];
     for (const c of chips) {
       const kids = [c.text];
@@ -563,7 +566,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       if (c.hint) kids.push(el('small', { text: c.hint }));
       items.push(el('span', {
         class: `solring-builder-chip${c.key === 'flags' ? ' solring-builder-err' : ''}`,
-        title: c.key === 'flags' ? 'Scryfall’s extra-turn / mass-land-denial / Game Changer lists couldn’t load, so Auto-complete is off. Single adds still check the rest.'
+        title: c.key === 'flags' ? 'Scryfall’s card lists for your rules (Game Changers, extra turns, mass land denial, tutors) couldn’t load, so Auto-complete is off. Single adds still check the rest.'
           : c.key === 'budget' ? 'Commander and main deck only. Moxfield’s total also includes the sideboard.' : null,
         attrs: { 'data-rule': c.key },
       }, kids));
@@ -587,7 +590,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3 with its Game Changer limit, no other caps, no budget)' } });
     if (reset) { reset.disabled = loadingNow() || !!S.busy; reset.addEventListener('click', resetRules); }
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
-    ac.disabled = !!S.busy || !S.ctx || addsPaused() || !S.flagsOk || loadingNow();
+    ac.disabled = !!S.busy || !S.ctx || addsPaused() || !flagsOk() || loadingNow();
     ac.addEventListener('click', openPreview);
     return el('div', { class: 'solring-builder-rules' }, [...items, owned, ruleBtn, reset, el('span', { class: 'solring-builder-spacer' }), ac]);
   }
@@ -615,18 +618,20 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const pmin = inp(r.power && r.power.min, { min: '1', max: '10', step: '0.5', placeholder: 'min' });
     const pmax = inp(r.power && r.power.max, { min: '1', max: '10', step: '0.5', placeholder: 'max' });
     const budget = inp(r.budget, { min: '1', step: '1', placeholder: 'no limit' });
+    const tutors = inp(r.tutorCap, { min: '0', step: '1', placeholder: 'no limit' });
     const save = el('button', { class: 'btn btn-primary btn-sm', text: 'Save rules', attrs: { type: 'submit' } });
     const form = el('form', { class: 'solring-builder-ruleform' }, [
       field('Bracket', bracket), field('Game Changer cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [gc, gcDefault])),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
+      field('Tutor cap', tutors),
       el('div', { class: 'solring-builder-formfoot' }, [
         S.rulesError ? el('span', { class: 'solring-builder-err', text: S.rulesError }) : null, save,
       ]),
     ]);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value }, S.pricing);
+      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value, tutorCap: tutors.value }, S.pricing);
       if (res.error) { S.rulesError = res.error; render(); return; }
       S.rulesOpen = false; S.rulesError = null;
       if (!res.rules.power) S.power = null;
@@ -829,7 +834,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   function openPreview() {
-    if (!S.ctx || S.busy || addsPaused() || !S.flagsOk || loadingNow()) return;
+    if (!S.ctx || S.busy || addsPaused() || !flagsOk() || loadingNow()) return;
     closeModal();
     const propose = (lands) => proposeFill({ tiers: S.tiers, ctx: S.ctx, size: V.DECK_SIZE, lands, colorIdentity: deck.colorIdentity, current: S.comp.current });
     let lands = landGoal();

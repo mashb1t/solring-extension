@@ -10,6 +10,10 @@ const ctxOf = (o = {}) => makeCtx({
   rules: { ...RULES_DEFAULT }, info: {}, flags: flags(), owned: null, deckNames: [], ...o,
 });
 
+test('RULES_DEFAULT: tutor cap off', () => {
+  assert.equal(RULES_DEFAULT.tutorCap, null);
+});
+
 test('gc cap by bracket and explicit cap', () => {
   assert.equal(effectiveGcCap(RULES_DEFAULT), 3);
   assert.equal(effectiveGcCap({ ...RULES_DEFAULT, gameChangerCap: 2 }), 2);
@@ -64,6 +68,27 @@ test('extra turn and mass land denial by bracket', () => {
   const b4 = ctxOf({ flags: f, rules: { ...RULES_DEFAULT, bracket: 4 } });
   assert.equal(checkCard('Time Warp', b4).ok, true);
   assert.equal(checkCard('Armageddon', b4).ok, true);
+});
+
+test('tutor cap: tutors already in the deck count; one over the cap is blocked', () => {
+  const tutors = new Set(['demonic tutor', 'vampiric tutor', 'worldly tutor']);
+  const rules = { ...RULES_DEFAULT, tutorCap: 2 };
+  const ctx = ctxOf({ rules, flags: flags({ tutors }), deckNames: ['Demonic Tutor', 'Sol Ring'] });
+  assert.equal(ctx.tutorUsed, 1);
+  assert.equal(checkCard('Vampiric Tutor', ctx).ok, true);
+  const next = addToCtx(ctx, 'Vampiric Tutor');
+  assert.equal(next.tutorUsed, 2);
+  assert.deepEqual(checkCard('Worldly Tutor', next), { ok: false, reason: 'Would be tutor #3 (cap 2)' });
+  assert.equal(checkCard('Sol Ring', next).ok, false); // already in deck, unrelated
+  assert.equal(checkCard('Plain', next).ok, true);
+  const zero = ctxOf({ rules: { ...RULES_DEFAULT, tutorCap: 0 }, flags: flags({ tutors }) });
+  assert.deepEqual(checkCard('Demonic Tutor', zero), { ok: false, reason: 'Would be tutor #1 (cap 0)' });
+  // No cap (default): tutors are only counted
+  const free = ctxOf({ flags: flags({ tutors }), deckNames: ['Demonic Tutor', 'Vampiric Tutor'] });
+  assert.equal(free.tutorUsed, 2);
+  assert.equal(checkCard('Worldly Tutor', free).ok, true);
+  // A ctx built from older flags (no tutors list) never throws
+  assert.equal(checkCard('Worldly Tutor', ctxOf({ rules })).ok, true);
 });
 
 test('budget: over budget, unknown price, absent card', () => {
@@ -127,6 +152,10 @@ test('ruleUsage', () => {
   assert.match(u.bracket.label, /3/);
   assert.ok(u.power);
   assert.equal(ruleUsage(ctxOf()).some((r) => r.key === 'budget'), false);
+  assert.equal(ruleUsage(ctxOf()).some((r) => r.key === 'tutors'), false);
+  const t = ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, tutorCap: 2 }, flags: flags({ tutors: new Set(['mystical tutor']) }), deckNames: ['Mystical Tutor'] }))
+    .find((r) => r.key === 'tutors');
+  assert.deepEqual(t, { key: 'tutors', label: 'Tutors', used: 1, max: 2 });
 });
 
 test('budget: basics absent from info count as $0, basics in info use their price', () => {

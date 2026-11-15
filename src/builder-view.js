@@ -87,19 +87,23 @@ export function rulesAreDefault(rules) {
   const r = rules || {};
   const bracket = Number(r.bracket ?? RULES_DEFAULT.bracket);
   return bracket === RULES_DEFAULT.bracket && clampGcCap(r.gameChangerCap, bracket) == null
-    && !r.power && r.budget == null && !r.ownedOnly;
+    && !r.power && r.budget == null && !r.ownedOnly && r.tutorCap == null;
 }
 
 /** getCardData({op:'flags'}) → Sets for makeCtx. A miss/error/missing list → empty Set. */
 export function flagSets(res) {
   const set = (k) => new Set(res && Array.isArray(res[k]) ? res[k] : []);
-  return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial') };
+  return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial'), tutors: set('tutors') };
 }
 
 /** Did getCardData({op:'flags'}) return the real lists? (The worker serves a stale copy on a failed
- *  refresh, so false means nothing is cached at all: extra-turn / MLD / GC checks can't run.) */
-export function flagsAvailable(res) {
-  return !!(res && !res.error && !res.miss && ['gameChangers', 'extraTurns', 'massLandDenial'].every((k) => Array.isArray(res[k])));
+ *  refresh, so false means nothing is cached at all: extra-turn / MLD / GC checks can't run.)
+ *  A list added later (tutors) is only required while its rule is on: a stale copy cached before it
+ *  existed still serves the bracket checks. */
+export function flagsAvailable(res, rules = null) {
+  const need = ['gameChangers', 'extraTurns', 'massLandDenial'];
+  if (rules && rules.tutorCap != null) need.push('tutors');
+  return !!(res && !res.error && !res.miss && need.every((k) => Array.isArray(res[k])));
 }
 
 /** Same commander set, compared by lowercased front face (order-insensitive). */
@@ -138,6 +142,9 @@ export function ruleChips(usage, { flagsMissing = false } = {}) {
       const src = u.custom ? (bmax === Infinity ? ' (your cap)' : ` (your cap, Bracket ${u.bracket} allows ${bmax})`)
         : u.bracket != null ? ` (Bracket ${u.bracket})` : '';
       return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}${src}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
+    }
+    if (u.key === 'tutors') {
+      return { key: 'tutors', text: `Tutors ${u.used} / ${u.max}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'budget') {
       return { key: 'budget', text: `Budget ${whole(u.used, u.pricing)} / ${whole(u.max, u.pricing)}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
@@ -236,13 +243,15 @@ export function powerVerdict(res, target) {
  * The "+ rule" form values → a rules patch, or { error }. Blank fields clear a rule.
  * Inputs are strings (form values); bracket 1–5, GC cap ≥ 0, power 1–10 with min ≤ max, budget > 0.
  */
-export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }, pricing = DEFAULT_PRICING) {
+export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tutorCap }, pricing = DEFAULT_PRICING) {
   const num = (s) => (String(s ?? '').trim() === '' ? null : Number(s));
   const b = Number(bracket);
   if (!(Number.isInteger(b) && b >= 1 && b <= 5)) return { error: 'Bracket must be 1–5' };
   const cap = num(gcCap);
   if (cap != null && !(Number.isInteger(cap) && cap >= 0)) return { error: 'Game Changer cap must be a whole number ≥ 0' };
   const gameChangerCap = clampGcCap(cap, b); // at/above the bracket's cap → null (bracket default)
+  const tutors = num(tutorCap);
+  if (tutors != null && !(Number.isInteger(tutors) && tutors >= 0)) return { error: 'Tutor cap must be a whole number ≥ 0' };
   const lo = num(powerMin); const hi = num(powerMax);
   let power = null;
   if (lo != null || hi != null) {
@@ -251,7 +260,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }, p
   }
   const bud = num(budget);
   if (bud != null && !(bud > 0)) return { error: `Budget must be more than ${whole(0, pricing)}` };
-  return { rules: { bracket: b, gameChangerCap, power, budget: bud } };
+  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors } };
 }
 
 export const NOT_OWNED = 'Not in your collection';

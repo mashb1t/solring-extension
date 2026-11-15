@@ -85,6 +85,7 @@ test('fetchFlagSets: follows next_page, sets of front keys', async () => {
     }
     if (q.includes('is:gamechanger')) return jsonRes({ has_more: false, data: [{ name: 'Ojer Axonil, Deepest Might // Temple of Power' }] });
     if (q.includes('otag:extra-turn')) return jsonRes({ data: [{ name: 'Time Warp' }] });
+    if (q.includes('otag:tutor')) return jsonRes({ data: [{ name: 'Demonic Tutor' }] });
     return jsonRes({ data: [{ name: 'Armageddon' }] });
   };
   const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
@@ -92,6 +93,25 @@ test('fetchFlagSets: follows next_page, sets of front keys', async () => {
   assert.deepEqual([...f.extraTurns], ['time warp']);
   assert.deepEqual([...f.massLandDenial], ['armageddon']);
   assert.ok(calls.some((u) => decodeURIComponent(u).includes('otag:mass-land-denial')));
+  assert.deepEqual([...f.tutors], ['demonic tutor']);
+  // Land tutors (Cultivate, Evolving Wilds) are ramp, not tutors: excluded from the query.
+  assert.ok(calls.some((u) => decodeURIComponent(u).includes('otag:tutor -otag:tutor-land')));
+});
+
+test('fetchFlagSets: a failed tutor query alone → null', async () => {
+  const stub = async (u) => (decodeURIComponent(u).includes('otag:tutor') ? jsonRes({}, false) : jsonRes({ data: [{ name: 'X' }] }));
+  assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
+});
+
+test('fetchFlagSets: the tutor list follows has_more', async () => {
+  const stub = async (u) => {
+    const q = decodeURIComponent(u);
+    if (q.includes('otag:tutor') && !q.includes('page2')) return jsonRes({ has_more: true, next_page: 'https://api.scryfall.com/cards/search?page2=1&q=otag:tutor', data: [{ name: 'Demonic Tutor' }] });
+    if (q.includes('otag:tutor')) return jsonRes({ has_more: false, data: [{ name: 'Vampiric Tutor' }] });
+    return jsonRes({ data: [] });
+  };
+  const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
+  assert.deepEqual([...f.tutors].sort(), ['demonic tutor', 'vampiric tutor']);
 });
 
 test('fetchFlagSets: any failed query → null (no partial lists)', async () => {

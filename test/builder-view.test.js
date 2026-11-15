@@ -134,15 +134,30 @@ test('powerVerdict: within / above / below, and unavailable for stub, miss, erro
 
 test('parseRulesForm: blanks clear rules; invalid input reports an error', () => {
   assert.deepEqual(parseRulesForm({ bracket: '3', gcCap: '', powerMin: '', powerMax: '', budget: '' }),
-    { rules: { bracket: 3, gameChangerCap: null, power: null, budget: null } });
+    { rules: { bracket: 3, gameChangerCap: null, power: null, budget: null, tutorCap: null } });
   assert.deepEqual(parseRulesForm({ bracket: '4', gcCap: '2', powerMin: '6', powerMax: '7', budget: '50' }),
-    { rules: { bracket: 4, gameChangerCap: 2, power: { min: 6, max: 7 }, budget: 50 } });
+    { rules: { bracket: 4, gameChangerCap: 2, power: { min: 6, max: 7 }, budget: 50, tutorCap: null } });
   assert.ok(parseRulesForm({ bracket: '6' }).error);
   assert.ok(parseRulesForm({ bracket: '3', gcCap: '-1' }).error);
   assert.ok(parseRulesForm({ bracket: '3', powerMin: '7', powerMax: '6' }).error);
   assert.ok(parseRulesForm({ bracket: '3', powerMin: '7' }).error);
   assert.ok(parseRulesForm({ bracket: '3', budget: '0' }).error);
   assert.ok(parseRulesForm({ bracket: '3', budget: 'abc' }).error);
+});
+
+test('parseRulesForm: tutor cap — blank = no limit, whole number ≥ 0', () => {
+  assert.equal(parseRulesForm({ bracket: '3', tutorCap: '' }).rules.tutorCap, null);
+  assert.equal(parseRulesForm({ bracket: '3', tutorCap: '0' }).rules.tutorCap, 0);
+  assert.equal(parseRulesForm({ bracket: '3', tutorCap: '4' }).rules.tutorCap, 4);
+  assert.equal(parseRulesForm({ bracket: '3', tutorCap: '-1' }).error, 'Tutor cap must be a whole number ≥ 0');
+  assert.ok(parseRulesForm({ bracket: '3', tutorCap: '2.5' }).error);
+});
+
+test('ruleChips: tutor meter', () => {
+  const [c] = ruleChips([{ key: 'tutors', label: 'Tutors', used: 1, max: 2 }]);
+  assert.deepEqual(c, { key: 'tutors', text: 'Tutors 1 / 2', pct: 0.5, warn: false });
+  assert.equal(ruleChips([{ key: 'tutors', label: 'Tutors', used: 2, max: 2 }])[0].warn, true);
+  assert.equal(ruleChips([{ key: 'tutors', label: 'Tutors', used: 0, max: 0 }])[0].pct, 1);
 });
 
 test('ruleChips gc: bracket default vs your own cap', () => {
@@ -186,6 +201,15 @@ test('flagsAvailable: only a real flags response counts; a miss / error / missin
   assert.equal(flagsAvailable({ error: 'x' }), false);
   assert.equal(flagsAvailable(null), false);
   assert.equal(flagsAvailable({ gameChangers: [], extraTurns: [] }), false);
+});
+
+test('flagsAvailable: the tutor list is required only while a tutor cap is set (old cache without it)', () => {
+  const old = { gameChangers: [], extraTurns: [], massLandDenial: [] };
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT }), true);
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, tutorCap: 2 }), false);
+  assert.equal(flagsAvailable({ ...old, tutors: [] }, { ...RULES_DEFAULT, tutorCap: 2 }), true);
+  assert.deepEqual([...flagSets({ ...old, tutors: ['demonic tutor'] }).tutors], ['demonic tutor']);
+  assert.equal(flagSets(old).tutors.size, 0);
 });
 
 test('ruleChips: "Bracket checks unavailable" warning chip when flags are missing', () => {
@@ -307,6 +331,8 @@ test('rulesAreDefault: only RULES_DEFAULT-equivalent rules count as default', ()
   assert.equal(rulesAreDefault({ bracket: 3, power: { min: 6, max: 7 } }), false);
   assert.equal(rulesAreDefault({ bracket: 3, budget: 200 }), false);
   assert.equal(rulesAreDefault({ bracket: 3, ownedOnly: true }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, tutorCap: 0 }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, tutorCap: null }), true);
 });
 
 test('deckSizeStatus: exactly 100 is legal, anything else is flagged with how far off', () => {

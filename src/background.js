@@ -236,7 +236,8 @@ async function flagLists(fresh = false) {
   const key = 'scry:flags';
   const entry = await dedupe(fresh ? `${key}:fresh` : key, async () => {
     const cached = await getEntry(key);
-    if (!fresh && isFreshTtl(cached, SCRY_FLAGS_TTL_MS)) return cached;
+    // An entry cached before a list existed (tutors) is refetched once.
+    if (!fresh && isFreshTtl(cached, SCRY_FLAGS_TTL_MS) && Array.isArray(cached.data.tutors)) return cached;
     const sets = await fetchFlagSets();
     // Stale-on-error: an expired copy beats none (empty lists would lift the bracket limits).
     if (!sets) return cached && cached.data ? cached : null;
@@ -244,6 +245,7 @@ async function flagLists(fresh = false) {
       gameChangers: [...sets.gameChangers],
       extraTurns: [...sets.extraTurns],
       massLandDenial: [...sets.massLandDenial],
+      tutors: [...sets.tutors],
     });
   });
   return entry && entry.data ? entry.data : { miss: true };
