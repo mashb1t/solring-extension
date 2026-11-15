@@ -630,7 +630,9 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const noLandHate = check(r.noLandHate, 'No land hate', 'Block mass land denial (Armageddon and the like) at any bracket. Single-target land destruction is still allowed.');
     const noStax = check(r.noStax, 'No stax', 'Block stax pieces at any bracket (Scryfall’s rule-of-law and cost-increaser tags: Rule of Law, Thalia, Sphere of Resistance, …)');
     const save = el('button', { class: 'btn btn-primary btn-sm', text: 'Save rules', attrs: { type: 'submit' } });
-    const form = el('form', { class: 'solring-builder-ruleform' }, [
+    // novalidate: parseRulesForm owns validation (its errors show inline) and the GC clamp (a cap
+    // above the bracket's is saved as "bracket default"), so the browser's min/max popups never block it.
+    const form = el('form', { class: 'solring-builder-ruleform', attrs: { novalidate: '' } }, [
       field('Bracket', bracket), field('Game Changer cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [gc, gcDefault])),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
