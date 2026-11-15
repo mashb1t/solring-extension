@@ -5,7 +5,7 @@ import {
   flagListWarnings, previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault, deckSizeStatus,
   cleanupCuts, deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckRowEntries, rowsAhead, pruneSelection,
 } from '../src/builder-view.js';
-import { RULES_DEFAULT, makeCtx, ruleUsage, effectiveRules } from '../src/build-rules.js';
+import { RULES_DEFAULT, makeCtx, ruleUsage, effectiveRules, checkCard, TUTORS_NO_LIMIT } from '../src/build-rules.js';
 
 const flags = (o = {}) => ({ gameChangers: new Set(), extraTurns: new Set(), massLandDenial: new Set(), ...o });
 const entry = (name, quantity = 1, isLand = false) => ({ name, quantity, isLand });
@@ -158,11 +158,11 @@ test('parseRulesForm: blanks clear rules; invalid input reports an error', () =>
   assert.ok(parseRulesForm({ bracket: '3', budget: 'abc' }).error);
 });
 
-test('parseRulesForm: tutor cap — blank = no limit, whole number ≥ 0', () => {
+test('parseRulesForm: tutor cap — blank = bracket preset, whole number ≥ 0', () => {
   assert.equal(parseRulesForm({ bracket: '3', tutorCap: '' }).rules.tutorCap, null);
   assert.equal(parseRulesForm({ bracket: '3', tutorCap: '0' }).rules.tutorCap, 0);
   assert.equal(parseRulesForm({ bracket: '3', tutorCap: '4' }).rules.tutorCap, 4);
-  assert.equal(parseRulesForm({ bracket: '3', tutorCap: '-1' }).error, 'Tutor cap must be a whole number ≥ 0');
+  assert.equal(parseRulesForm({ bracket: '3', tutorCap: '-3' }).error, 'Tutor cap must be a whole number ≥ 0 (or “no limit”)');
   assert.ok(parseRulesForm({ bracket: '3', tutorCap: '2.5' }).error);
 });
 
@@ -170,7 +170,7 @@ test('parseRulesForm: no land hate / no stax checkboxes', () => {
   const r = parseRulesForm({ bracket: '4', noLandHate: true, noStax: true }).rules;
   assert.equal(r.noLandHate, true);
   assert.equal(r.noStax, true);
-  assert.equal(parseRulesForm({ bracket: '4', noLandHate: false }).rules.noLandHate, false);
+  assert.equal(parseRulesForm({ bracket: '4', noLandHate: false }).rules.noLandHate, null); // = the B4 preset
 });
 
 test('ruleChips: no land hate / no stax chips are plain labels', () => {
@@ -442,7 +442,7 @@ test('parseRulesForm: presets (blank / untouched) vs overrides round-trip', () =
   assert.equal(p({ noLandHate: null }).noLandHate, null);
   assert.equal(p({ tutorCap: '5' }).tutorCap, 5); // above the B2 preset: kept, not clamped
   assert.equal(p({ noLandHate: false }).noLandHate, false);
-  assert.equal(p({ noLandHate: true }).noLandHate, true);
+  assert.equal(p({ noLandHate: true }).noLandHate, null); // = the B2 preset → stored as the preset
   // Saved patch → effective rules → the form again
   const saved = { ...RULES_DEFAULT, ...p({}) };
   const e = effectiveRules(saved);
@@ -486,4 +486,32 @@ test('missing tutor list: a PRESET cap degrades (not checked, Auto-complete runs
   const usage = [{ key: 'bracket', label: 'Bracket 2' }, { key: 'tutors', label: 'Tutors', used: 0, max: 3, bracket: 2, preset: true }];
   const chips = ruleChips(usage, { listWarnings: flagListWarnings(noTutors, b2) });
   assert.deepEqual(chips.map((c) => [c.key, c.text, c.warn]), [['bracket', 'Bracket 2', false], ['tutorList', 'Tutor list unavailable — tutor cap not checked', true]]);
+});
+
+test('parseRulesForm: an override equal to the selected bracket\'s preset is stored as the preset (null)', () => {
+  const p = (o) => parseRulesForm({ bracket: '2', ...o }).rules;
+  assert.equal(p({ tutorCap: '3' }).tutorCap, null); // B2 preset is 3
+  assert.equal(p({ tutorCap: '2' }).tutorCap, 2);
+  assert.equal(p({ noLandHate: false }).noLandHate, false);
+  assert.equal(parseRulesForm({ bracket: '1', tutorCap: '1' }).rules.tutorCap, null);
+  assert.equal(parseRulesForm({ bracket: '4', noLandHate: true }).rules.noLandHate, true);
+  assert.equal(parseRulesForm({ bracket: '3', noLandHate: true }).rules.noLandHate, null);
+  assert.equal(rulesAreDefault({ ...RULES_DEFAULT, ...parseRulesForm({ bracket: '3', tutorCap: '', noLandHate: true }).rules }), true);
+});
+
+test('tutor "no limit" override: typed none / ∞ / no limit, stored as -1 (JSON-safe), chip says so', () => {
+  assert.equal(TUTORS_NO_LIMIT, -1);
+  for (const v of ['none', 'None', '∞', 'no limit', ' unlimited ']) assert.equal(parseRulesForm({ bracket: '2', tutorCap: v }).rules.tutorCap, -1, v);
+  assert.equal(parseRulesForm({ bracket: '3', tutorCap: 'none' }).rules.tutorCap, null); // B3 preset is already no limit
+  assert.ok(parseRulesForm({ bracket: '2', tutorCap: 'lots' }).error);
+  assert.ok(parseRulesForm({ bracket: '2', tutorCap: '-2' }).error);
+  assert.equal(JSON.parse(JSON.stringify({ tutorCap: -1 })).tutorCap, -1);
+  const rules = { ...RULES_DEFAULT, bracket: 2, tutorCap: -1 };
+  assert.equal(rulesAreDefault({ ...rules, bracket: 3 }), false);
+  const ctx = makeCtx({ rules, info: {}, flags: flags({ tutors: new Set(['a', 'b', 'c', 'd']) }), owned: null, deckNames: ['A', 'B', 'C'] });
+  assert.equal(checkCard('D', ctx).ok, true);
+  const chips = ruleChips(ruleUsage(ctx)).map((c) => c.text);
+  assert.ok(chips.includes('Tutors 3 (no limit, your rule)'), chips.join(' | '));
+  const t = { count: 0, deckAfter: 1, landsAfter: 0, gcAfter: 0, tutorsAfter: 3, spentAfter: 0, cost: 0 };
+  assert.doesNotMatch(previewSummary(t, rules, 0), /Tutors/);
 });

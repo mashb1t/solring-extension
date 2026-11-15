@@ -1,7 +1,7 @@
 // Guided Deck Builder build view: pure view-model helpers for render-builder.js (deck
 // composition, rule chips, auto-complete preview grouping/totals, power verdict). No DOM.
 import { frontFace } from './sources/scryfall.js';
-import { checkCard, addToCtx, RULES_DEFAULT, bracketGcCap, clampGcCap, effectiveRules, migrateRules } from './build-rules.js';
+import { checkCard, addToCtx, RULES_DEFAULT, bracketGcCap, clampGcCap, effectiveRules, migrateRules, bracketPreset, TUTORS_NO_LIMIT } from './build-rules.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 import { positiveCuts } from './sources/edhrec-recs.js';
 
@@ -168,6 +168,7 @@ export function ruleChips(usage, { flagsMissing = false, listWarnings = [] } = {
       return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}${src}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'tutors') {
+      if (u.noLimit) return { key: 'tutors', text: `Tutors ${u.used} (no limit, your rule)`, pct: null, warn: false };
       const src = u.preset ? ` (Bracket ${u.bracket})` : u.preset === false ? ' (your cap)' : '';
       return { key: 'tutors', text: `Tutors ${u.used} / ${u.max}${src}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
@@ -275,8 +276,12 @@ export function powerVerdict(res, target) {
  * Inputs are strings (form values); bracket 1–5, GC cap ≥ 0, power 1–10 with min ≤ max, budget > 0.
  * Bracket presets: a blank GC / tutor cap and `noLandHate: null` (checkbox untouched) are stored as
  * null = follow the bracket's preset; a number / boolean is the user's override. Tutor overrides are
- * not clamped (a soft preset), unlike the GC cap (a hard bracket ceiling).
+ * not clamped (a soft preset), unlike the GC cap (a hard bracket ceiling). An override EQUAL to the
+ * selected bracket's preset is stored as null too (so Reset / the "(Bracket N)" chips stay right).
+ * Tutor cap "none" / "∞" / "no limit" / "unlimited" = TUTORS_NO_LIMIT (no cap, the user's choice).
  */
+const NO_LIMIT_WORDS = new Set(['none', '∞', 'no limit', 'unlimited']);
+
 export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tutorCap, noLandHate = null, noStax = false }, pricing = DEFAULT_PRICING) {
   const num = (s) => (String(s ?? '').trim() === '' ? null : Number(s));
   const b = Number(bracket);
@@ -284,8 +289,13 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tut
   const cap = num(gcCap);
   if (cap != null && !(Number.isInteger(cap) && cap >= 0)) return { error: 'Game Changer cap must be a whole number ≥ 0' };
   const gameChangerCap = clampGcCap(cap, b); // at/above the bracket's cap → null (bracket default)
-  const tutors = num(tutorCap);
-  if (tutors != null && !(Number.isInteger(tutors) && tutors >= 0)) return { error: 'Tutor cap must be a whole number ≥ 0' };
+  const preset = bracketPreset(b);
+  const tutorText = String(tutorCap ?? '').trim().toLowerCase();
+  let tutors = NO_LIMIT_WORDS.has(tutorText) ? TUTORS_NO_LIMIT : num(tutorCap);
+  if (tutors != null && tutors !== TUTORS_NO_LIMIT && !(Number.isInteger(tutors) && tutors >= 0)) return { error: 'Tutor cap must be a whole number ≥ 0 (or “no limit”)' };
+  if (tutors != null && (tutors === TUTORS_NO_LIMIT ? null : tutors) === preset.tutorCap) tutors = null;
+  let landHate = noLandHate == null ? null : !!noLandHate;
+  if (landHate === preset.noLandHate) landHate = null;
   const lo = num(powerMin); const hi = num(powerMax);
   let power = null;
   if (lo != null || hi != null) {
@@ -294,7 +304,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tut
   }
   const bud = num(budget);
   if (bud != null && !(bud > 0)) return { error: `Budget must be more than ${whole(0, pricing)}` };
-  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors, noLandHate: noLandHate == null ? null : !!noLandHate, noStax: !!noStax } };
+  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors, noLandHate: landHate, noStax: !!noStax } };
 }
 
 export const NOT_OWNED = 'Not in your collection';

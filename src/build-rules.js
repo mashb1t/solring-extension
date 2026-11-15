@@ -30,7 +30,12 @@ export function bracketPreset(bracket) {
 // and now means "preset", which is intended (B1–2 get a tutor cap by default).
 export const RULES_V = 2;
 
-// gameChangerCap / tutorCap / noLandHate: null = the bracket preset (see BRACKET_PRESETS).
+// tutorCap's "no limit, chosen by the user" (an override of a B1–2 preset cap). JSON-safe: Infinity
+// would come back from chrome.storage as null (= the preset).
+export const TUTORS_NO_LIMIT = -1;
+
+// gameChangerCap / tutorCap / noLandHate: null = the bracket preset (see BRACKET_PRESETS);
+// tutorCap TUTORS_NO_LIMIT = no cap by the user's choice.
 // tutorCap counts Scryfall otag:tutor minus land tutors. noStax: block stax pieces (plain boolean).
 export const RULES_DEFAULT = { v: RULES_V, bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null, noLandHate: null, noStax: false };
 
@@ -67,6 +72,8 @@ export function effectiveGcCap(rules) {
  * RAW stored rules → the rules in force: stored overrides merged over bracketPreset(rules.bracket).
  * Always pass RAW rules (never an effectiveRules result): `fromPreset` says which values came from
  * the preset, and drives the chip / block-reason wording. GC stays on effectiveGcCap's path.
+ * The rules must be stored / merged ones carrying `v: 2` (getDeckBuild and RULES_DEFAULT add it):
+ * a v-less object is read as LEGACY, so its noLandHate false becomes the preset (migrateRules).
  */
 export function effectiveRules(rules) {
   const r = migrateRules(rules);
@@ -81,7 +88,8 @@ export function effectiveRules(rules) {
     ...r,
     bracket,
     gcCap: effectiveGcCap({ ...r, bracket }),
-    tutorCap: fromPreset.tutorCap ? preset.tutorCap : r.tutorCap,
+    tutorCap: fromPreset.tutorCap ? preset.tutorCap : r.tutorCap === TUTORS_NO_LIMIT ? null : r.tutorCap,
+    tutorNoLimit: r.tutorCap === TUTORS_NO_LIMIT,
     noLandHate: fromPreset.noLandHate ? preset.noLandHate : !!r.noLandHate,
     noStax: !!r.noStax,
     allowExtraTurns: preset.allowExtraTurns,
@@ -192,6 +200,7 @@ export function ruleUsage(ctx) {
   const out = [{ key: 'bracket', label: `Bracket ${rules.bracket}`, used: null, max: null }];
   out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules), bracket: rules.bracket, custom: clampGcCap(rules.gameChangerCap, rules.bracket) != null });
   if (eff.tutorCap != null) out.push({ key: 'tutors', label: 'Tutors', used: ctx.tutorUsed || 0, max: eff.tutorCap, bracket: eff.bracket, preset: eff.fromPreset.tutorCap });
+  else if (eff.tutorNoLimit) out.push({ key: 'tutors', label: 'Tutors', used: ctx.tutorUsed || 0, max: null, noLimit: true });
   if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget, pricing: ctx.pricing || DEFAULT_PRICING });
   if (eff.noLandHate) out.push({ key: 'noLandHate', label: 'No land hate', used: null, max: null, bracket: eff.bracket, preset: eff.fromPreset.noLandHate });
   else if (eff.preset.noLandHate) out.push({ key: 'landHate', label: 'Land hate allowed (your rule)', used: null, max: null });

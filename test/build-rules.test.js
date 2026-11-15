@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  RULES_DEFAULT, RULES_V, BRACKET_PRESETS, bracketPreset, effectiveRules, migrateRules, effectiveGcCap, clampGcCap, bracketGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
+  RULES_DEFAULT, RULES_V, TUTORS_NO_LIMIT, BRACKET_PRESETS, bracketPreset, effectiveRules, migrateRules, effectiveGcCap, clampGcCap, bracketGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
 } from '../src/build-rules.js';
 
 const card = (name, o = {}) => ({ name, price: 1, gameChanger: false, colorIdentity: [], typeLine: '', image: '', ...o });
@@ -339,4 +339,18 @@ test('ruleUsage marks preset-derived tutors / land hate; an override off at B1�
   assert.equal(off.landHate.label, 'Land hate allowed (your rule)');
   assert.equal(usage({ bracket: 4, noLandHate: false }).landHate, undefined); // nothing to call out at B4
   assert.equal(usage({ bracket: 4, noLandHate: true }).noLandHate.preset, false);
+});
+
+test('effectiveRules: the tutor no-limit sentinel is a user override with no cap', () => {
+  const e = effectiveRules({ ...RULES_DEFAULT, bracket: 1, tutorCap: TUTORS_NO_LIMIT });
+  assert.equal(e.tutorCap, null);
+  assert.equal(e.tutorNoLimit, true);
+  assert.equal(e.fromPreset.tutorCap, false);
+  assert.equal(effectiveRules({ ...RULES_DEFAULT, bracket: 1 }).tutorNoLimit, false);
+});
+
+test('effectiveRules expects stored / merged rules carrying v:2; a v-less false is read as legacy', () => {
+  // Callers pass build-store rules (getDeckBuild merges RULES_DEFAULT, so v:2 is always there).
+  assert.equal(effectiveRules({ ...RULES_DEFAULT, noLandHate: false }).noLandHate, false); // v2 override
+  assert.equal(effectiveRules({ bracket: 3, noLandHate: false }).noLandHate, true); // no v → legacy → preset
 });

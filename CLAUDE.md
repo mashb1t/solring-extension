@@ -35,7 +35,9 @@ through any Solring backend — all data is fetched straight from the third-part
   stored `null` = follow the current bracket's preset, a value = override; `effectiveRules(rawRules)` is the one merge
   (makeCtx keeps it as `ctx.eff`; never feed it its own output). Rules carry `v:2`; `migrateRules` reads an unversioned
   `noLandHate:false` (old default "off") as `null`. The GC cap is clamped to the bracket (`clampGcCap`); tutor overrides aren't.
-  Extra turns stay blocked at B1–3 (not overridable). No "no limit" tutor override at B1–2 (blank = preset).
+  Extra turns stay blocked at B1–3 (not overridable). `tutorCap: -1` (`TUTORS_NO_LIMIT`, JSON-safe; typed "no limit" /
+  "none" / "∞") = no cap by the user's choice. `parseRulesForm` stores an override equal to the bracket's preset as `null`.
+  A missing tutors list only pauses Auto-complete for a USER cap; a preset cap goes unchecked with a warning chip.
 - **Builder cuts** — over 100 cards, the build view shows EDHREC cuts: `getRecs` from content code + `cutRecs`, cached per
   card list in the module-level `cutsCache` (failures evicted); `cleanupCuts` skips commanders and multi-copy lines. Option `cutsPositiveOnly` (default on, live) hides
   cuts with EDHREC score ≤ 0 / missing via `edhrec-recs.positiveCuts`, in the builder (before the over+5 cap) and the Cuts tab. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option

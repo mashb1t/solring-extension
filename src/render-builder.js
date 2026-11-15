@@ -15,7 +15,7 @@ import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
 import { getOptions, onPrefChange } from './prefs.js';
 import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild, getPricingProvider, setPricingProvider } from './build-store.js';
-import { makeCtx, ruleUsage, effectiveGcCap, bracketGcCap, clampGcCap, comboGuards, RULES_DEFAULT, bracketPreset, migrateRules } from './build-rules.js';
+import { makeCtx, ruleUsage, effectiveGcCap, bracketGcCap, clampGcCap, comboGuards, RULES_DEFAULT, bracketPreset, migrateRules, TUTORS_NO_LIMIT } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos, spellbookComboUrl } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
@@ -632,16 +632,22 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const pmax = inp(r.power && r.power.max, { min: '1', max: '10', step: '0.5', placeholder: 'max' });
     const budget = inp(r.budget, { min: '1', step: '1', placeholder: 'no limit' });
     // Tutor cap / No land hate: blank / untouched = the selected bracket's preset (stored null); a
-    // value the user enters or a toggle is an override, kept across bracket changes until cleared.
-    const tutors = inp(r.tutorCap, { min: '0', step: '1' });
+    // value the user enters or a toggle is an override, kept across bracket changes until cleared
+    // (parseRulesForm stores one equal to the preset as null). The tutor field is text so "no limit"
+    // / "none" / "∞" can be typed (TUTORS_NO_LIMIT); parseRulesForm validates it.
+    const tutors = el('input', { class: 'form-control form-control-sm', attrs: { type: 'text', inputmode: 'numeric', 'aria-label': 'Tutor cap' } });
+    tutors.value = r.tutorCap === TUTORS_NO_LIMIT ? 'no limit' : r.tutorCap == null ? '' : String(r.tutorCap);
     const tutorPreset = presetBtn('Clear your cap: the bracket preset decides how many tutors fit');
+    const tutorNoLimit = el('button', { class: 'solring-builder-linkbtn', text: 'no limit', attrs: { type: 'button', title: 'No tutor cap, even where the bracket preset has one' } });
     const syncTutors = () => {
       const p = bracketPreset(Number(bracket.value)).tutorCap;
       tutors.placeholder = p == null ? 'preset: no limit' : `preset: ${p}`;
-      tutorPreset.hidden = tutors.value === '';
+      tutorPreset.hidden = tutors.value.trim() === '';
+      tutorNoLimit.hidden = p == null || tutors.value.trim().toLowerCase() === 'no limit';
     };
     tutors.addEventListener('input', syncTutors);
     tutorPreset.addEventListener('click', () => { tutors.value = ''; syncTutors(); tutors.focus(); });
+    tutorNoLimit.addEventListener('click', () => { tutors.value = 'no limit'; syncTutors(); tutors.focus(); });
     const check = (on, label, title, extra = []) => {
       const box = el('input', { class: 'form-check-input', attrs: { type: 'checkbox' } });
       box.checked = !!on;
@@ -653,6 +659,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const noLandHate = check(r.noLandHate, 'No land hate', 'Block mass land denial (Armageddon and the like). On by default at Brackets 1–3 (their preset), off at 4–5. Single-target land destruction is still allowed.', [lhHint]);
     const syncLandHate = () => {
       const b = Number(bracket.value);
+      if (lhOverride && noLandHate.box.checked === bracketPreset(b).noLandHate) lhOverride = false; // = preset: saved as null
       if (!lhOverride) noLandHate.box.checked = bracketPreset(b).noLandHate;
       lhHint.textContent = lhOverride ? '' : ` (Bracket ${b} preset)`;
       lhPreset.hidden = !lhOverride;
@@ -669,7 +676,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       field('Bracket', bracket), field('Game Changer cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [gc, gcDefault])),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
-      field('Tutor cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [tutors, tutorPreset])),
+      field('Tutor cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [tutors, tutorPreset, tutorNoLimit])),
       el('div', { class: 'solring-builder-checks' }, [noLandHate.node, lhPreset, noStax.node]),
       el('div', { class: 'solring-builder-formfoot' }, [
         S.rulesError ? el('span', { class: 'solring-builder-err', text: S.rulesError }) : null, save,
