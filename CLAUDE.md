@@ -33,7 +33,7 @@ through any Solring backend — all data is fetched straight from the third-part
   `pricing.js` = prices in the user's Moxfield provider (Bulk Edit GET `pricingProvider`, cached as `build:pricingProvider`,
   else TCGplayer): deck cards from the v3 deck JSON's provider key, suggestions from Scryfall `usd`/`eur`/`tix` (same-currency
   stand-in, eur for EUR stores else usd, marked approx., for providers Scryfall lacks); `info[key].price` + a `pricing` ctx
-  drive every budget text. A saved budget is a bare number shown in the current currency: no conversion.
+  drive every budget text. A saved budget is a bare number shown in the current currency: no conversion. Budget covers commander + mainboard (Moxfield's footer total also adds the sideboard).
 - **`src/moxfield-token.js`** — **MAIN-world** content script; captures Moxfield's bearer token off its own
   requests and relays it via `postMessage` (memory-only). **`src/moxfield-edit.js`** — deck read (`readDeck`, cookie
   GET; `readDeckJson`/`readDeckAny` with token fallback) + edits (`setCardQuantity` = `PUT …/cards/{board}/{cardId}`,

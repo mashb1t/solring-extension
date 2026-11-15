@@ -439,7 +439,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       if (c.hint) kids.push(el('small', { text: c.hint }));
       items.push(el('span', {
         class: `solring-builder-chip${c.key === 'flags' ? ' solring-builder-err' : ''}`,
-        title: c.key === 'flags' ? 'Scryfall’s extra-turn / mass-land-denial / Game Changer lists couldn’t load, so Auto-complete is off. Single adds still check the rest.' : null,
+        title: c.key === 'flags' ? 'Scryfall’s extra-turn / mass-land-denial / Game Changer lists couldn’t load, so Auto-complete is off. Single adds still check the rest.'
+          : c.key === 'budget' ? 'Commander and main deck only. Moxfield’s total also includes the sideboard.' : null,
         attrs: { 'data-rule': c.key },
       }, kids));
     }
