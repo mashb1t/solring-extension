@@ -104,19 +104,28 @@ function toast(msg, isError) {
   toastTimer = setTimeout(() => { box.classList.remove('solring-on'); toastHide = setTimeout(() => box.remove(), 300); }, isError ? 4500 : 2600);
 }
 
-// The user's Moxfield price provider, resolved once per page load from the Bulk Edit GET (decks
-// they own; the same GET Bulk Edit itself issues) and stored for decks they don't own.
-let pageProvider = null;
-async function resolvePricing(publicId, editable) {
+// The user's Moxfield price provider. The mount uses the stored value right away (initialPricing,
+// a storage read); on a deck they own the Bulk Edit GET (the same GET Bulk Edit itself issues)
+// refreshes it in the background at most ONCE per page load (a failed GET isn't retried on SPA
+// remounts), stores it for decks they don't own, and reports a change via onChange.
+let pageProvider = null; // from this page's Bulk Edit GET
+let bulkTried = false;
+async function initialPricing() {
   if (pageProvider) return pricingFor(pageProvider);
-  const bulk = editable ? await bulkEditRead(publicId) : null;
-  const stored = await getPricingProvider().catch(() => null);
-  const { provider, fromBulk } = chooseProvider(bulk && bulk.ok ? bulk.json : null, stored);
-  if (fromBulk) {
+  return pricingFor(chooseProvider(null, await getPricingProvider().catch(() => null)).provider);
+}
+function refreshProvider(publicId, editable, onChange) {
+  if (pageProvider || bulkTried || !editable) return;
+  bulkTried = true;
+  (async () => {
+    const bulk = await bulkEditRead(publicId);
+    const stored = await getPricingProvider().catch(() => null);
+    const { provider, fromBulk } = chooseProvider(bulk && bulk.ok ? bulk.json : null, stored);
+    if (!fromBulk) return;
     pageProvider = provider;
     if (provider !== stored) setPricingProvider(provider).catch(() => {});
-  }
-  return pricingFor(provider);
+    onChange(pricingFor(provider));
+  })().catch(() => {});
 }
 
 export async function installBuilder({ waitFor, rebuild = false }) {
@@ -141,6 +150,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   if ((!deck || (rebuild && !deck.commanders.length)) && live()) { await new Promise((r) => setTimeout(r, 1200)); deck = live() ? await readDeckAny(publicId) : null; }
   if (!live() || !deck || deck.format !== 'commander' || !deck.commanders.length) return;
   const build = await getDeckBuild(publicId).catch(() => ({ theme: null, rules: { ...RULES_DEFAULT } }));
+  // Before the first render, so the "+ rule" label / chips never show a stale currency.
+  const pricing0 = await initialPricing().catch(() => DEFAULT_PRICING);
   // Owner signal (Bulk Edit link) once the deck subheader has rendered; a late link gets a moment.
   await waitFor(`#subheader-more, a[href="/decks/${publicId}/edit"]`, 3000);
   for (let i = 0; !canEdit() && i < 8 && live(); i++) await new Promise((r) => setTimeout(r, 100));
@@ -156,7 +167,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   const S = {
     build,
     themes: null, theme: null, themeCards: [], comboResults: null, flags: V.flagSets(null), flagsOk: true, info: {},
-    pricing: DEFAULT_PRICING, // the user's Moxfield price provider (pricing.pricingFor)
+    pricing: pricing0, // the user's Moxfield price provider (pricing.pricingFor)
     owned: null, ownedState: 'idle', // idle | loading | ready | unavailable
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
@@ -234,9 +245,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
 
   async function loadAll() {
     const themesP = send(() => getBuildData({ op: 'themes', commanders: deck.commanders }));
-    const [themesRes, flagsRes, combos, pricing] = await Promise.all([themesP, send(() => getCardData({ op: 'flags' })), loadCombos(),
-      resolvePricing(publicId, editable).catch(() => DEFAULT_PRICING)]);
-    S.pricing = pricing;
+    const [themesRes, flagsRes, combos] = await Promise.all([themesP, send(() => getCardData({ op: 'flags' })), loadCombos()]);
     S.themes = ok(themesRes) && Array.isArray(themesRes.themes) ? themesRes.themes : [];
     S.flags = V.flagSets(ok(flagsRes) ? flagsRes : null);
     S.flagsOk = V.flagsAvailable(flagsRes); // false → chip + no Auto-complete (single "+" stays)
@@ -250,6 +259,11 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   async function start() {
     if (started || !alive()) return;
     started = true;
+    refreshProvider(publicId, editable, (p) => {
+      if (!alive() || p.provider === S.pricing.provider) return;
+      S.pricing = p;
+      if (!S.loading) { recompute(); render(); } // a re-render also redraws an open "+ rule" form's label
+    });
     body.replaceChildren(el('div', { class: 'solring-msg', text: 'Loading suggestions…' }));
     await loadAll();
     if (!alive()) return abandon();
