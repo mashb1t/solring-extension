@@ -5,7 +5,8 @@
 // Front face, lowercased: the same key as moxfield-edit.frontKey (deck boards are keyed by it).
 const key = (name) => String(name).split(' // ')[0].toLowerCase().trim();
 
-export const comboUrl = (id) => `https://commanderspellbook.com/combo/${id}/`;
+// Same URL as the Stats panel and builder combo links (one helper in sources/spellbook.js).
+export { spellbookComboUrl as comboUrl } from './sources/spellbook.js';
 
 /**
  * Map(frontKey → [{ id, pieces, produces, popularity }]) for every card that is a piece of an
