@@ -7,7 +7,9 @@
 // (moxfield-ui.applyBulkEdit). No navigation: after a write the view re-reads the deck, re-renders
 // in place and runs the one post-write Power check; applyBulkEdit has already told Moxfield's deck
 // view to refetch. The in-flight write is a MODULE-level promise so a remount (SPA nav) can't start
-// a second write while one is pending. No innerHTML anywhere.
+// a second write while one is pending. Edits made in Moxfield itself (or another tab) arrive on its
+// `moxfield-sync-{ownerUserId}` BroadcastChannel and trigger a debounced, version-gated refresh.
+// No innerHTML anywhere.
 
 import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
@@ -136,6 +138,10 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   let modalKey = null; // the open preview's Escape listener (closeModal removes it)
   let themeSeq = 0; // playstyle-switch sequence: a slower earlier switch must not win
   let started = false; // start() ran (declared before the bar is clickable: no TDZ on an early expand)
+  // Manual-edit sync (deck edited in Moxfield itself / another tab). Declared before the channel
+  // listener is attached (no TDZ on an early message). syncWant = pending { version, unknown }.
+  let syncWant = null; let syncTimer = 0; let refreshing = false; let rowSig = null;
+  let readRowSig = () => null; // set by installRowPicks: the decklist rows' deckSignature
 
   // ---- skeleton ------------------------------------------------------------------------------
   const body = el('div', { class: 'solring-panel-body solring-builder-body' });
@@ -226,26 +232,69 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // Row checkboxes + "Remove selected" (in the header bar, so also while collapsed) only where you
   // can write. They need just the deck read above, not start()'s suggestion data.
   if (editable) installRowPicks();
+  installDeckSync();
   if (startOpen) await start();
 
-  // Re-read the deck after a write and re-render in place.
-  async function refreshDeck() {
-    let fresh = await readDeckAny(publicId);
-    // Same transient-failure retry as the mount path.
-    if (!fresh && alive()) { await new Promise((r) => setTimeout(r, 1200)); fresh = alive() ? await readDeckAny(publicId) : null; }
-    if (!alive()) return abandon();
-    if (fresh) {
-      deck = fresh;
-      S.comp = V.deckComposition(deck);
-      if (started) { // a never-expanded panel stays unloaded: no suggestion fetches after a remove
-        S.comboResults = await loadCombos();
-        await loadInfo();
-        if (!alive()) return abandon();
-        recompute();
+  // Re-read the deck and re-render in place: after our own write, or (sync = the pending want) after
+  // a manual edit in Moxfield. A sync re-read that finds the version the builder already holds
+  // renders nothing (no double refresh after our own write).
+  async function refreshDeck(sync = null) {
+    refreshing = true;
+    try {
+      let fresh = await readDeckAny(publicId);
+      // Same transient-failure retry as the mount path; a sync read that still predates the
+      // announced version (read-after-write lag) gets the same one retry.
+      const behind = (d) => sync && Number.isFinite(sync.version) && d && Number.isFinite(d.version) && d.version < sync.version;
+      if ((!fresh || behind(fresh)) && alive()) { await new Promise((r) => setTimeout(r, 1200)); fresh = (alive() && await readDeckAny(publicId)) || fresh; }
+      if (!alive()) return abandon();
+      if (sync && fresh && Number.isFinite(fresh.version) && fresh.version === deck.version) return; // nothing new
+      if (sync && !fresh) return; // the view keeps the last good state
+      if (fresh) {
+        deck = fresh;
+        S.comp = V.deckComposition(deck);
+        if (started) { // a never-expanded panel stays unloaded: no suggestion fetches after an edit
+          S.comboResults = await loadCombos();
+          await loadInfo();
+          if (!alive()) return abandon();
+          recompute();
+        }
+        // Keep the selection where those cards are still in the deck (removed ones drop out).
+        const kept = V.pruneSelection(selected, deck.boards.mainboard);
+        selected.clear(); for (const [k, n] of kept) selected.set(k, n);
       }
-      selected.clear();
-    }
-    render(); syncPicks(); // always leave the busy state, even if the re-read failed
+      render(); syncPicks(); // always leave the busy state, even if the re-read failed
+    } finally { refreshing = false; }
+  }
+
+  // ---- manual edits (Moxfield's own add/remove/quantity, another tab) ---------------------------
+  // Moxfield posts { kind:'deck', publicId, prevVersion, version, … } on BroadcastChannel
+  // `moxfield-sync-{ownerUserId}` for its OWN edits too (same tab included; LIVE-VERIFY 2026-11-15),
+  // and the content script's channel object receives them. Our own applyBulkEdit post arrives here
+  // as well: the version gate (syncNeeded vs deck.version) absorbs it once refreshDeck has run.
+  // Debounced (a burst → one refresh); deferred while a write / load / modal is in flight.
+  function scheduleSync(target) {
+    if (!alive()) return;
+    syncWant = V.mergeSyncWant(syncWant, target);
+    if (!V.syncNeeded(syncWant, deck.version)) { syncWant = null; return; }
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(runSync, 800);
+  }
+  function runSync() {
+    syncTimer = 0;
+    if (!alive()) return;
+    // A row-change trigger whose rows now match the state (Moxfield re-rendered our own write) is moot.
+    if (syncWant && syncWant.unknown && syncWant.version == null && readRowSig() === V.deckStateSignature(deck)) syncWant = null;
+    if (!V.syncNeeded(syncWant, deck.version)) { syncWant = null; return; } // e.g. our own write's echo
+    if (writing || S.busy || refreshing || (started && S.loading) || modalKey) { syncTimer = setTimeout(runSync, 800); return; }
+    const want = syncWant; syncWant = null;
+    refreshDeck(want);
+  }
+  function installDeckSync() {
+    if (!deck.ownerUserId || typeof BroadcastChannel === 'undefined') return;
+    let ch = null;
+    try { ch = new BroadcastChannel(`moxfield-sync-${deck.ownerUserId}`); } catch { return; }
+    ch.onmessage = (e) => { try { scheduleSync(V.deckSyncTarget(e && e.data, publicId)); } catch { /* never throw into the page */ } };
+    own(() => { ch.onmessage = null; ch.close(); clearTimeout(syncTimer); syncTimer = 0; syncWant = null; });
   }
 
   // ---- writes --------------------------------------------------------------------------------
@@ -624,12 +673,34 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       remove.textContent = S.busy === 'rm' ? 'Removing via Moxfield…' : 'Remove selected';
       remove.disabled = !!S.busy;
     }
+    // Fallback trigger for manual edits: the decklist rows (commanders + mainboard, name + qty) no
+    // longer match the builder's deck state AND changed since the last look → a version-checked
+    // sync. Our own writes re-render rows that already match the state, so they trigger nothing.
+    function rowSignature() {
+      const entries = [];
+      for (const link of rows()) {
+        const li = link.closest('li[data-row-key]');
+        if (!li || !/^mainboard-/.test(li.getAttribute('data-row-key') || '')) continue;
+        const q = li.querySelector('input[value]');
+        const name = [...link.querySelectorAll('.underline')].map((s) => s.textContent).join('') || link.textContent || '';
+        entries.push({ name: name.replace(/\s+/g, ' ').trim(), qty: q ? q.value : 1 });
+      }
+      return V.deckSignature(entries);
+    }
+    readRowSig = rowSignature;
     function decorate() {
       if (!alive()) return abandon();
+      const sig = rowSignature();
+      if (sig && sig !== rowSig) {
+        const prev = rowSig; rowSig = sig;
+        if (prev && sig !== V.deckStateSignature(deck)) scheduleSync('unknown');
+      }
       for (const link of rows()) {
         const ent = entryOf(link);
         if (!ent) continue;
         let cb = ent.li.querySelector('.solring-builder-pick');
+        // React may reuse an <li> for another card after an edit: a box bound to the old card goes.
+        if (cb && cb.getAttribute('data-key') !== ent.key) { cb.remove(); cb = null; }
         if (!cb) {
           cb = el('input', { class: 'form-check-input solring-builder-pick', attrs: { type: 'checkbox', 'aria-label': `Select ${ent.name}`, 'data-key': ent.key } });
           for (const ev of ['click', 'mousedown', 'pointerdown', 'dragstart']) cb.addEventListener(ev, (e) => e.stopPropagation());
@@ -651,13 +722,15 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       decorate();
     });
     remove.addEventListener('click', () => {
-      const names = [...selected.values()];
-      if (!names.length || S.busy) return;
-      const what = `${names.length} card${names.length === 1 ? '' : 's'}`;
-      confirmModal(`Remove ${what} from this deck?`, 'Remove', () => {
+      const n0 = selected.size;
+      if (!n0 || S.busy) return;
+      const plural = (n) => `${n} card${n === 1 ? '' : 's'}`;
+      confirmModal(`Remove ${plural(n0)} from this deck?`, 'Remove', () => {
         if (S.busy || writing || !live()) return;
+        const names = [...selected.values()]; // as of the confirm (syncs are deferred while it's open)
+        if (!names.length) return;
         S.busy = 'rm'; syncBar();
-        write({ remove: names }, `Removed ${what}`, 'rm').then(() => { if (alive()) syncBar(); });
+        write({ remove: names }, `Removed ${plural(names.length)}`, 'rm').then(() => { if (alive()) syncBar(); });
       });
     });
     for (const ev of ['click', 'keydown']) selbar.addEventListener(ev, (e) => e.stopPropagation());

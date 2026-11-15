@@ -206,3 +206,70 @@ export function ownedFilter(list, ownedOnly) {
   const shown = (list || []).filter((s) => !(s.check && !s.check.ok && s.check.reason === NOT_OWNED));
   return { shown, hidden: (list || []).length - shown.length };
 }
+
+// ---- manual-edit sync (deck edited in Moxfield itself / another tab) ----------------------------
+
+/**
+ * A message on Moxfield's `moxfield-sync-{ownerUserId}` BroadcastChannel → the deck version it
+ * announces for `publicId` (a number), 'unknown' (it's about this deck but carries no version), or
+ * null (not a deck message, or another deck).
+ */
+export function deckSyncTarget(msg, publicId) {
+  if (!msg || typeof msg !== 'object' || msg.kind !== 'deck' || !publicId || msg.publicId !== publicId) return null;
+  return Number.isFinite(msg.version) ? msg.version : 'unknown';
+}
+
+/** Fold a new trigger (deckSyncTarget result, or 'unknown' for a DOM change) into the pending
+ *  want { version: highest announced | null, unknown: bool }. null/undefined → want unchanged. */
+export function mergeSyncWant(want, target) {
+  const w = want || { version: null, unknown: false };
+  if (target == null) return w;
+  if (target === 'unknown') return { ...w, unknown: true };
+  return { ...w, version: w.version == null ? target : Math.max(w.version, target) };
+}
+
+/**
+ * Does the pending want still need a deck re-read, given the version the builder already holds?
+ * A version-less trigger always does; an announced version only when it's newer than `have`
+ * (so our own write's echo, already applied by refreshDeck, needs nothing).
+ */
+export function syncNeeded(want, have) {
+  if (!want) return false;
+  if (want.unknown) return true;
+  if (want.version == null) return false;
+  return !Number.isFinite(have) || want.version > have;
+}
+
+/**
+ * Cheap order-insensitive signature of a decklist: [{ name, qty }] → "front face:qty|…", or null
+ * for an empty list (non-table views render no rows: nothing to compare). Repeated names (a card
+ * shown under two groupings) collapse to one entry.
+ */
+export function deckSignature(entries) {
+  const m = new Map();
+  for (const e of entries || []) {
+    if (!e || !e.name) continue;
+    m.set(frontFace(e.name), Math.max(1, Number(e.qty) || 1));
+  }
+  if (!m.size) return null;
+  return [...m].map(([k, q]) => `${k}:${q}`).sort().join('|');
+}
+
+/** deckSignature of a shapeDeck() result's commanders + mainboard (what the decklist rows show). */
+export function deckStateSignature(deck) {
+  const entries = [];
+  for (const b of ['commanders', 'mainboard']) {
+    for (const e of Object.values((deck && deck.boards && deck.boards[b]) || {})) entries.push({ name: e.name, qty: e.quantity });
+  }
+  return deckSignature(entries);
+}
+
+/** The selection (front-face key → name) kept after a re-read: only cards still in the mainboard. */
+export function pruneSelection(selected, mainboard) {
+  const out = new Map();
+  for (const [k, name] of selected || []) {
+    const e = mainboard && mainboard[k];
+    if (e) out.set(k, e.name || name);
+  }
+  return out;
+}

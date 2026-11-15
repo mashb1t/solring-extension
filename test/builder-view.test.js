@@ -192,3 +192,62 @@ test('builderStartsOpen: open / collapsed force the state on editable decks', ()
   assert.equal(builderStartsOpen({ setting: 'open', editable: true, cards: 100 }), true);
   assert.equal(builderStartsOpen({ setting: 'collapsed', editable: true, cards: 10 }), false);
 });
+
+import {
+  deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckStateSignature, pruneSelection,
+} from '../src/builder-view.js';
+
+test('deckSyncTarget: this deck → version / unknown; other decks and non-deck messages → null', () => {
+  assert.equal(deckSyncTarget({ v: 1, kind: 'deck', publicId: 'abc', prevVersion: 80, version: 81, isTruncated: false }, 'abc'), 81);
+  assert.equal(deckSyncTarget({ kind: 'deck', publicId: 'abc' }, 'abc'), 'unknown');
+  assert.equal(deckSyncTarget({ kind: 'deck', publicId: 'other', version: 3 }, 'abc'), null);
+  assert.equal(deckSyncTarget({ kind: 'collection', publicId: 'abc', version: 3 }, 'abc'), null);
+  for (const m of [null, undefined, 'x', 42]) assert.equal(deckSyncTarget(m, 'abc'), null);
+  assert.equal(deckSyncTarget({ kind: 'deck', publicId: 'abc', version: 1 }, null), null);
+});
+
+test('mergeSyncWant: highest version wins; unknown sticks; null leaves the want alone', () => {
+  let w = mergeSyncWant(null, 81);
+  assert.deepEqual(w, { version: 81, unknown: false });
+  w = mergeSyncWant(w, 80);
+  assert.equal(w.version, 81);
+  w = mergeSyncWant(w, 83);
+  assert.equal(w.version, 83);
+  assert.deepEqual(mergeSyncWant(w, null), w);
+  assert.deepEqual(mergeSyncWant(w, 'unknown'), { version: 83, unknown: true });
+});
+
+test('syncNeeded: our own write echo (already applied) needs nothing; newer versions and DOM changes do', () => {
+  assert.equal(syncNeeded(null, 80), false);
+  assert.equal(syncNeeded({ version: 81, unknown: false }, 81), false); // own write: refreshDeck already read 81
+  assert.equal(syncNeeded({ version: 80, unknown: false }, 81), false); // stale message
+  assert.equal(syncNeeded({ version: 82, unknown: false }, 81), true);
+  assert.equal(syncNeeded({ version: 82, unknown: false }, null), true);
+  assert.equal(syncNeeded({ version: null, unknown: true }, 81), true);
+  assert.equal(syncNeeded({ version: null, unknown: false }, 81), false);
+});
+
+test('deckSignature: order-insensitive, front face, quantities; empty → null', () => {
+  const a = deckSignature([{ name: 'Sol Ring', qty: 1 }, { name: 'Forest', qty: '8' }]);
+  const b = deckSignature([{ name: 'forest', qty: 8 }, { name: 'Sol Ring', qty: 1 }, { name: 'Sol Ring', qty: 1 }]);
+  assert.equal(a, b);
+  assert.notEqual(a, deckSignature([{ name: 'Sol Ring', qty: 1 }, { name: 'Forest', qty: 7 }]));
+  assert.notEqual(a, deckSignature([{ name: 'Forest', qty: 8 }]));
+  assert.equal(deckSignature([{ name: 'Delver of Secrets // Insectile Aberration', qty: 1 }]), deckSignature([{ name: 'Delver of Secrets', qty: 1 }]));
+  assert.equal(deckSignature([]), null);
+  assert.equal(deckSignature(null), null);
+});
+
+test('deckStateSignature: commanders + mainboard of a shaped deck match the rows it renders', () => {
+  const rows = [{ name: 'Ms. Bumbleflower', qty: 1 }, { name: 'Forest', qty: 8 }, { name: 'Command Tower', qty: 1 }, { name: 'Howling Mine', qty: 1 }];
+  assert.equal(deckStateSignature(deck), deckSignature(rows)); // sideboard Sol Ring excluded
+  assert.equal(deckStateSignature({ boards: {} }), null);
+});
+
+test('pruneSelection: keeps selected cards still in the mainboard, drops removed ones', () => {
+  const sel = new Map([['forest', 'Forest'], ['howling mine', 'Howling Mine'], ['sol ring', 'Sol Ring']]);
+  const kept = pruneSelection(sel, deck.boards.mainboard);
+  assert.deepEqual([...kept.keys()], ['forest', 'howling mine']);
+  assert.equal(pruneSelection(sel, {}).size, 0);
+  assert.equal(pruneSelection(null, deck.boards.mainboard).size, 0);
+});

@@ -102,6 +102,9 @@ ToS-/CWS-sensitive area as above.
   clicks the matching row inside the Deck Preview to open it.
 - Card art: `card-{id}` works for normal/adventure/split; only `transform`/`modal_dfc` fronts need
   `card-face-{frontFaceId}` (drives the DFC image + flip button).
+- Moxfield posts `{kind:'deck', publicId, prevVersion, version, isTruncated:false, boards}` on BroadcastChannel
+  `moxfield-sync-{ownerUserId}` for its OWN edits (same tab too); the builder listens there to refresh on manual edits.
+  Our `applyBulkEdit` post echoes back to that listener, so it's version-gated against the deck it holds.
 - Moxfield's deck-edit resources are keyed by **cardId**, not the internal board-entry id (a DELETE by entry id 404s).
 - Moxfield dark mode is the `.darkmode` class on html/body, not `[data-bs-theme]` (see `dom.isDark`, `styles/solring.css`).
 - The Bulk Edit API request/response + the sync channel (2026-11-14) and the dialog selectors (2026-11-13) are recorded in
