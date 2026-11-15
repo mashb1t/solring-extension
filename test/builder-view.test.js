@@ -5,6 +5,7 @@ import {
   previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
+import { deckSizeStatus } from '../src/builder-view.js';
 
 const flags = (o = {}) => ({ gameChangers: new Set(), extraTurns: new Set(), massLandDenial: new Set(), ...o });
 const entry = (name, quantity = 1, isLand = false) => ({ name, quantity, isLand });
@@ -283,4 +284,12 @@ test('rulesAreDefault: only RULES_DEFAULT-equivalent rules count as default', ()
   assert.equal(rulesAreDefault({ bracket: 3, power: { min: 6, max: 7 } }), false);
   assert.equal(rulesAreDefault({ bracket: 3, budget: 200 }), false);
   assert.equal(rulesAreDefault({ bracket: 3, ownedOnly: true }), false);
+});
+
+test('deckSizeStatus: exactly 100 is legal, anything else is flagged with how far off', () => {
+  assert.deepEqual(deckSizeStatus(100), { legal: true, diff: 0, label: '' });
+  assert.deepEqual(deckSizeStatus(99), { legal: false, diff: -1, label: 'Not legal: 99 / 100 cards (1 under)' });
+  assert.deepEqual(deckSizeStatus(101), { legal: false, diff: 1, label: 'Not legal: 101 / 100 cards (1 over)' });
+  assert.deepEqual(deckSizeStatus(0), { legal: false, diff: -100, label: 'Not legal: 0 / 100 cards (100 under)' });
+  assert.equal(deckSizeStatus(60, 60).legal, true);
 });

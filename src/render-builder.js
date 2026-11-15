@@ -497,7 +497,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     if (!alive()) return abandon();
     // Formula on but not computed yet (collapsed, or still loading card data): no target to show.
     const landsText = S.landFormula && !S.land ? `${S.comp.current.lands} lands` : `${S.comp.current.lands} / ${landGoal()} lands`;
-    barInfo.replaceChildren(`${S.comp.current.cards} / ${V.DECK_SIZE} cards · `,
+    const size = V.deckSizeStatus(S.comp.current.cards);
+    barInfo.replaceChildren(el('span', { class: `solring-builder-cardcount${size.legal ? '' : ' solring-builder-illegal'}`, text: `${S.comp.current.cards} / ${V.DECK_SIZE} cards`, attrs: { title: size.label || null } }), ' · ',
       el('span', { class: 'solring-builder-landcount', text: landsText, title: landTitle() }));
     syncReloadBtn();
     if (!started) return; // collapsed, not loaded yet: the bar summary is all there is

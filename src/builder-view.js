@@ -30,6 +30,17 @@ export function deckComposition(deck) {
 }
 
 /**
+ * Is the deck exactly the legal Commander size (`cards` = commanders + mainboard copies)?
+ * → { legal, diff (cards − size: negative = under), label (tooltip text when not legal, else '') }
+ */
+export function deckSizeStatus(cards, size = DECK_SIZE) {
+  const n = Number(cards) || 0;
+  const diff = n - size;
+  if (diff === 0) return { legal: true, diff, label: '' };
+  return { legal: false, diff, label: `Not legal: ${n} / ${size} cards (${Math.abs(diff)} ${diff < 0 ? 'under' : 'over'})` };
+}
+
+/**
  * Initial state of the build view (options.builderPanelDefault). Decks you can't edit always start
  * collapsed. 'open' / 'collapsed' force it; 'auto' (and anything unknown) opens while the deck is
  * below the legal size (`cards` = commanders + mainboard copies, deckComposition().current.cards).
