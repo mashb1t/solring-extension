@@ -423,7 +423,7 @@ export async function mount({ waitFor }) {
   const setRefreshSpinning = (on) => { refreshIcon.classList.toggle('solring-spin', on); refreshBtn.disabled = on; };
   // Bar is a role=button div (so the refresh <button> can nest without invalid HTML).
   const titleBar = el('div', { class: 'solring-panel-bar', attrs: { role: 'button', tabindex: '0', 'aria-expanded': 'false' } }, [
-    el('span', { class: 'solring-wordmark', text: 'Solring' }),
+    el('span', { class: 'solring-wordmark', text: 'Solring Stats' }),
     el('span', { class: 'solring-bar-right' }, [synced, rzBtn, refreshBtn, chevron]),
   ]);
 
