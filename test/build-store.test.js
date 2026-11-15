@@ -38,6 +38,18 @@ test('set then get merges rules over defaults', async () => {
   assert.deepEqual(b.rules, { ...RULES_DEFAULT, budget: 100, ownedOnly: true });
 });
 
+test('rules stored before the tutor / land-hate / stax keys get their defaults; a GC cap can be cleared', async () => {
+  const { getDeckBuild, setDeckBuild, store } = await load();
+  store['build:old'] = { theme: null, rules: { bracket: 4, gameChangerCap: 2, power: null, budget: null, ownedOnly: false } };
+  const b = await getDeckBuild('old');
+  assert.equal(b.rules.tutorCap, null);
+  assert.equal(b.rules.noLandHate, false);
+  assert.equal(b.rules.noStax, false);
+  assert.equal(b.rules.gameChangerCap, 2);
+  await setDeckBuild('old', { rules: { gameChangerCap: null } });
+  assert.equal((await getDeckBuild('old')).rules.gameChangerCap, null);
+});
+
 test('concurrent setDeckBuild patches do not clobber each other', async () => {
   const { getDeckBuild, setDeckBuild } = await load();
   await Promise.all([
