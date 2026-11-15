@@ -65,3 +65,15 @@ test('dropCombosWith: a partner left with no combos is removed', () => {
 test('comboUrl: Commander Spellbook combo page', () => {
   assert.equal(comboUrl('12-34'), 'https://commanderspellbook.com/combo/12-34/');
 });
+
+test('backdropDismisses: only a full click on the backdrop after the grace period', async () => {
+  const { backdropDismisses, BACKDROP_GRACE_MS } = await import('../src/combo-breakers.js');
+  const base = { openedAt: 1000, downOnBackdrop: true, clickOnBackdrop: true };
+  assert.equal(BACKDROP_GRACE_MS, 400);
+  assert.equal(backdropDismisses({ ...base, now: 1150 }), false); // double-click's 2nd click
+  assert.equal(backdropDismisses({ ...base, now: 1399 }), false);
+  assert.equal(backdropDismisses({ ...base, now: 1400 }), true);
+  assert.equal(backdropDismisses({ ...base, now: 5000, downOnBackdrop: false }), false); // drag out of the dialog
+  assert.equal(backdropDismisses({ ...base, now: 5000, clickOnBackdrop: false }), false); // click inside
+  assert.equal(backdropDismisses({ ...base, now: 1100, graceMs: 0 }), true);
+});

@@ -46,3 +46,12 @@ export function dropCombosWith(map, name) {
   }
   return map;
 }
+
+// Confirm-dialog backdrop dismissal (combo-breaker-ui.confirmRemove). A mouse double-click on "−"
+// opens the confirm on the first click; the second lands on the full-screen backdrop. So a
+// backdrop click dismisses only when its pointerdown also started on the backdrop AND the dialog
+// has been open for at least `graceMs`. Escape / Cancel are not gated.
+export const BACKDROP_GRACE_MS = 400;
+export function backdropDismisses({ openedAt, now, downOnBackdrop, clickOnBackdrop, graceMs = BACKDROP_GRACE_MS }) {
+  return !!(clickOnBackdrop && downOnBackdrop && now - openedAt >= graceMs);
+}
