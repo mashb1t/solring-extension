@@ -837,6 +837,9 @@ span.solring-picker-entry { display: inline; }
    Panel above Moxfield's decklist, decklist row checkboxes + selection bar, Auto-complete preview
    modal, write toast. Tokens only; dark mode follows Moxfield's --bs-* vars (+ .darkmode). */
 .solring-builder { margin: 0 0 0.75rem; }
+/* Own stacking context at level 0: the sticky rules bar (z 3 inside) stays above the tiles but
+   beneath Moxfield's fixed bars (its bottom deck-stats bar is z 2), never painted over them. */
+.solring-builder { position: relative; z-index: 0; }
 /* Not overflow:hidden like the report card: the rules bar is sticky inside the panel. */
 .solring-builder-panel { overflow: visible; margin: 0; }
 /* Inner radius = panel radius (8px) − its 1px border, so the bar's corners run parallel to the border. */

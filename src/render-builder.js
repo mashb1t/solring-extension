@@ -46,18 +46,33 @@ export function teardownBuilder() {
   document.querySelectorAll('.solring-builder-sel').forEach((n) => n.classList.remove('solring-builder-sel'));
 }
 
-// Bottom edge of Moxfield's fixed deck toolbar (it appears once the page scrolls), so our sticky
-// rules/selection bars stick just below it instead of underneath. 0 when nothing is pinned.
+// Bottom edge of the bars Moxfield pins to the top of the viewport (its deck toolbar appears once the
+// page scrolls), so our sticky rules/selection bars stick just below them instead of underneath.
+// Fixed AND stuck sticky bars count; bars stacked under each other are followed down (probe again
+// just below the last one). 0 when nothing is pinned. Moxfield's purple deck-stats bar is fixed to
+// the BOTTOM (LIVE-VERIFY 2026-11-15): it never counts here; the builder's own stacking context
+// (z-index 0 in solring.css) keeps the rules bar beneath it when they meet.
 function fixedTopBottom() {
   let bottom = 0;
-  for (const n of document.elementsFromPoint(Math.round(window.innerWidth / 2), 8)) {
-    if (n.closest('.solring-builder, .solring-builder-selbar')) continue;
-    for (let e = n; e && e !== document.body; e = e.parentElement) {
-      if (getComputedStyle(e).position !== 'fixed') continue;
-      const b = e.getBoundingClientRect();
-      if (b.top <= 1 && b.height < 160) bottom = Math.max(bottom, b.bottom);
-      break;
+  for (let pass = 0; pass < 3; pass++) {
+    const y = bottom + 2;
+    let next = bottom;
+    for (const fx of [0.25, 0.5, 0.75]) {
+      for (const n of document.elementsFromPoint(Math.round(window.innerWidth * fx), y)) {
+        if (n.closest('.solring-builder, .solring-builder-selbar')) continue;
+        for (let e = n; e && e !== document.body; e = e.parentElement) {
+          const pos = getComputedStyle(e).position;
+          if (pos !== 'fixed' && pos !== 'sticky') continue;
+          const b = e.getBoundingClientRect();
+          // pinned to the top edge (or to the bar above it), bar-sized; skips Moxfield's 3px fixed
+          // page-progress strip (z 100) at the very top.
+          if (b.top <= bottom + 1 && b.bottom > bottom && b.height >= 6 && b.height < 160) next = Math.max(next, b.bottom);
+          break;
+        }
+      }
     }
+    if (next <= bottom) break;
+    bottom = next;
   }
   return Math.round(bottom);
 }
