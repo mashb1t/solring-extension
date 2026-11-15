@@ -12,7 +12,6 @@ import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
 import { relTime, num, exact } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
 import { getCardPrefs, getOptions, onPrefChange, getCardSortView } from './prefs.js';
-import { applyOptionColors } from './option-colors.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
@@ -113,7 +112,7 @@ function installOnce() {
   installCardSidebar(() => currentFields, () => currentOptions); // mirrored on the deck-page sidebar
   const offPref = onPrefChange(async (which) => {
     if (which === 'card') { reannotate(); return; }
-    if (which === 'options') { currentOptions = await getOptions(); applyOptionColors(currentOptions); reannotate(); }
+    if (which === 'options') { currentOptions = await getOptions(); reannotate(); } // colours: option-colors.js
   });
   // Router drains this on nav: drop the prefs listener and reset the once-guard so the
   // next deck re-runs installOnce (which re-installs the card panels it also disposed).
@@ -343,7 +342,6 @@ export async function mount({ waitFor }) {
   const md5 = deckMd5(canonicalUrl);
 
   currentOptions = await getOptions();
-  applyOptionColors(currentOptions);
   // Deck panel initial state: 'open'/'collapsed' force it, 'auto' opens when analyzed.
   const panelOpenFor = (analyzed) => (currentOptions.deckPanelDefault === 'open' ? true
     : currentOptions.deckPanelDefault === 'collapsed' ? false : analyzed);
