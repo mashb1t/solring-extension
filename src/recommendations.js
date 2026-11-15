@@ -353,10 +353,17 @@ function wireRemove(btn, cut, ctx, cell) {
     // Removing the last copy of a combo piece breaks the combo: confirm first. (A decrement
     // leaves a copy, so nothing breaks; non-combo cards remove straight away.) If the combo data
     // is still loading, wait for it briefly (never fails; capped so a slow API can't block).
-    if (cut.quantity <= 1 && ctx.breakersReady) await Promise.race([ctx.breakersReady, new Promise((r) => setTimeout(r, 1500))]);
-    const combos = cut.quantity > 1 ? null : ctx.breakers.get(frontKey(cut.name));
-    if (combos && combos.length && !(await confirmRemove(cut.name, combos, btn))) return;
+    // In flight from the first click: a double-click while combo data loads can't send two edits.
+    if (btn.disabled) return;
     cell.classList.add('solring-cut-busy'); btn.disabled = true;
+    const idle = () => { cell.classList.remove('solring-cut-busy'); btn.disabled = false; };
+    if (cut.quantity <= 1 && ctx.breakersReady) {
+      let timer;
+      await Promise.race([ctx.breakersReady, new Promise((r) => { timer = setTimeout(r, 1500); })]);
+      clearTimeout(timer);
+    }
+    const combos = cut.quantity > 1 ? null : ctx.breakers.get(frontKey(cut.name));
+    if (combos && combos.length && !(await confirmRemove(cut.name, combos, btn))) { idle(); if (btn.isConnected) btn.focus(); return; } // focus: the confirm's return-focus hit a disabled button
     try {
       if (cut.quantity > 1) {
         const next = cut.quantity - 1;
@@ -365,7 +372,7 @@ function wireRemove(btn, cut, ctx, cell) {
         const count = cell.querySelector('.solring-cut-count');
         if (next > 1) { if (count) count.textContent = `×${next}`; } else if (count) count.remove();
         toast('Successfully removed one from main deck!');
-        cell.classList.remove('solring-cut-busy'); btn.disabled = false;
+        idle();
       } else {
         await removeCard(ctx.editId, 'mainboard', cut.cardId);
         toast('Successfully removed one from main deck!');
@@ -374,7 +381,7 @@ function wireRemove(btn, cut, ctx, cell) {
         bumpCount(-1);
       }
     } catch (err) {
-      cell.classList.remove('solring-cut-busy'); btn.disabled = false;
+      idle();
       toast(`Couldn’t remove “${cut.name}” (${(err && err.message) || 'error'}).`, true);
     }
   });
