@@ -17,3 +17,12 @@ test('cutsViewAction: a genuinely empty result renders (the empty-state message)
   assert.equal(cutsViewAction({ active: true, cuts: [], rendered: false }), 'render');
   assert.equal(cutsViewAction({ active: true, cuts: [], rendered: true }), 'none');
 });
+
+test('cutsCount: removed cuts no longer count', async () => {
+  const { cutsCount } = await import('../src/cuts-view.js');
+  const cuts = [{ name: 'A' }, { name: 'B', removed: true }, { name: 'C' }];
+  assert.equal(cutsCount(cuts), 2);
+  cuts[0].removed = true;
+  assert.equal(cutsCount(cuts), 1);
+  assert.equal(cutsCount(null), 0);
+});

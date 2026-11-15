@@ -17,7 +17,7 @@ import { readDeck, frontKey, hasToken, setCardQuantity, removeCard } from './mox
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { getDeck, getEnrichment, getRecs, getBuildData } from './messaging.js';
 import { comboBreakers, dropCombosWith } from './combo-breakers.js';
-import { cutsViewAction } from './cuts-view.js';
+import { cutsViewAction, cutsCount } from './cuts-view.js';
 import { breakerBadge, closeBreakerPop, confirmRemove, cancelBreakerConfirm } from './combo-breaker-ui.js';
 import { annotate } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
@@ -98,13 +98,13 @@ export async function installRecommendations({ waitFor }) {
   const deriveCuts = () => { cuts = allCuts && positiveCuts(allCuts.filter((c) => !c.removed), positiveOnly); };
   let cutsRendered = false;
   let showingCuts = false;
-  const ctx = { publicId, editId: null, breakers: new Map(), view: cutsView };
+  const ctx = { publicId, editId: null, breakers: new Map(), view: cutsView, onRemoved: null };
   const reword = () => {
     if (!foundLine) return;
     if (showingCuts && cuts) {
       foundLine.replaceChildren(
         document.createTextNode('We found '),
-        el('strong', { text: String(cuts.length) }),
+        el('strong', { text: String(cutsCount(cuts)) }),
         document.createTextNode(' recommended cuts from '),
         foundLink ? foundLink.cloneNode(true) : document.createTextNode('edhrec.com'),
         document.createTextNode(' (least-played in this commander’s decks first).'),
@@ -150,6 +150,7 @@ export async function installRecommendations({ waitFor }) {
     ? cutRecs(json, Infinity).map((r) => { const e = deck.boards.mainboard[frontKey(r.name)]; return e ? { ...e, score: r.score } : null; }).filter(Boolean)
     : [];
   deriveCuts();
+  ctx.onRemoved = () => { if (showingCuts) reword(); }; // "We found N" drops the removed card
   // Live "Only suggest cards with a cut score above 0": re-derive, re-word, re-render (now if the
   // Cuts tab shows, else on its next open).
   const offCutsPref = onPrefChange(async (which) => {
@@ -160,6 +161,7 @@ export async function installRecommendations({ waitFor }) {
     deriveCuts();
     cutsRendered = false;
     closeBreakerPop();
+    cancelBreakerConfirm(); // an open confirm's cell is about to be re-rendered away
     reword();
     syncCuts();
   });
@@ -426,6 +428,7 @@ function wireRemove(btn, cut, ctx, cell) {
         cell.remove();
         if (ctx.breakers.size) { dropCombosWith(ctx.breakers, cut.name); syncBreakerBadges(ctx); } // its partners no longer combo
         bumpCount(-1);
+        if (ctx.onRemoved) ctx.onRemoved();
       }
     } catch (err) {
       idle();

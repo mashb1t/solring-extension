@@ -7,3 +7,8 @@ export function cutsViewAction({ active, cuts, rendered }) {
   if (!active || rendered) return 'none';
   return Array.isArray(cuts) ? 'render' : 'loading';
 }
+
+/** The "We found N recommended cuts" count: shown cuts minus the ones removed since (flagged `removed`). */
+export function cutsCount(cuts) {
+  return Array.isArray(cuts) ? cuts.filter((c) => c && !c.removed).length : 0;
+}
