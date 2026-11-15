@@ -585,7 +585,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const all = el('input', { class: 'form-check-input', attrs: { type: 'checkbox', 'aria-label': 'Select all cards' } });
     const clear = el('button', { class: 'btn btn-outline-secondary btn-sm', text: 'Clear', attrs: { type: 'button' } });
     const remove = el('button', { class: 'btn btn-outline-danger btn-sm', attrs: { type: 'button' } });
-    const selbar = el('div', { class: `solring-builder-selbar${isDark() ? ' solring-dark' : ''}`, attrs: { 'data-solring-root': '' } }, [
+    // Lives in the builder's header bar; its clicks must not reach the bar's expand/collapse toggle.
+    const selbar = el('span', { class: 'solring-builder-selbar' }, [
       el('label', { class: 'solring-builder-all' }, [all, el('span', { text: 'Select all' })]), count,
       el('span', { class: 'solring-builder-spacer' }), clear, remove,
     ]);
@@ -646,9 +647,10 @@ export async function installBuilder({ waitFor, rebuild = false }) {
         write({ remove: names }, `Removed ${what}`, 'rm').then(() => { if (alive()) syncBar(); });
       });
     });
-    deckview.parentElement.insertBefore(selbar, deckview);
+    for (const ev of ['click', 'keydown']) selbar.addEventListener(ev, (e) => e.stopPropagation());
+    bar.insertBefore(selbar, bar.lastElementChild); // after the wordmark, before the bar's right side
     let topRaf = 0;
-    const setTop = () => { const v = `${fixedTopBottom()}px`; root.style.setProperty('--solring-builder-top', v); selbar.style.setProperty('--solring-builder-top', v); };
+    const setTop = () => root.style.setProperty('--solring-builder-top', `${fixedTopBottom()}px`);
     let topTimer = 0; // trailing re-measure: Moxfield's fixed toolbar animates in after the scroll
     const onScroll = () => { cancelAnimationFrame(topRaf); topRaf = requestAnimationFrame(setTop); clearTimeout(topTimer); topTimer = setTimeout(setTop, 250); };
     window.addEventListener('scroll', onScroll, { passive: true });
