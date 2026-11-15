@@ -86,6 +86,7 @@ test('fetchFlagSets: follows next_page, sets of front keys', async () => {
     if (q.includes('is:gamechanger')) return jsonRes({ has_more: false, data: [{ name: 'Ojer Axonil, Deepest Might // Temple of Power' }] });
     if (q.includes('otag:extra-turn')) return jsonRes({ data: [{ name: 'Time Warp' }] });
     if (q.includes('otag:tutor')) return jsonRes({ data: [{ name: 'Demonic Tutor' }] });
+    if (q.includes('otag:rule-of-law')) return jsonRes({ data: [{ name: 'Rule of Law' }] });
     return jsonRes({ data: [{ name: 'Armageddon' }] });
   };
   const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
@@ -96,6 +97,14 @@ test('fetchFlagSets: follows next_page, sets of front keys', async () => {
   assert.deepEqual([...f.tutors], ['demonic tutor']);
   // Land tutors (Cultivate, Evolving Wilds) are ramp, not tutors: excluded from the query.
   assert.ok(calls.some((u) => decodeURIComponent(u).includes('otag:tutor -otag:tutor-land')));
+  // No otag:stax exists on Scryfall: rule-of-law + cost-increaser stand in.
+  assert.deepEqual([...f.stax], ['rule of law']);
+  assert.ok(calls.some((u) => decodeURIComponent(u).includes('(otag:rule-of-law or otag:cost-increaser)')));
+});
+
+test('fetchFlagSets: a failed stax query alone → null', async () => {
+  const stub = async (u) => (decodeURIComponent(u).includes('rule-of-law') ? jsonRes({}, false) : jsonRes({ data: [{ name: 'X' }] }));
+  assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
 });
 
 test('fetchFlagSets: a failed tutor query alone → null', async () => {

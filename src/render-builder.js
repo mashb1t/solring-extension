@@ -566,7 +566,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       if (c.hint) kids.push(el('small', { text: c.hint }));
       items.push(el('span', {
         class: `solring-builder-chip${c.key === 'flags' ? ' solring-builder-err' : ''}`,
-        title: c.key === 'flags' ? 'Scryfall’s card lists for your rules (Game Changers, extra turns, mass land denial, tutors) couldn’t load, so Auto-complete is off. Single adds still check the rest.'
+        title: c.key === 'flags' ? 'Scryfall’s card lists for your rules (Game Changers, extra turns, mass land denial, tutors, stax) couldn’t load, so Auto-complete is off. Single adds still check the rest.'
           : c.key === 'budget' ? 'Commander and main deck only. Moxfield’s total also includes the sideboard.' : null,
         attrs: { 'data-rule': c.key },
       }, kids));
@@ -619,19 +619,27 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const pmax = inp(r.power && r.power.max, { min: '1', max: '10', step: '0.5', placeholder: 'max' });
     const budget = inp(r.budget, { min: '1', step: '1', placeholder: 'no limit' });
     const tutors = inp(r.tutorCap, { min: '0', step: '1', placeholder: 'no limit' });
+    const check = (on, label, title) => {
+      const box = el('input', { class: 'form-check-input', attrs: { type: 'checkbox' } });
+      box.checked = !!on;
+      return { box, node: el('label', { class: 'solring-builder-check', title }, [box, el('span', { text: label })]) };
+    };
+    const noLandHate = check(r.noLandHate, 'No land hate', 'Block mass land denial (Armageddon and the like) at any bracket. Single-target land destruction is still allowed.');
+    const noStax = check(r.noStax, 'No stax', 'Block stax pieces at any bracket (Scryfall’s rule-of-law and cost-increaser tags: Rule of Law, Thalia, Sphere of Resistance, …)');
     const save = el('button', { class: 'btn btn-primary btn-sm', text: 'Save rules', attrs: { type: 'submit' } });
     const form = el('form', { class: 'solring-builder-ruleform' }, [
       field('Bracket', bracket), field('Game Changer cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [gc, gcDefault])),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
       field('Tutor cap', tutors),
+      el('div', { class: 'solring-builder-checks' }, [noLandHate.node, noStax.node]),
       el('div', { class: 'solring-builder-formfoot' }, [
         S.rulesError ? el('span', { class: 'solring-builder-err', text: S.rulesError }) : null, save,
       ]),
     ]);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value, tutorCap: tutors.value }, S.pricing);
+      const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value, tutorCap: tutors.value, noLandHate: noLandHate.box.checked, noStax: noStax.box.checked }, S.pricing);
       if (res.error) { S.rulesError = res.error; render(); return; }
       S.rulesOpen = false; S.rulesError = null;
       if (!res.rules.power) S.power = null;

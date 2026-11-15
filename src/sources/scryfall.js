@@ -138,6 +138,9 @@ const FLAG_QUERIES = {
   massLandDenial: 'otag:mass-land-denial',
   // otag:tutor also tags land fetchers (Cultivate, Evolving Wilds: otag:tutor-land), which are ramp.
   tutors: 'otag:tutor -otag:tutor-land',
+  // Scryfall has no otag:stax: rule-of-law (one-spell-per-turn) + cost-increaser (Thalia, Sphere of
+  // Resistance) are the closest real tags. Misses orbs / Smokestack / Blood Moon (untagged as such).
+  stax: '(otag:rule-of-law or otag:cost-increaser)',
 };
 
 // Front-face keys for every result of a search, following next_page. null if any page fails.

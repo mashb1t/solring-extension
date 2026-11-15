@@ -6,7 +6,8 @@ import { BASICS } from './sources/edhrec.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
 // tutorCap: max tutors (Scryfall otag:tutor minus land tutors) in the deck; null = no limit.
-export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null };
+// noLandHate / noStax: block mass land denial / stax pieces at any bracket.
+export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, budget: null, ownedOnly: false, tutorCap: null, noLandHate: false, noStax: false };
 
 // Spellbook bracket tags → minimum bracket. 'B' (Banned: uses a banned card) is never allowed.
 const COMBO_MIN_BRACKET = { E: 1, O: 2, C: 2, S: 3, P: 3, R: 4, B: Infinity };
@@ -103,6 +104,8 @@ export function checkCard(name, ctx) {
     if (ctx.flags.extraTurns.has(key)) return { ok: false, reason: `Not allowed at Bracket ${rules.bracket} (extra turn)` };
     if (ctx.flags.massLandDenial.has(key)) return { ok: false, reason: `Not allowed at Bracket ${rules.bracket} (mass land denial)` };
   }
+  if (rules.noLandHate && inFlag(ctx, 'massLandDenial', key)) return { ok: false, reason: 'Blocked by your rules (mass land denial)' };
+  if (rules.noStax && inFlag(ctx, 'stax', key)) return { ok: false, reason: 'Blocked by your rules (stax)' };
   for (const keys of ctx.forbidden || []) {
     if (keys.includes(key) && keys.every((k) => k === key || ctx.deckKeys.has(k))) {
       return { ok: false, reason: `Would complete a combo not allowed at Bracket ${rules.bracket}` };
@@ -125,6 +128,8 @@ export function ruleUsage(ctx) {
   out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules), bracket: rules.bracket, custom: clampGcCap(rules.gameChangerCap, rules.bracket) != null });
   if (rules.tutorCap != null) out.push({ key: 'tutors', label: 'Tutors', used: ctx.tutorUsed || 0, max: rules.tutorCap });
   if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget, pricing: ctx.pricing || DEFAULT_PRICING });
+  if (rules.noLandHate) out.push({ key: 'noLandHate', label: 'No land hate', used: null, max: null });
+  if (rules.noStax) out.push({ key: 'noStax', label: 'No stax', used: null, max: null });
   if (rules.power) out.push({ key: 'power', label: `Power ${rules.power.min}–${rules.power.max}`, used: null, max: null });
   return out;
 }

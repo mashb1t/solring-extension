@@ -87,22 +87,23 @@ export function rulesAreDefault(rules) {
   const r = rules || {};
   const bracket = Number(r.bracket ?? RULES_DEFAULT.bracket);
   return bracket === RULES_DEFAULT.bracket && clampGcCap(r.gameChangerCap, bracket) == null
-    && !r.power && r.budget == null && !r.ownedOnly && r.tutorCap == null;
+    && !r.power && r.budget == null && !r.ownedOnly && r.tutorCap == null && !r.noLandHate && !r.noStax;
 }
 
 /** getCardData({op:'flags'}) → Sets for makeCtx. A miss/error/missing list → empty Set. */
 export function flagSets(res) {
   const set = (k) => new Set(res && Array.isArray(res[k]) ? res[k] : []);
-  return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial'), tutors: set('tutors') };
+  return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial'), tutors: set('tutors'), stax: set('stax') };
 }
 
 /** Did getCardData({op:'flags'}) return the real lists? (The worker serves a stale copy on a failed
  *  refresh, so false means nothing is cached at all: extra-turn / MLD / GC checks can't run.)
- *  A list added later (tutors) is only required while its rule is on: a stale copy cached before it
+ *  A list added later (tutors, stax) is only required while its rule is on: a stale copy cached before it
  *  existed still serves the bracket checks. */
 export function flagsAvailable(res, rules = null) {
   const need = ['gameChangers', 'extraTurns', 'massLandDenial'];
   if (rules && rules.tutorCap != null) need.push('tutors');
+  if (rules && rules.noStax) need.push('stax');
   return !!(res && !res.error && !res.miss && need.every((k) => Array.isArray(res[k])));
 }
 
@@ -243,7 +244,7 @@ export function powerVerdict(res, target) {
  * The "+ rule" form values → a rules patch, or { error }. Blank fields clear a rule.
  * Inputs are strings (form values); bracket 1–5, GC cap ≥ 0, power 1–10 with min ≤ max, budget > 0.
  */
-export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tutorCap }, pricing = DEFAULT_PRICING) {
+export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tutorCap, noLandHate = false, noStax = false }, pricing = DEFAULT_PRICING) {
   const num = (s) => (String(s ?? '').trim() === '' ? null : Number(s));
   const b = Number(bracket);
   if (!(Number.isInteger(b) && b >= 1 && b <= 5)) return { error: 'Bracket must be 1–5' };
@@ -260,7 +261,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget, tut
   }
   const bud = num(budget);
   if (bud != null && !(bud > 0)) return { error: `Budget must be more than ${whole(0, pricing)}` };
-  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors } };
+  return { rules: { bracket: b, gameChangerCap, power, budget: bud, tutorCap: tutors, noLandHate: !!noLandHate, noStax: !!noStax } };
 }
 
 export const NOT_OWNED = 'Not in your collection';

@@ -941,6 +941,9 @@ span.solring-picker-entry { display: inline; }
   text-decoration: underline; white-space: nowrap; cursor: pointer;
 }
 .solring-builder-linkbtn[hidden] { display: none; }
+.solring-builder-checks { display: flex; flex-direction: column; gap: 0.2rem; }
+.solring-builder-check { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0; font-size: 0.8rem; color: var(--solring-text); cursor: pointer; }
+.solring-builder-check .form-check-input { margin: 0; float: none; }
 .solring-builder-formfoot { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 .solring-builder-err { color: var(--solring-rating-a); font-size: 0.8rem; }
 .solring-builder-power {

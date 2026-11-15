@@ -10,8 +10,30 @@ const ctxOf = (o = {}) => makeCtx({
   rules: { ...RULES_DEFAULT }, info: {}, flags: flags(), owned: null, deckNames: [], ...o,
 });
 
-test('RULES_DEFAULT: tutor cap off', () => {
+test('RULES_DEFAULT: tutor cap, no land hate and no stax off', () => {
   assert.equal(RULES_DEFAULT.tutorCap, null);
+  assert.equal(RULES_DEFAULT.noLandHate, false);
+  assert.equal(RULES_DEFAULT.noStax, false);
+});
+
+test('no land hate: mass land denial blocked at any bracket; off = bracket rules only', () => {
+  const f = flags({ massLandDenial: new Set(['armageddon']) });
+  const b4 = ctxOf({ flags: f, rules: { ...RULES_DEFAULT, bracket: 4, noLandHate: true } });
+  assert.deepEqual(checkCard('Armageddon', b4), { ok: false, reason: 'Blocked by your rules (mass land denial)' });
+  assert.equal(checkCard('Strip Mine', b4).ok, true); // single-target land destruction isn't covered
+  assert.equal(checkCard('Armageddon', ctxOf({ flags: f, rules: { ...RULES_DEFAULT, bracket: 5 } })).ok, true);
+  // At B1–3 the bracket already bars it; that reason wins.
+  const b3 = ctxOf({ flags: f, rules: { ...RULES_DEFAULT, noLandHate: true } });
+  assert.deepEqual(checkCard('Armageddon', b3), { ok: false, reason: 'Not allowed at Bracket 3 (mass land denial)' });
+});
+
+test('no stax: stax cards blocked at any bracket; older flags without the list never throw', () => {
+  const f = flags({ stax: new Set(['rule of law']) });
+  const on = ctxOf({ flags: f, rules: { ...RULES_DEFAULT, bracket: 5, noStax: true } });
+  assert.deepEqual(checkCard('Rule of Law', on), { ok: false, reason: 'Blocked by your rules (stax)' });
+  assert.equal(checkCard('Sol Ring', on).ok, true);
+  assert.equal(checkCard('Rule of Law', ctxOf({ flags: f })).ok, true);
+  assert.equal(checkCard('Rule of Law', ctxOf({ rules: { ...RULES_DEFAULT, noStax: true } })).ok, true);
 });
 
 test('gc cap by bracket and explicit cap', () => {
@@ -156,6 +178,11 @@ test('ruleUsage', () => {
   const t = ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, tutorCap: 2 }, flags: flags({ tutors: new Set(['mystical tutor']) }), deckNames: ['Mystical Tutor'] }))
     .find((r) => r.key === 'tutors');
   assert.deepEqual(t, { key: 'tutors', label: 'Tutors', used: 1, max: 2 });
+  const keys = (rules) => ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, ...rules } })).map((r) => r.key);
+  assert.equal(keys({}).includes('noLandHate'), false);
+  assert.equal(keys({}).includes('noStax'), false);
+  const both = ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, noLandHate: true, noStax: true } }));
+  assert.deepEqual(both.filter((r) => r.key === 'noLandHate' || r.key === 'noStax').map((r) => r.label), ['No land hate', 'No stax']);
 });
 
 test('budget: basics absent from info count as $0, basics in info use their price', () => {

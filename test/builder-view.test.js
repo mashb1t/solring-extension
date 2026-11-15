@@ -134,9 +134,9 @@ test('powerVerdict: within / above / below, and unavailable for stub, miss, erro
 
 test('parseRulesForm: blanks clear rules; invalid input reports an error', () => {
   assert.deepEqual(parseRulesForm({ bracket: '3', gcCap: '', powerMin: '', powerMax: '', budget: '' }),
-    { rules: { bracket: 3, gameChangerCap: null, power: null, budget: null, tutorCap: null } });
+    { rules: { bracket: 3, gameChangerCap: null, power: null, budget: null, tutorCap: null, noLandHate: false, noStax: false } });
   assert.deepEqual(parseRulesForm({ bracket: '4', gcCap: '2', powerMin: '6', powerMax: '7', budget: '50' }),
-    { rules: { bracket: 4, gameChangerCap: 2, power: { min: 6, max: 7 }, budget: 50, tutorCap: null } });
+    { rules: { bracket: 4, gameChangerCap: 2, power: { min: 6, max: 7 }, budget: 50, tutorCap: null, noLandHate: false, noStax: false } });
   assert.ok(parseRulesForm({ bracket: '6' }).error);
   assert.ok(parseRulesForm({ bracket: '3', gcCap: '-1' }).error);
   assert.ok(parseRulesForm({ bracket: '3', powerMin: '7', powerMax: '6' }).error);
@@ -151,6 +151,18 @@ test('parseRulesForm: tutor cap — blank = no limit, whole number ≥ 0', () =>
   assert.equal(parseRulesForm({ bracket: '3', tutorCap: '4' }).rules.tutorCap, 4);
   assert.equal(parseRulesForm({ bracket: '3', tutorCap: '-1' }).error, 'Tutor cap must be a whole number ≥ 0');
   assert.ok(parseRulesForm({ bracket: '3', tutorCap: '2.5' }).error);
+});
+
+test('parseRulesForm: no land hate / no stax checkboxes', () => {
+  const r = parseRulesForm({ bracket: '4', noLandHate: true, noStax: true }).rules;
+  assert.equal(r.noLandHate, true);
+  assert.equal(r.noStax, true);
+  assert.equal(parseRulesForm({ bracket: '4', noLandHate: false }).rules.noLandHate, false);
+});
+
+test('ruleChips: no land hate / no stax chips are plain labels', () => {
+  const chips = ruleChips([{ key: 'noLandHate', label: 'No land hate' }, { key: 'noStax', label: 'No stax' }]);
+  assert.deepEqual(chips.map((c) => c.text), ['No land hate', 'No stax']);
 });
 
 test('ruleChips: tutor meter', () => {
@@ -210,6 +222,10 @@ test('flagsAvailable: the tutor list is required only while a tutor cap is set (
   assert.equal(flagsAvailable({ ...old, tutors: [] }, { ...RULES_DEFAULT, tutorCap: 2 }), true);
   assert.deepEqual([...flagSets({ ...old, tutors: ['demonic tutor'] }).tutors], ['demonic tutor']);
   assert.equal(flagSets(old).tutors.size, 0);
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, noStax: true }), false);
+  assert.equal(flagsAvailable({ ...old, stax: [] }, { ...RULES_DEFAULT, noStax: true }), true);
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, noLandHate: true }), true); // MLD is a base list
+  assert.deepEqual([...flagSets({ ...old, stax: ['rule of law'] }).stax], ['rule of law']);
 });
 
 test('ruleChips: "Bracket checks unavailable" warning chip when flags are missing', () => {
@@ -333,6 +349,9 @@ test('rulesAreDefault: only RULES_DEFAULT-equivalent rules count as default', ()
   assert.equal(rulesAreDefault({ bracket: 3, ownedOnly: true }), false);
   assert.equal(rulesAreDefault({ bracket: 3, tutorCap: 0 }), false);
   assert.equal(rulesAreDefault({ bracket: 3, tutorCap: null }), true);
+  assert.equal(rulesAreDefault({ bracket: 3, noLandHate: true }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, noStax: true }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, noLandHate: false, noStax: false }), true);
 });
 
 test('deckSizeStatus: exactly 100 is legal, anything else is flagged with how far off', () => {
