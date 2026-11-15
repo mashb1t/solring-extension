@@ -74,7 +74,7 @@ function fixedTopBottom() {
     if (next <= bottom) break;
     bottom = next;
   }
-  return Math.round(bottom);
+  return Math.floor(bottom); // floor, not round: a fractional toolbar edge (e.g. 54.6px) must not leave a hairline gap
 }
 
 const send = (fn) => fn().catch(() => null);
