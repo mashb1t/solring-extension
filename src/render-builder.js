@@ -642,6 +642,8 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     ]);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+      // novalidate: a half-typed number ("1e", "-") reads as '' and would silently clear its rule.
+      if ([gc, pmin, pmax, budget, tutors].some((i) => i.validity && i.validity.badInput)) { S.rulesError = 'Enter numbers only'; render(); return; }
       const res = V.parseRulesForm({ bracket: bracket.value, gcCap: gc.value, powerMin: pmin.value, powerMax: pmax.value, budget: budget.value, tutorCap: tutors.value, noLandHate: noLandHate.box.checked, noStax: noStax.box.checked }, S.pricing);
       if (res.error) { S.rulesError = res.error; render(); return; }
       S.rulesOpen = false; S.rulesError = null;
