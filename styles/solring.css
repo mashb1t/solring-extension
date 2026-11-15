@@ -988,10 +988,9 @@ li.solring-builder-sel { background: color-mix(in srgb, var(--solring-rating-a) 
 .solring-builder-all { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; cursor: pointer; color: var(--solring-text-2); }
 .solring-builder-all .form-check-input { margin: 0; float: none; }
 .solring-builder-count { font-weight: 600; }
-/* Builder header: the cards/lands summary sits on the same text baseline as Select all (sizes differ, so
-   centring alone leaves the smaller text visibly high); the chevron stays centred. */
-.solring-builder-panel .solring-bar-right { align-items: baseline; }
-.solring-builder-panel .solring-bar-right .solring-chevron { align-self: center; }
+/* Builder header: Select all and the cards/lands summary differ in size; with line-height 1 their boxes hug
+   the glyphs, so centring puts both texts on the same visual middle. */
+.solring-builder-panel .solring-bar-right .solring-synced, .solring-builder-all > span, .solring-builder-count { line-height: 1; }
 
 /* Auto-complete preview modal */
 .solring-builder-modal-back {
