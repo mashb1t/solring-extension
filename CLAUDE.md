@@ -37,7 +37,8 @@ through any Solring backend — all data is fetched straight from the third-part
   `noLandHate:false` (old default "off") as `null`. The GC cap is clamped to the bracket (`clampGcCap`); tutor overrides aren't.
   Extra turns stay blocked at B1–3 (not overridable). No "no limit" tutor override at B1–2 (blank = preset).
 - **Builder cuts** — over 100 cards, the build view shows EDHREC cuts: `getRecs` from content code + `cutRecs`, cached per
-  card list in the module-level `cutsCache` (failures evicted); `cleanupCuts` skips commanders and multi-copy lines. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option
+  card list in the module-level `cutsCache` (failures evicted); `cleanupCuts` skips commanders and multi-copy lines. Option `cutsPositiveOnly` (default on, live) hides
+  cuts with EDHREC score ≤ 0 / missing via `edhrec-recs.positiveCuts`, in the builder (before the over+5 cap) and the Cuts tab. `src/land-formula.js` (pure, tested): TCGplayer land-formula target (option
   `landFormula`), article rules verbatim; land/spell MDFCs are partial lands, never cheap spells.
 - **Picker** — commander rows use `cardPopAttrs` (shared `.solring-cardpop`, `data-pop="left"` of the dialog); the
   playstyle ⓘ popover is built-in text only (`picker-logic.themeHelp`: `THEME_HELP`, a typal line, a fallback), no

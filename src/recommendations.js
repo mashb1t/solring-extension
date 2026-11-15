@@ -12,7 +12,7 @@
 
 import { el, registerDisposable } from './dom.js';
 import { getOptions, getCardPrefs, getCardSortView, onPrefChange } from './prefs.js';
-import { cutRecs } from './sources/edhrec-recs.js';
+import { cutRecs, positiveCuts } from './sources/edhrec-recs.js';
 import { readDeck, frontKey, hasToken, setCardQuantity, removeCard } from './moxfield-edit.js';
 import { deckMd5, canonicalDeckUrl } from './md5.js';
 import { getDeck, getEnrichment, getRecs, getBuildData } from './messaging.js';
@@ -89,7 +89,13 @@ export async function installRecommendations({ waitFor }) {
 
   // The tabs work at once; the cuts load below. `cuts` stays null until then: an early Cuts click
   // shows "Loading cuts…" and the grid renders when the data lands (cuts-view.cutsViewAction).
+  // `allCuts` = every EDHREC cut still in the deck; `cuts` = the shown ones (options.cutsPositiveOnly
+  // drops score ≤ 0). Removed cards are flagged (`removed`) so a live option toggle re-derives `cuts`
+  // without bringing them back.
+  let allCuts = null;
   let cuts = null;
+  let positiveOnly = opts.cutsPositiveOnly !== false;
+  const deriveCuts = () => { cuts = allCuts && positiveCuts(allCuts.filter((c) => !c.removed), positiveOnly); };
   let cutsRendered = false;
   let showingCuts = false;
   const ctx = { publicId, editId: null, breakers: new Map(), view: cutsView };
@@ -113,7 +119,7 @@ export async function installRecommendations({ waitFor }) {
       cutsView.replaceChildren(el('div', { class: 'solring-cuts-status solring-cuts-loading', text: 'Loading cuts…' }));
     } else if (action === 'render') {
       cutsRendered = true;
-      renderCuts(cutsView, template, grid.className, cuts, ctx);
+      renderCuts(cutsView, template, grid.className, cuts, ctx, positiveOnly && allCuts.some((c) => !c.removed));
     }
   };
   const show = (showCuts) => {
@@ -140,9 +146,24 @@ export async function installRecommendations({ waitFor }) {
   if (!installed || !isRecoRoute()) return;
   const inScore = new Map();
   for (const r of (json && json.inRecs) || []) if (r && r.name && typeof r.score === 'number') inScore.set(frontKey(r.name), r.score);
-  cuts = deck
+  allCuts = deck
     ? cutRecs(json, Infinity).map((r) => { const e = deck.boards.mainboard[frontKey(r.name)]; return e ? { ...e, score: r.score } : null; }).filter(Boolean)
     : [];
+  deriveCuts();
+  // Live "Only suggest cards with a cut score above 0": re-derive, re-word, re-render (now if the
+  // Cuts tab shows, else on its next open).
+  const offCutsPref = onPrefChange(async (which) => {
+    if (which !== 'options' || !installed) return;
+    const o = await getOptions().catch(() => null);
+    if (!o || (o.cutsPositiveOnly !== false) === positiveOnly) return;
+    positiveOnly = o.cutsPositiveOnly !== false;
+    deriveCuts();
+    cutsRendered = false;
+    closeBreakerPop();
+    reword();
+    syncCuts();
+  });
+  registerDisposable(offCutsPref);
 
   if (inScore.size) annotateAdds(grid, inScore); // stamp the native "add" cards with their score
   if (showingCuts) reword(); // a Cuts tab opened while loading gets its count line… (never touch Moxfield's line otherwise)
@@ -270,13 +291,16 @@ function annotateAdds(grid, inScore) {
   registerDisposable(() => obs.disconnect());
 }
 
-function renderCuts(view, template, gridClass, cuts, ctx) {
+// `filtered`: cuts exist but options.cutsPositiveOnly hid them all (empty state says so).
+function renderCuts(view, template, gridClass, cuts, ctx, filtered = false) {
   // Empty state keeps a header + message; when there ARE cuts the reworded Moxfield header line
   // (“We found N recommended cuts …”) already labels the section, so render just the grid.
   if (!cuts.length) {
     view.replaceChildren(
       el('div', { class: 'solring-cuts-head' }, [el('div', { class: 'solring-cuts-title', text: 'EDHREC suggested cuts' })]),
-      el('div', { class: 'solring-cuts-status', text: 'No cut suggestions (could not read the deck or EDHREC returned none).' }),
+      el('div', { class: 'solring-cuts-status', text: filtered
+        ? 'No cut suggestions with a cut score above 0. Turn off “Only suggest cards with a cut score above 0” in Solring Options to see all.'
+        : 'No cut suggestions (could not read the deck or EDHREC returned none).' }),
     );
     return;
   }
@@ -398,6 +422,7 @@ function wireRemove(btn, cut, ctx, cell) {
       } else {
         await removeCard(ctx.editId, 'mainboard', cut.cardId);
         toast('Successfully removed one from main deck!');
+        cut.removed = true; // a live option toggle re-derives the list without it
         cell.remove();
         if (ctx.breakers.size) { dropCombosWith(ctx.breakers, cut.name); syncBreakerBadges(ctx); } // its partners no longer combo
         bumpCount(-1);

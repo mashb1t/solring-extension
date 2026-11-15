@@ -179,6 +179,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     comp: V.deckComposition(deck), ctx: null, tiers: null, loading: true, busy: null, power: null,
     showAllTheme: false, showAllLands: false, rulesOpen: false, rulesError: null,
     cuts: null, // EDHREC cutRecs for the current card list while over 100 (null: not over / failed)
+    cutsPositiveOnly: opts.cutsPositiveOnly !== false, // options: hide cuts with an EDHREC score ≤ 0 (live)
     landFormula: opts.landFormula === true, land: null, // TCGplayer land target (recompute), null when off
   };
   const selected = new Map(); // front-face key → mainboard name (decklist checkboxes)
@@ -334,13 +335,19 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // can write. They need just the deck read above, not start()'s suggestion data.
   if (editable) installRowPicks();
   installDeckSync();
-  // Live "Calculate land count (TCGplayer formula)" toggle: recompute + re-render, no remount.
+  // Live "Calculate land count (TCGplayer formula)" / "cut score above 0" toggles: re-render, no remount.
   own(onPrefChange(async (which) => {
     if (which !== 'options') return;
     const o = await getOptions().catch(() => null);
-    if (!o || !alive() || (o.landFormula === true) === S.landFormula) return;
-    S.landFormula = o.landFormula === true;
-    if (started && !S.loading) recompute(); else S.land = null;
+    if (!o || !alive()) return;
+    const cutsOnly = o.cutsPositiveOnly !== false;
+    const landOn = o.landFormula === true;
+    if (cutsOnly === S.cutsPositiveOnly && landOn === S.landFormula) return;
+    S.cutsPositiveOnly = cutsOnly; // cutsSection filters at render time
+    if (landOn !== S.landFormula) {
+      S.landFormula = landOn;
+      if (started && !S.loading) recompute(); else S.land = null;
+    }
     render();
   }));
   if (startOpen) await start();
@@ -813,11 +820,11 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   // ✂ Deck cleanup: EDHREC's suggested cuts while the deck is `over` 100. A cut that is a piece of a
   // complete combo in the deck gets the Cuts tab's red ⓘ and a confirm before removing (Spellbook on).
   function cutsSection(over) {
-    const cuts = V.cleanupCuts({ cuts: S.cuts, deck, over });
+    const cuts = V.cleanupCuts({ cuts: S.cuts, deck, over, positiveOnly: S.cutsPositiveOnly });
     const breakers = spellbookOn ? comboBreakers(S.comboResults, [...(deck.commanders || []), ...mainNames()]) : new Map();
     closeBreakerPop(); // a re-render drops the badge an open popover was anchored to
     const note = el('div', { class: 'solring-builder-note', text: S.cuts
-      ? 'Least-played cards for this commander on EDHREC. Multi-copy cards (basics) aren’t listed.'
+      ? `Least-played cards for this commander on EDHREC${S.cutsPositiveOnly ? ' (only cut scores above 0; change in Solring Options)' : ''}. Multi-copy cards (basics) aren’t listed.`
       : 'EDHREC’s cut suggestions couldn’t load. Use the reload button to try again.' });
     return section(`✂ Over by ${over} — suggested cuts`, cuts.map((c) => cutTile(c, breakers.get(frontFace(c.name)) || [])), null, note);
   }

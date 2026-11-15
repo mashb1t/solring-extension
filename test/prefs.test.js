@@ -53,6 +53,7 @@ test('getOptions: builder / picker / cuts settings default on, builder panel aut
   assert.equal(o.builderPanelDefault, 'auto');
   assert.equal(o.pickerEnabled, true);
   assert.equal(o.cutsEnabled, true);
+  assert.equal(o.cutsPositiveOnly, true);
 });
 
 test('setOptions: new builder keys persist and merge with stored options', async () => {

@@ -37,6 +37,7 @@ async function render() {
   $('landFormula').checked = o.landFormula === true;
   $('pickerEnabled').checked = o.pickerEnabled !== false;
   $('cutsEnabled').checked = o.cutsEnabled !== false;
+  $('cutsPositiveOnly').checked = o.cutsPositiveOnly !== false;
   $('wide').checked = await getWide();
   for (const c of COLORS) {
     const v = c.get(o);
@@ -66,6 +67,7 @@ function bind() {
   onCheck('landFormula', 'landFormula');
   onCheck('pickerEnabled', 'pickerEnabled');
   onCheck('cutsEnabled', 'cutsEnabled');
+  onCheck('cutsPositiveOnly', 'cutsPositiveOnly');
   // Wide layout mirrors the page's header toggle (prefs:wide): writing it applies live in open
   // Moxfield tabs, and a toggle on the page updates this checkbox while Options is open.
   $('wide').addEventListener('change', () => setWide($('wide').checked));

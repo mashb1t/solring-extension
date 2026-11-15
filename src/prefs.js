@@ -74,6 +74,7 @@ export const OPTIONS_DEFAULT = {
   landFormula: false, // builder land target from the TCGplayer land formula (land-formula.js) instead of a fixed 36
   pickerEnabled: true, // "Find with Solring" in the New-deck dialog + "Pick a Commander" alert
   cutsEnabled: true, // EDHREC "Cuts" tab on /decks/{id}/recommendations (edits the deck)
+  cutsPositiveOnly: true, // only suggest cuts with an EDHREC cut score > 0 (Cuts tab + builder cuts; live)
   cacheLifetimeDays: 30,
   // External enrichment sources (Phase 4). Disabling one leaves its panel slot empty.
   sources: { edhrec: true, spellbook: true },

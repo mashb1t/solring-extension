@@ -417,6 +417,17 @@ test('cleanupCuts: keeps EDHREC order, maps to the mainboard name (DFC), dedupes
   assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 3 }).map((c) => c.name).at(-1), 'Howling Mine');
 });
 
+test('cleanupCuts positiveOnly: scores ≤ 0 are dropped BEFORE the over + 5 cap', () => {
+  const cuts = [
+    { name: 'Sol Ring', score: 0 }, { name: 'Arcane Signet', score: -1 }, { name: 'Mind Stone', score: null },
+    { name: 'Fellwar Stone', score: 4 }, { name: 'Swiftfoot Boots', score: 3 }, { name: 'Howling Mine', score: 2 },
+  ];
+  assert.deepEqual(cleanupCuts({ cuts, deck: cutDeck, over: 1, positiveOnly: true }).map((c) => c.name), ['Fellwar Stone', 'Swiftfoot Boots', 'Howling Mine']);
+  assert.equal(cleanupCuts({ cuts, deck: cutDeck, over: 1 }).length, 6); // off (default): all, capped at 6
+  const many = [...cuts.slice(0, 3), ...cuts.slice(0, 3), { name: 'Fellwar Stone', score: 4 }];
+  assert.deepEqual(cleanupCuts({ cuts: many, deck: cutDeck, over: 1, positiveOnly: true }).map((c) => c.name), ['Fellwar Stone']);
+});
+
 test('bracket presets: chips name the bracket for preset-derived rules, "your cap" for overrides', () => {
   const chipsOf = (rules) => ruleChips(ruleUsage(makeCtx({ rules: { ...RULES_DEFAULT, ...rules }, info: {}, flags: flags({ tutors: new Set(['demonic tutor']) }), owned: null, deckNames: ['Demonic Tutor'] }))).map((c) => c.text);
   assert.deepEqual(chipsOf({ bracket: 2 }), ['Bracket 2', 'Game Changers 0 / 0 (Bracket 2)', 'Tutors 1 / 3 (Bracket 2)', 'No land hate (Bracket 2)']);

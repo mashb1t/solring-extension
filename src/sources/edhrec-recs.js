@@ -32,3 +32,10 @@ export function cutRecs(json, cap = 10) {
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, cap);
 }
+
+// options.cutsPositiveOnly: keep only cuts EDHREC actually recommends (score > 0). A missing score
+// counts as not recommended. Off → the list unchanged. Same objects kept (callers mutate quantity).
+export function positiveCuts(cuts, on = true) {
+  if (!Array.isArray(cuts)) return [];
+  return on === false ? cuts : cuts.filter((c) => c && typeof c.score === 'number' && c.score > 0);
+}

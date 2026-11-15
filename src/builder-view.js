@@ -3,6 +3,7 @@
 import { frontFace } from './sources/scryfall.js';
 import { checkCard, addToCtx, RULES_DEFAULT, bracketGcCap, clampGcCap, effectiveRules, migrateRules } from './build-rules.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
+import { positiveCuts } from './sources/edhrec-recs.js';
 
 export const DECK_SIZE = 100;
 export const LAND_TARGET = 36;
@@ -45,11 +46,13 @@ export function deckSizeStatus(cards, size = DECK_SIZE) {
  * the deck is `over` the legal size. Only mainboard cards (never a commander, the sideboard or a
  * card no longer in the deck), and only single-copy lines: a Bulk Edit `remove` drops the whole
  * line, so a "−" on Forest ×8 would cut all 8. Names map to the mainboard entry's (full DFC) name;
- * EDHREC order kept; at most over + 5. → [{ name, score }]
+ * EDHREC order kept; at most over + 5. `positiveOnly` (options.cutsPositiveOnly) drops score ≤ 0 /
+ * missing first. → [{ name, score }]
  */
-export function cleanupCuts({ cuts, deck, over }) {
+export function cleanupCuts({ cuts, deck, over, positiveOnly = false }) {
   const n = Number(over) || 0;
   if (n <= 0 || !Array.isArray(cuts)) return [];
+  cuts = positiveCuts(cuts, positiveOnly); // before the cap: the cap counts only shown cards
   const boards = (deck && deck.boards) || {};
   const commanders = new Set([
     ...((deck && deck.commanders) || []),
