@@ -115,7 +115,7 @@ ToS-/CWS-sensitive area as above.
 - `readDeck` 404s on private decks; `readDeckAny` falls back to `authedGet`.
 - Scryfall returns basics with `usd: null`; the builder prices them at $0 under a budget.
 - `content.js`'s patched pushState runs in the isolated world and misses Moxfield's own pushState; the Navigation API
-  listener is what catches it (not yet live-verified). Builder writes no longer navigate, so the build view re-renders in
+  listener is what catches it (live-verified 2026-11-14: panel follows deck→deck moves in ~160 ms). Builder writes no longer navigate, so the build view re-renders in
   place after a write.
 - Live testing: Playwright `connectOverCDP` to a manually launched (non-automated) Brave; Cloudflare blocks login in a
   Playwright-launched browser.
