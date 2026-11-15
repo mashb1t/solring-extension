@@ -18,6 +18,7 @@ import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild, getPric
 import { makeCtx, ruleUsage, effectiveGcCap, comboGuards, RULES_DEFAULT } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
+import { spellbookComboUrl } from './sources/spellbook.js';
 import { frontFace } from './sources/scryfall.js';
 import { proposeFill } from './autocomplete.js';
 import { landTarget, splitCards, landBasis, FIXED_LANDS, LAND_FORMULA_URL, LAND_FORMULA_TEXT } from './land-formula.js';
@@ -724,9 +725,20 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       list,
       el('div', { class: 'solring-builder-meta' }, [
         el('span', { class: 'solring-builder-bracket', text: bracket ? bracket.text : 'Combo', title: bracket && bracket.title }),
+        spellbookLink(combo.id),
         addBtn(label, `Add ${st.add.join(' + ')} via Moxfield`, !st.ok, () => write({ add: st.add.map((name) => ({ name, qty: 1 })) }, `Added ${st.add.join(' + ')}`, 'add')),
       ]),
     ]);
+  }
+
+  // The combo's Commander Spellbook page in a new tab. Its clicks stop here: they never reach the
+  // add button or a delegated tile/card-ref listener.
+  function spellbookLink(id) {
+    const href = spellbookComboUrl(id);
+    if (!href) return null;
+    const a = el('a', { class: 'solring-builder-combolink', text: 'Spellbook ↗', attrs: { href, target: '_blank', rel: 'noopener', title: 'Open this combo on Commander Spellbook' } });
+    a.addEventListener('click', (e) => e.stopPropagation());
+    return a;
   }
 
   // ---- Auto-complete preview -----------------------------------------------------------------

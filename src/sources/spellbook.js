@@ -6,6 +6,9 @@ import { comboAllowed } from '../build-rules.js';
 
 const FIND_MY_COMBOS_URL = 'https://backend.commanderspellbook.com/find-my-combos';
 
+// The public Commander Spellbook page of combo `id` (Stats panel + builder combo tiles), or null.
+export const spellbookComboUrl = (id) => (id ? `https://commanderspellbook.com/combo/${encodeURIComponent(id)}/` : null);
+
 // Front-face, lowercased — the form we match combo pieces against the deck by. Deck names
 // (and Scryfall) carry the full "front // back" for DFCs; combos mostly list the front face.
 const norm = (name) => String(name).split(' // ')[0].toLowerCase().trim();

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nearMissCombos } from '../src/sources/spellbook.js';
+import { spellbookComboUrl } from '../src/sources/spellbook.js';
 
 const combo = (id, useNames, produces, popularity, opts = {}) => ({
   id,
@@ -100,4 +101,10 @@ test('keyCombos: 1-2 missing, bracket-filtered, popularity desc, capped', () => 
 test('keyCombos: keeps produces names', () => {
   const results = { almostIncluded: [combo('u', ['A', 'B'], ['Infinite untaps', 'Infinite mana'], 1, { bracketTag: 'C' })] };
   assert.deepEqual(keyCombos(results, ['A'], 3)[0].produces, ['Infinite untaps', 'Infinite mana']);
+});
+
+test('spellbookComboUrl: the public combo page, null without an id', () => {
+  assert.equal(spellbookComboUrl('123-456'), 'https://commanderspellbook.com/combo/123-456/');
+  assert.equal(spellbookComboUrl(''), null);
+  assert.equal(spellbookComboUrl(null), null);
 });

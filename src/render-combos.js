@@ -5,6 +5,7 @@
 import { el, chevronSvg } from './dom.js';
 import { cardRefs } from './render-card-modal.js';
 import { COMBO_BRACKET_TAG } from './labels.js';
+import { spellbookComboUrl } from './sources/spellbook.js';
 
 const SECTION_LABELS = {
   easyPrerequisites: 'Easy prereqs',
@@ -190,7 +191,7 @@ function nearMissCard(combo) {
     bracketStat(combo.bracketTag),
     combo.id ? el('a', {
       class: 'solring-combo-link', text: 'Spellbook ↗',
-      attrs: { href: `https://commanderspellbook.com/combo/${combo.id}/`, target: '_blank', rel: 'noopener' },
+      attrs: { href: spellbookComboUrl(combo.id), target: '_blank', rel: 'noopener' },
     }) : null,
     chev,
   ]);
