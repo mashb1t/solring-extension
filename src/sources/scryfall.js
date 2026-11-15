@@ -148,23 +148,25 @@ const FLAG_QUERIES = {
 const BASE_FLAGS = ['gameChangers', 'extraTurns', 'massLandDenial'];
 export const OPTIONAL_FLAGS = ['tutors', 'stax'];
 
-// One search page. A 404 whose body is Scryfall's "no cards found" error is an empty page, not a failure.
-async function searchPage(url) {
+// One search page. With emptyOk (optional lists only), a 404 whose body is Scryfall's "no cards
+// found" error is an empty page; for a base list it stays a failure (an empty base list would lift
+// the bracket limits for the whole TTL).
+async function searchPage(url, emptyOk) {
   let r;
   try { r = await fetch(url); } catch { return null; }
   const json = await r.json().catch(() => null);
   if (!json || typeof json !== 'object') return null;
   if (r.ok) return json;
-  return r.status === 404 && json.object === 'error' && json.code === 'not_found' ? { data: [] } : null;
+  return emptyOk && r.status === 404 && json.object === 'error' && json.code === 'not_found' ? { data: [] } : null;
 }
 
 // Front-face keys for every result of a search, following next_page. null if any page fails.
-async function searchAllKeys(q, delayMs) {
+async function searchAllKeys(q, delayMs, emptyOk = false) {
   const keys = new Set();
   let url = `${API}/cards/search?q=${encodeURIComponent(q)}`;
   for (let pages = 0; url && pages < 20; pages++) {
     if (pages > 0) await sleep(delayMs);
-    const json = await searchPage(url);
+    const json = await searchPage(url, emptyOk);
     if (!json) return null;
     for (const c of (json.data || [])) if (c && c.name) keys.add(frontFace(c.name));
     url = json.has_more ? json.next_page : null;
@@ -180,8 +182,9 @@ export async function fetchFlagSets({ delayMs = DELAY_MS } = {}) {
   for (const [name, q] of Object.entries(FLAG_QUERIES)) {
     if (!first) await sleep(delayMs);
     first = false;
-    const keys = await searchAllKeys(q, delayMs);
-    if (!keys && BASE_FLAGS.includes(name)) return null;
+    const base = BASE_FLAGS.includes(name);
+    const keys = await searchAllKeys(q, delayMs, !base);
+    if (!keys && base) return null;
     out[name] = keys;
   }
   return out;

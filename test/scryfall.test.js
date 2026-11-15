@@ -118,18 +118,24 @@ test('fetchFlagSets: a failed tutor query nulls only tutors', async () => {
   assert.deepEqual([...f.gameChangers], ['x']);
 });
 
-test('fetchFlagSets: a 404 "no cards found" search is an empty set, not a failure', async () => {
+test('fetchFlagSets: a 404 "no cards found" optional search is an empty set, not a failure', async () => {
   const none = { object: 'error', code: 'not_found', status: 404, details: 'Your query didn’t match any cards.' };
-  const stub = async (u) => (decodeURIComponent(u).includes('rule-of-law') || decodeURIComponent(u).includes('extra-turn')
-    ? jsonRes(none, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
+  const stub = async (u) => (decodeURIComponent(u).includes('rule-of-law') ? jsonRes(none, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
   const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
   assert.deepEqual([...f.stax], []);
-  assert.deepEqual([...f.extraTurns], []);
+  assert.deepEqual([...f.tutors], ['x']);
 });
 
-test('fetchFlagSets: a 404 without the not_found body is still a failure', async () => {
-  const stub = async (u) => (decodeURIComponent(u).includes('extra-turn') ? jsonRes({}, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
+test('fetchFlagSets: a 404 "no cards found" BASE search is still a failure (no empty base list)', async () => {
+  const none = { object: 'error', code: 'not_found', status: 404 };
+  const stub = async (u) => (decodeURIComponent(u).includes('extra-turn') ? jsonRes(none, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
   assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
+});
+
+test('fetchFlagSets: an optional 404 without the not_found body is a failure (null list)', async () => {
+  const stub = async (u) => (decodeURIComponent(u).includes('otag:tutor') ? jsonRes({}, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
+  const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
+  assert.equal(f.tutors, null);
 });
 
 test('fetchFlagSets: the tutor list follows has_more', async () => {
