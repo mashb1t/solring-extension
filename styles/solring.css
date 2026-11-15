@@ -1001,8 +1001,8 @@ span.solring-picker-entry { display: inline; }
 .solring-builder-pieces .solring-cardname[data-resolve]:hover,
 .solring-builder-pieces .solring-cardname[data-href]:hover { color: var(--solring-accent); text-decoration: underline; }
 li.solring-missing .solring-builder-combo .solring-builder-meta { margin-top: auto; padding-top: 0.3rem; }
-.solring-builder-combolink { flex: none; font-weight: 600; white-space: nowrap; color: var(--solring-accent); text-decoration: none; }
-.solring-builder-combolink:hover, .solring-builder-combolink:focus-visible { text-decoration: underline; }
+.solring-builder-combolink { flex: none; font-weight: 600; white-space: nowrap; }
+.solring-builder-combo .solring-builder-meta { flex-wrap: nowrap; } /* bracket ellipsizes; link + add pill keep their size */
 .solring-builder-bracket { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 .solring-builder-combo .solring-builder-add { position: static; flex: none; width: auto; height: auto; margin-left: auto; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.72rem; }
 .solring-builder-combo.solring-blocked .solring-builder-add { display: none; }
