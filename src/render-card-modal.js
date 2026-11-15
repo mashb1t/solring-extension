@@ -131,41 +131,58 @@ let hoverInstalled = false;
 // (the Guided Deck Builder's tile art/name), which carries the card name in that attribute.
 const HOVER_SEL = '.solring-syn-chip[data-img], [data-solring-card][data-img]';
 const CHIP_SEL = '.solring-syn-chip[data-href], .solring-syn-chip[data-resolve], [data-solring-card][data-href], [data-solring-card][data-resolve]';
+const hidePop = () => { if (hoverPop) hoverPop.classList.remove('solring-cardpop-show'); };
+
+// Show the shared .solring-cardpop for a hover target (its data-img / data-solring-card). Placement:
+// above the anchor (below when there's no room) by default; data-pop="left" puts it to the LEFT of
+// the anchor's dialog (`.modal-dialog`, else the anchor), vertically centred on the anchor, flipped
+// to the right when there's no room on the left. Always clamped into the viewport.
+function showPop(chip) {
+  if (!hoverPop) {
+    hoverPop = el('div', { class: 'solring-cardpop', attrs: { 'aria-hidden': 'true' } }, [el('img', { attrs: { alt: '' } })]);
+    document.body.appendChild(hoverPop);
+  }
+  const img = hoverPop.querySelector('img');
+  // Prefer the deck's selected printing (correct DFC face URL) when we have it; else the
+  // synthesized deck-print URL, with the CommanderSalt default print as the 404 fallback.
+  const mox = moxPrints && moxPrints[frontKey(chip.dataset.solringCard || chip.textContent || '')];
+  const primary = mox || chip.dataset.img;
+  const fallback = chip.dataset.imgCs; // CommanderSalt print, used if the deck print 404s (e.g. DFCs)
+  if (img.getAttribute('src') !== primary) {
+    // The synthesized deck-print URL (card-<id>-normal.webp) doesn't exist for
+    // double-faced cards (Moxfield serves card-face-<faceId>-... instead). On error,
+    // promote the CommanderSalt fallback so we don't retry the dead URL on every hover.
+    img.onerror = fallback ? () => { img.onerror = null; chip.dataset.img = fallback; img.setAttribute('src', fallback); } : null;
+    img.setAttribute('src', primary);
+  }
+  hoverPop.classList.add('solring-cardpop-show');
+  const r = chip.getBoundingClientRect();
+  const pw = hoverPop.offsetWidth || 251;
+  const ph = hoverPop.offsetHeight || 351;
+  const clampX = (x) => Math.max(4, Math.min(x, window.innerWidth - pw - 4));
+  if (chip.dataset.pop === 'left') {
+    const box = (chip.closest('.modal-dialog') || chip).getBoundingClientRect();
+    const left = box.left - pw - 12 >= 4 ? box.left - pw - 12 : box.right + 12;
+    hoverPop.style.left = `${clampX(left)}px`;
+    hoverPop.style.top = `${Math.max(4, Math.min(r.top + r.height / 2 - ph / 2, window.innerHeight - ph - 4))}px`;
+    return;
+  }
+  const top = r.top - ph - 8 >= 4 ? r.top - ph - 8 : Math.min(r.bottom + 8, window.innerHeight - ph - 4);
+  hoverPop.style.left = `${clampX(r.left)}px`;
+  hoverPop.style.top = `${Math.max(4, top)}px`;
+}
+
 function installCardHover() {
   if (hoverInstalled) return;
   hoverInstalled = true;
-  const hide = () => { if (hoverPop) hoverPop.classList.remove('solring-cardpop-show'); };
+  const hide = hidePop;
   // All delegated listeners use CAPTURE: inside Moxfield's card modal an ancestor
   // calls stopPropagation() on mouseover/click, so a bubble-phase document listener
   // never fires there (it does on the deck sidebar). Capture runs before any
   // descendant can stop it. Verified live: bubble=0, capture=1 in the modal.
   document.addEventListener('mouseover', (e) => {
     const chip = e.target.closest && e.target.closest(HOVER_SEL);
-    if (!chip) return;
-    if (!hoverPop) {
-      hoverPop = el('div', { class: 'solring-cardpop', attrs: { 'aria-hidden': 'true' } }, [el('img', { attrs: { alt: '' } })]);
-      document.body.appendChild(hoverPop);
-    }
-    const img = hoverPop.querySelector('img');
-    // Prefer the deck's selected printing (correct DFC face URL) when we have it; else the
-    // synthesized deck-print URL, with the CommanderSalt default print as the 404 fallback.
-    const mox = moxPrints && moxPrints[frontKey(chip.dataset.solringCard || chip.textContent || '')];
-    const primary = mox || chip.dataset.img;
-    const fallback = chip.dataset.imgCs; // CommanderSalt print, used if the deck print 404s (e.g. DFCs)
-    if (img.getAttribute('src') !== primary) {
-      // The synthesized deck-print URL (card-<id>-normal.webp) doesn't exist for
-      // double-faced cards (Moxfield serves card-face-<faceId>-... instead). On error,
-      // promote the CommanderSalt fallback so we don't retry the dead URL on every hover.
-      img.onerror = fallback ? () => { img.onerror = null; chip.dataset.img = fallback; img.setAttribute('src', fallback); } : null;
-      img.setAttribute('src', primary);
-    }
-    hoverPop.classList.add('solring-cardpop-show');
-    const r = chip.getBoundingClientRect();
-    const pw = hoverPop.offsetWidth || 251;
-    const ph = hoverPop.offsetHeight || 351;
-    const top = r.top - ph - 8 >= 4 ? r.top - ph - 8 : Math.min(r.bottom + 8, window.innerHeight - ph - 4);
-    hoverPop.style.left = `${Math.max(4, Math.min(r.left, window.innerWidth - pw - 4))}px`;
-    hoverPop.style.top = `${Math.max(4, top)}px`;
+    if (chip) showPop(chip);
   }, true);
   document.addEventListener('mouseout', (e) => {
     if (e.target.closest && e.target.closest(HOVER_SEL)) hide();
@@ -246,6 +263,15 @@ function deckPrintMap() {
   }
   return map;
 }
+
+// Hover-only preview attrs (no click-to-open: the element keeps its own click, e.g. the picker's
+// commander rows select on click) positioned LEFT of the element's dialog. Focus → cardPopFocus.
+export function cardPopAttrs(name, image) {
+  installCardHover();
+  return image ? { 'data-solring-card': name, 'data-img': image, 'data-pop': 'left' } : {};
+}
+/** Keyboard focus on a cardPopAttrs element: show / hide the same preview. */
+export const cardPopFocus = (node, on) => { if (on && node && node.dataset && node.dataset.img) showPop(node); else hidePop(); };
 
 // Attributes that give any element (a builder tile's art or name) the card-ref hover preview
 // and click-to-open behavior, without the chip styling: the deck's print + row link when the

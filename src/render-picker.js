@@ -24,6 +24,7 @@ import { getCardData, getBuildData } from './messaging.js';
 import { setPendingBuild, setDeckBuild } from './build-store.js';
 import { prefillNewDeck, setCommanderViaBulk } from './moxfield-ui.js';
 import { parseDeckId } from './moxfield.js';
+import { cardPopAttrs, cardPopFocus } from './render-card-modal.js';
 import { slugifyQuery, groupResults, namesNeedingInfo, applyInfo, deckName } from './picker-logic.js';
 
 const DEBOUNCE_MS = 250;
@@ -308,10 +309,13 @@ function buildPicker({ anchor, hint, onUse }) {
     ]);
     return el('div', {
       class: `solring-picker-cmd${on ? ' solring-on' : ''}`,
-      attrs: { role: 'option', tabindex: '0', 'aria-selected': String(on), 'data-name': item.name },
+      // Hover (shared .solring-cardpop, left of the dialog) / focus shows the commander's card image.
+      attrs: { role: 'option', tabindex: '0', 'aria-selected': String(on), 'data-name': item.name, ...cardPopAttrs(item.name, item.image) },
       on: {
         click: () => select(item),
         keydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(item); } },
+        focus: (e) => cardPopFocus(e.currentTarget, true),
+        blur: () => cardPopFocus(null, false),
       },
     }, [art, el('div', { class: 'solring-picker-cmdtext' }, [el('div', { class: 'solring-picker-name', text: item.name }), meta])]);
   }
@@ -359,7 +363,7 @@ function buildPicker({ anchor, hint, onUse }) {
     root,
     isOpen: () => !root.hasAttribute('hidden'),
     setOpen: (open) => {
-      if (open) { root.removeAttribute('hidden'); input.focus(); } else root.setAttribute('hidden', '');
+      if (open) { root.removeAttribute('hidden'); input.focus(); } else { root.setAttribute('hidden', ''); cardPopFocus(null, false); }
     },
   };
 }
