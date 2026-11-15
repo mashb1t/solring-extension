@@ -597,9 +597,11 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const clear = el('button', { class: 'btn btn-outline-secondary btn-sm', text: 'Clear', attrs: { type: 'button' } });
     const remove = el('button', { class: 'btn btn-outline-danger btn-sm', attrs: { type: 'button' } });
     // Lives in the builder's header bar; its clicks must not reach the bar's expand/collapse toggle.
+    // One cluster on the bar's right, before the card summary: count + actions, then Select all
+    // (so the selection controls sit together instead of split across the bar).
     const selbar = el('span', { class: 'solring-builder-selbar' }, [
-      el('label', { class: 'solring-builder-all' }, [all, el('span', { text: 'Select all' })]), count,
-      el('span', { class: 'solring-builder-spacer' }), clear, remove,
+      count, clear, remove,
+      el('label', { class: 'solring-builder-all' }, [all, el('span', { text: 'Select all' })]),
     ]);
     const rows = () => [...document.querySelectorAll(`section.deckview ${ROW_SEL}`)];
     const entryOf = (link) => {
@@ -659,7 +661,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       });
     });
     for (const ev of ['click', 'keydown']) selbar.addEventListener(ev, (e) => e.stopPropagation());
-    bar.insertBefore(selbar, bar.lastElementChild); // after the wordmark, before the bar's right side
+    barInfo.parentElement.insertBefore(selbar, barInfo); // right side, before the "x / 100 cards" summary
     let topRaf = 0;
     const setTop = () => root.style.setProperty('--solring-builder-top', `${fixedTopBottom()}px`);
     let topTimer = 0; // trailing re-measure: Moxfield's fixed toolbar animates in after the scroll

@@ -980,8 +980,8 @@ li.solring-missing .solring-builder-combo .solring-builder-meta { margin-top: au
 .solring-builder-pick { flex: none; margin: 0 0.45rem 0 0; float: none; vertical-align: middle; cursor: pointer; }
 li.solring-builder-sel { background: color-mix(in srgb, var(--solring-rating-a) 12%, transparent); }
 .solring-builder-selbar {
-  display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 auto 0 0.9rem;
-  font-size: 0.8rem; font-weight: 400; color: var(--solring-text); cursor: default;
+  display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;
+  padding-right: 0.6rem; border-right: 1px solid var(--solring-border); font-size: 0.8rem; font-weight: 400; color: var(--solring-text); cursor: default;
 }
 .solring-builder-selbar[hidden] { display: none; }
 .solring-builder-selbar [hidden] { display: none; }
