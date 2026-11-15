@@ -44,11 +44,17 @@ export async function searchCommanders(q) {
 }
 
 // /cards/collection response → { frontKey: {name, usd, eur, tix, gameChanger, colorIdentity, typeLine,
-// image} }. Prices are number|null; the builder picks one per the user's provider (pricing.js).
+// frontType, cmc, oracle, layout, rarity, image} }. Prices are number|null; the builder picks one per
+// the user's provider (pricing.js). cmc is Scryfall's (a DFC's front face; null when absent); oracle
+// joins every face's text with "\n" (a DFC has no top-level oracle_text); frontType is the front
+// face's type line (the land/creature decision for the Karsten land formula, land-formula.js).
 const priceField = (c, k) => {
   const v = c.prices && c.prices[k] != null ? Number(c.prices[k]) : NaN;
   return Number.isFinite(v) ? v : null;
 };
+
+const oracleOf = (c) => (typeof c.oracle_text === 'string' ? c.oracle_text
+  : (c.card_faces || []).map((f) => (f && f.oracle_text) || '').filter(Boolean).join('\n'));
 
 export function shapeCards(json) {
   const out = {};
@@ -62,6 +68,11 @@ export function shapeCards(json) {
       gameChanger: c.game_changer === true,
       colorIdentity: c.color_identity || [],
       typeLine: c.type_line || '',
+      frontType: String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || '').split(' // ')[0],
+      cmc: typeof c.cmc === 'number' && Number.isFinite(c.cmc) ? c.cmc : null,
+      oracle: oracleOf(c),
+      layout: c.layout || '',
+      rarity: c.rarity || '',
       image: imageOf(c),
     };
   }

@@ -127,3 +127,22 @@ test('commanderQuery: single word also matches the type line, plurals singularis
   assert.equal(commanderQuery('  ojer '), 'is:commander (ojer or t:ojer)');
   assert.equal(commanderQuery('Ms. Bumbleflower'), 'is:commander Ms. Bumbleflower');
 });
+
+const landFixture = JSON.parse(readFileSync(new URL('../fixtures/scryfall_land_formula.json', import.meta.url)));
+
+test('shapeCards: keeps cmc, oracle, layout, rarity, frontType (DFC faces joined, front type)', () => {
+  const info = shapeCards(landFixture);
+  const b = info.brainstorm;
+  assert.equal(b.cmc, 1);
+  assert.match(b.oracle, /^Draw three cards/);
+  assert.equal(b.layout, 'normal');
+  assert.equal(b.rarity, 'common');
+  assert.equal(b.frontType, 'Instant');
+  const m = info['malakir rebirth'];
+  assert.equal(m.layout, 'modal_dfc');
+  assert.equal(m.cmc, 1);
+  assert.equal(m.frontType, 'Instant');
+  assert.equal(m.typeLine, 'Instant // Land');
+  assert.match(m.oracle, /Choose target creature[\s\S]*\n[\s\S]*Add \{B\}/);
+  assert.equal(info['shatterskull smashing'].rarity, 'mythic');
+});

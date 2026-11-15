@@ -203,8 +203,9 @@ async function cardInfo(names) {
   for (const name of (names || [])) {
     const key = frontFace(name);
     const cached = await getEntry(`scry:${key}`);
-    // An entry cached before eur/tix were kept (only usd) is refetched, so non-USD prices aren't "unknown".
-    if (!isFreshTtl(cached, SCRY_INFO_TTL_MS) || (!cached.data.notFound && !('eur' in cached.data))) missing.push(name);
+    // An entry cached before a field was kept is refetched once: eur/tix (non-USD prices aren't
+    // "unknown"), cmc/oracle (the Karsten land formula).
+    if (!isFreshTtl(cached, SCRY_INFO_TTL_MS) || (!cached.data.notFound && !('eur' in cached.data && 'oracle' in cached.data))) missing.push(name);
     else if (!cached.data.notFound) info[key] = cached.data; // negative entries stay absent
   }
   if (missing.length) {
