@@ -596,13 +596,12 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   function installRowPicks() {
     const count = el('span', { class: 'solring-builder-count' });
     const all = el('input', { class: 'form-check-input', attrs: { type: 'checkbox', 'aria-label': 'Select all cards' } });
-    const clear = el('button', { class: 'btn btn-outline-secondary btn-sm', text: 'Clear', attrs: { type: 'button' } });
     const remove = el('button', { class: 'btn btn-outline-danger btn-sm', attrs: { type: 'button' } });
     // Lives in the builder's header bar; its clicks must not reach the bar's expand/collapse toggle.
     // One cluster on the bar's right, before the card summary: count + actions, then Select all
     // (so the selection controls sit together instead of split across the bar).
     const selbar = el('span', { class: 'solring-builder-selbar' }, [
-      count, clear, remove,
+      count, remove,
       el('label', { class: 'solring-builder-all' }, [all, el('span', { text: 'Select all' })]),
     ]);
     const rows = () => [...document.querySelectorAll(`section.deckview ${ROW_SEL}`)];
@@ -621,7 +620,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       count.textContent = n ? `${n} selected` : '';
       all.checked = n > 0 && n >= pickable.size;
       all.indeterminate = n > 0 && n < pickable.size;
-      clear.hidden = remove.hidden = n === 0;
+      remove.hidden = n === 0; // unticking Select all clears the selection
       remove.textContent = S.busy === 'rm' ? 'Removing via Moxfield…' : 'Remove selected';
       remove.disabled = !!S.busy;
     }
@@ -651,7 +650,6 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       else selected.clear();
       decorate();
     });
-    clear.addEventListener('click', () => { selected.clear(); decorate(); });
     remove.addEventListener('click', () => {
       const names = [...selected.values()];
       if (!names.length || S.busy) return;
