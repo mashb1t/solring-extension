@@ -784,9 +784,8 @@ html.solring-wide .container { max-width: unset !important; }
 .solring-breaker-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem; }
 .solring-breaker-remove { background: var(--solring-rating-a); border-color: var(--solring-rating-a); color: var(--bs-white, #fff); }
 .solring-breaker-remove:hover, .solring-breaker-remove:focus-visible { background: var(--solring-rating-a); color: var(--bs-white, #fff); filter: brightness(1.1); }
-/* Dark mode's brighter red needs dark text for contrast. */
-.darkmode .solring-breaker, .darkmode .solring-breaker-remove,
-.darkmode .solring-breaker-remove:hover, .darkmode .solring-breaker-remove:focus-visible { color: #1b1f24; }
+/* Dark mode's brighter red needs dark text for contrast (same theme selectors as the dark tokens). */
+:is([data-bs-theme='dark'], .darkmode, .solring-dark) :is(.solring-breaker, .solring-breaker-remove, .solring-breaker-remove:hover, .solring-breaker-remove:focus-visible) { color: #1b1f24; }
 /* Removal toast reuses Moxfield's own .autosave-notification class for styling (see toast() in
    recommendations.js) — no custom rules needed. */
 
