@@ -43,7 +43,7 @@
 <body>
   <main>
     <h1>Solring</h1>
-    <p class="sub">Settings apply immediately to open Moxfield tabs.</p>
+    <p class="sub">Most settings apply immediately to open Moxfield tabs; default states and re-enabling the Cuts tab apply on the next page load.</p>
 
     <section>
       <h2>Analysis</h2>
@@ -148,7 +148,7 @@
         <input type="checkbox" id="cardPanelSidebar">
       </div>
       <div class="row">
-        <span class="label">Deck report-card default state</span>
+        <span class="label">Deck report-card default state<small>Applies on next page load.</small></span>
         <select id="deckPanelDefault">
           <option value="auto">Auto (open when analyzed)</option>
           <option value="open">Always open</option>
@@ -171,7 +171,7 @@
       </div>
       <div class="row">
         <span class="label">Solring Builder default state
-          <small>Decks you can't edit always start collapsed. A collapsed builder loads nothing until opened.</small>
+          <small>Decks you can't edit always start collapsed. A collapsed builder loads nothing until opened. Applies on next page load.</small>
         </span>
         <select id="builderPanelDefault">
           <option value="auto">Auto (open when below legal deck size)</option>

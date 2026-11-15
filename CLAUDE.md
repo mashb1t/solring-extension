@@ -46,8 +46,10 @@ through any Solring backend — all data is fetched straight from the third-part
   (`api.commandersalt.com`, `backend.commanderspellbook.com`, `edhrec.com` for the recs POST). `json.edhrec.com`,
   `api.scryfall.com` + `api2.moxfield.com` serve ACAO, so no grant.
 - **Settings**: `OPTIONS_DEFAULT` in `prefs.js` ↔ `options.html`/`options.js`. Colour tokens are applied on every route
-  by `option-colors.js`; feature on/off switches (`builderEnabled`, `pickerEnabled`, `cutsEnabled`, sources) apply live
-  via the diffing `watchFeatureToggles` listener in `content.js`. Each installer also checks its own gate.
+  by `option-colors.js`; feature on/off switches apply live via the diffing
+  `watchFeatureToggles` listener in `content.js` (builder/picker both ways; Cuts and EDHREC-on-the-reco-page only when
+  turned off — turning them back on needs a reload). Default states (`deckPanelDefault`, `builderPanelDefault`) apply on
+  the next load. Each installer also checks its own gate.
 - All third-party text goes in via `textContent` / `el(...)`, never `innerHTML`.
 - `el(tag, {class, text, attrs}, children)` from `dom.js` is the DOM builder. Numbers are formatted via `format.js`
   (`num`, `exact`); identifiers humanized via `labels.js`.
