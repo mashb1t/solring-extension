@@ -71,6 +71,7 @@ export const OPTIONS_DEFAULT = {
   statsEnabled: true, // "Solring Stats" deck report-card panel (hidden only; per-card columns still load)
   builderEnabled: true, // Guided Deck Builder build view (+ decklist checkboxes) on Commander decks
   builderPanelDefault: 'auto', // 'auto' (open below the legal size) | 'open' | 'collapsed'
+  landFormula: false, // builder land target from Karsten's formula (land-formula.js) instead of a fixed 36
   pickerEnabled: true, // "Find with Solring" in the New-deck dialog + "Pick a Commander" alert
   cutsEnabled: true, // EDHREC "Cuts" tab on /decks/{id}/recommendations (edits the deck)
   cacheLifetimeDays: 30,

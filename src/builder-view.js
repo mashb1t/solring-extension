@@ -148,9 +148,10 @@ export function previewTotals({ picks, ticked, ctx, current }) {
   };
 }
 
-/** The preview's one-line summary under the title (amounts in `pricing`'s currency). */
-export function previewSummary(t, rules, gcCap, pricing = DEFAULT_PRICING) {
-  const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${LAND_TARGET}`, `Bracket ${rules.bracket}`];
+/** The preview's one-line summary under the title (amounts in `pricing`'s currency; `lands` = the
+ *  land target, the Karsten formula's when that option is on). */
+export function previewSummary(t, rules, gcCap, pricing = DEFAULT_PRICING, lands = LAND_TARGET) {
+  const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${lands}`, `Bracket ${rules.bracket}`];
   parts.push(gcCap === Infinity ? `Game Changers ${t.gcAfter}` : `Game Changers ${t.gcAfter} / ${gcCap}`);
   if (rules.budget != null) parts.push(`${priceText(t.spentAfter, pricing)} / ${whole(rules.budget, pricing)}`);
   else parts.push(`adds ${priceText(t.cost, pricing)}`);

@@ -34,6 +34,7 @@ async function render() {
   $('statsEnabled').checked = o.statsEnabled !== false;
   $('builderEnabled').checked = o.builderEnabled !== false;
   $('builderPanelDefault').value = o.builderPanelDefault;
+  $('landFormula').checked = o.landFormula === true;
   $('pickerEnabled').checked = o.pickerEnabled !== false;
   $('cutsEnabled').checked = o.cutsEnabled !== false;
   for (const c of COLORS) {
@@ -61,6 +62,7 @@ function bind() {
   onCheck('accordion', 'accordion');
   onCheck('statsEnabled', 'statsEnabled');
   onCheck('builderEnabled', 'builderEnabled');
+  onCheck('landFormula', 'landFormula');
   onCheck('pickerEnabled', 'pickerEnabled');
   onCheck('cutsEnabled', 'cutsEnabled');
 
