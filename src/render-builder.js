@@ -190,6 +190,16 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   let syncWant = null; let syncTimer = 0; let refreshing = false; let rowSig = null;
   let readRows = () => []; // set by installRowPicks: the decklist rows that count toward the 100
 
+  // Karsten land formula over the 99 (mainboard; commanders excluded) plus optional proposed picks.
+  // Declared before the first render() (the bar summary uses them): no TDZ.
+  const landCalc = (picks = []) => landTarget(splitCards([
+    ...Object.values(deck.boards.mainboard).map((e) => ({ info: S.info[frontFace(e.name)], qty: e.quantity, isLand: e.isLand })),
+    ...picks.map((p) => ({ info: S.info[frontFace(p.name)], qty: p.qty, isLand: p.tier === 'land' })),
+  ]));
+  // The land target: the formula's when on and computable, else the fixed 36.
+  const landGoal = () => (S.landFormula && S.land && S.land.target != null ? S.land.target : FIXED_LANDS);
+  const landTitle = () => (S.landFormula && S.land ? landBasis(S.land) : null);
+
   // ---- skeleton ------------------------------------------------------------------------------
   const body = el('div', { class: 'solring-panel-body solring-builder-body' });
   const chevron = el('span', { class: 'solring-chevron', attrs: { 'aria-hidden': 'true' } }, [chevronSvg()]);
@@ -244,15 +254,6 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const r = await send(() => getCardData({ op: 'info', names, fresh }));
     if (ok(r) && r.info) Object.assign(S.info, r.info);
   };
-
-  // Karsten land formula over the 99 (mainboard; commanders excluded) plus optional proposed picks.
-  const landCalc = (picks = []) => landTarget(splitCards([
-    ...Object.values(deck.boards.mainboard).map((e) => ({ info: S.info[frontFace(e.name)], qty: e.quantity, isLand: e.isLand })),
-    ...picks.map((p) => ({ info: S.info[frontFace(p.name)], qty: p.qty, isLand: p.tier === 'land' })),
-  ]));
-  // The land target: the formula's when on and computable, else the fixed 36.
-  const landGoal = () => (S.landFormula && S.land && S.land.target != null ? S.land.target : FIXED_LANDS);
-  const landTitle = () => (S.landFormula && S.land ? landBasis(S.land) : null);
 
   function recompute() {
     S.land = S.landFormula ? landCalc() : null;
