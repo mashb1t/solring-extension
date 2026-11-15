@@ -11,7 +11,7 @@
 
   async function load() {
     if (mods) return mods;
-    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder] = await Promise.all([
+    const [moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors] = await Promise.all([
       import(u('moxfield.js')),
       import(u('dom.js')),
       import(u('render-deck.js')),
@@ -22,8 +22,9 @@
       import(u('recommendations.js')),
       import(u('render-picker.js')),
       import(u('render-builder.js')),
+      import(u('option-colors.js')),
     ]);
-    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder };
+    mods = { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors };
     return mods;
   }
 
@@ -53,8 +54,9 @@
 
   async function route() {
     const m = await load();
-    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder } = m;
+    const { moxfield, dom, renderDeck, decklist, wideLayout, renderUser, sync, recommendations, picker, builder, optionColors } = m;
     wideLayout.installWideToggle(); // idempotent global header toggle, applies on every page
+    optionColors.installOptionColors().catch(() => {}); // custom mark/rating colours on every route (picker, builder)
     dom.disposeAll(); // first: disconnect every observer/listener from the previous route
     dom.guard('teardown', () => dom.teardown());
     decklist.teardownDeckList(); // drop any prior list observer/state on every nav

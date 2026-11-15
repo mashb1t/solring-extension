@@ -12,6 +12,7 @@ import { el, isDark, chevronSvg, registerDisposable } from './dom.js';
 import { relTime, num, exact } from './format.js';
 import { tile, gradeChip, bracketValue } from './components.js';
 import { getCardPrefs, getOptions, onPrefChange, getCardSortView } from './prefs.js';
+import { applyOptionColors } from './option-colors.js';
 import { annotate, clearAnnotations } from './render-cards.js';
 import { installCustomizeViewToggles } from './customize-view.js';
 import { installCommanderSaltLink } from './links-menu.js';
@@ -28,21 +29,6 @@ let deckObserver = null;
 let dvRef = null;
 let installedOnce = false;
 let syncTimer = null; // ticks the "synced ...ago" label live. Manual refresh only, no auto-revalidate
-
-// Override the injected-UI CSS vars from the options (single value, both themes).
-// null = not customized, so removeProperty falls back to the auto-themed default.
-function applyOptionColors(o) {
-  const root = document.documentElement.style;
-  const set = (name, val) => (val ? root.setProperty(name, val) : root.removeProperty(name));
-  set('--solring-mark-power', o.powerColor);
-  set('--solring-mark-salt', o.saltColor);
-  set('--solring-mark-synergy', o.synergyColor);
-  const rc = o.ratingColors || {};
-  set('--solring-rating-a', rc.a);
-  set('--solring-rating-b', rc.b);
-  set('--solring-rating-c', rc.c);
-  set('--solring-rating-d', rc.d);
-}
 
 // Moxfield's deck "last updated" as epoch ms. The word "updated" usually lives on a
 // PARENT node, not the <time>/[title] element itself, so we read each candidate's
