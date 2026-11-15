@@ -620,7 +620,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
       count.textContent = n ? `${n} selected` : '';
       all.checked = n > 0 && n >= pickable.size;
       all.indeterminate = n > 0 && n < pickable.size;
-      remove.hidden = n === 0; // unticking Select all clears the selection
+      count.hidden = remove.hidden = n === 0; // unticking Select all clears the selection; an empty count would skew the row's baseline
       remove.textContent = S.busy === 'rm' ? 'Removing via Moxfield…' : 'Remove selected';
       remove.disabled = !!S.busy;
     }

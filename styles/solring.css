@@ -988,6 +988,10 @@ li.solring-builder-sel { background: color-mix(in srgb, var(--solring-rating-a) 
 .solring-builder-all { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; cursor: pointer; color: var(--solring-text-2); }
 .solring-builder-all .form-check-input { margin: 0; float: none; }
 .solring-builder-count { font-weight: 600; }
+/* Builder header: the cards/lands summary sits on the same text baseline as Select all (sizes differ, so
+   centring alone leaves the smaller text visibly high); the chevron stays centred. */
+.solring-builder-panel .solring-bar-right { align-items: baseline; }
+.solring-builder-panel .solring-bar-right .solring-chevron { align-self: center; }
 
 /* Auto-complete preview modal */
 .solring-builder-modal-back {
