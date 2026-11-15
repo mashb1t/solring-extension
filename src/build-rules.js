@@ -10,14 +10,21 @@ export const RULES_DEFAULT = { bracket: 3, gameChangerCap: null, power: null, bu
 // Spellbook bracket tags → minimum bracket. 'B' (Banned: uses a banned card) is never allowed.
 const COMBO_MIN_BRACKET = { E: 1, O: 2, C: 2, S: 3, P: 3, R: 4, B: Infinity };
 
-function bracketGcCap(bracket) {
+export function bracketGcCap(bracket) {
   if (bracket <= 2) return 0;
   return bracket === 3 ? 3 : Infinity;
 }
 
+// A user GC cap at or above the bracket's own cap adds nothing, so it's stored as null (= the
+// bracket default). That also means a bracket change can never leave a cap above the new maximum.
+export function clampGcCap(cap, bracket) {
+  if (cap == null) return null;
+  return cap >= bracketGcCap(bracket) ? null : cap;
+}
+
 export function effectiveGcCap(rules) {
-  const cap = rules.gameChangerCap;
-  return Math.min(bracketGcCap(rules.bracket), cap == null ? Infinity : cap);
+  const cap = clampGcCap(rules.gameChangerCap, rules.bracket);
+  return cap == null ? bracketGcCap(rules.bracket) : cap;
 }
 
 // Unknown/null tag is only allowed where nothing is restricted (bracket 4+).
@@ -108,7 +115,7 @@ export function checkCard(name, ctx) {
 export function ruleUsage(ctx) {
   const { rules } = ctx;
   const out = [{ key: 'bracket', label: `Bracket ${rules.bracket}`, used: null, max: null }];
-  out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules) });
+  out.push({ key: 'gc', label: 'Game Changers', used: ctx.gcUsed, max: effectiveGcCap(rules), bracket: rules.bracket, custom: clampGcCap(rules.gameChangerCap, rules.bracket) != null });
   if (rules.budget != null) out.push({ key: 'budget', label: 'Budget', used: ctx.spent, max: rules.budget, pricing: ctx.pricing || DEFAULT_PRICING });
   if (rules.power) out.push({ key: 'power', label: `Power ${rules.power.min}–${rules.power.max}`, used: null, max: null });
   return out;

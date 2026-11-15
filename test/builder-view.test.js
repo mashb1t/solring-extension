@@ -63,7 +63,7 @@ test('infoNames: deck + theme + combo pieces, deduped by front face', () => {
 test('ruleChips: GC and budget meters, uncapped GC, power target hint', () => {
   const ctx = { ...makeCtx({ rules: { ...RULES_DEFAULT, budget: 250, power: { min: 6, max: 7 } }, info: {}, flags: flags(), owned: null, deckNames: [] }), gcUsed: 1, spent: 61.4 };
   const chips = ruleChips(ruleUsage(ctx));
-  assert.deepEqual(chips.map((c) => c.text), ['Bracket 3', 'Game Changers 1 / 3', 'Budget $61 / $250', 'Power 6–7']);
+  assert.deepEqual(chips.map((c) => c.text), ['Bracket 3', 'Game Changers 1 / 3 (Bracket 3)', 'Budget $61 / $250', 'Power 6–7']);
   assert.equal(chips[1].pct.toFixed(2), '0.33');
   assert.equal(chips[1].warn, false);
   assert.equal(chips[3].hint, 'target');
@@ -143,6 +143,28 @@ test('parseRulesForm: blanks clear rules; invalid input reports an error', () =>
   assert.ok(parseRulesForm({ bracket: '3', powerMin: '7' }).error);
   assert.ok(parseRulesForm({ bracket: '3', budget: '0' }).error);
   assert.ok(parseRulesForm({ bracket: '3', budget: 'abc' }).error);
+});
+
+test('ruleChips gc: bracket default vs your own cap', () => {
+  const t = (u) => ruleChips([{ key: 'gc', label: 'Game Changers', ...u }])[0].text;
+  assert.equal(t({ used: 2, max: 3, bracket: 3, custom: false }), 'Game Changers 2 / 3 (Bracket 3)');
+  assert.equal(t({ used: 0, max: 0, bracket: 2, custom: false }), 'Game Changers 0 / 0 (Bracket 2)');
+  assert.equal(t({ used: 1, max: 2, bracket: 3, custom: true }), 'Game Changers 1 / 2 (your cap, Bracket 3 allows 3)');
+  assert.equal(t({ used: 1, max: 2, bracket: 4, custom: true }), 'Game Changers 1 / 2 (your cap)');
+  assert.equal(t({ used: 5, max: Infinity, bracket: 4, custom: false }), 'Game Changers 5 / no cap');
+});
+
+test('parseRulesForm: the GC cap is clamped to the bracket; blank / at-max is the bracket default', () => {
+  const cap = (bracket, gcCap) => parseRulesForm({ bracket, gcCap }).rules.gameChangerCap;
+  assert.equal(cap('3', ''), null); // cleared field → bracket default
+  assert.equal(cap('3', '  '), null);
+  assert.equal(cap('3', '2'), 2);
+  assert.equal(cap('3', '3'), null);
+  assert.equal(cap('3', '7'), null); // never above the bracket's 3
+  assert.equal(cap('2', '2'), null); // bracket changed 3 → 2 with 2 still in the field
+  assert.equal(cap('2', '0'), null);
+  assert.equal(cap('4', '7'), 7); // B4+: no bracket cap, the user's cap stands
+  assert.ok(parseRulesForm({ bracket: '3', gcCap: '1.5' }).error);
 });
 
 test('ownedFilter: hides only not-owned suggestions, and only when owned-only is active', async () => {
@@ -281,6 +303,7 @@ test('rulesAreDefault: only RULES_DEFAULT-equivalent rules count as default', ()
   assert.equal(rulesAreDefault({ bracket: 3 }), true);
   assert.equal(rulesAreDefault({ bracket: 4 }), false);
   assert.equal(rulesAreDefault({ bracket: 3, gameChangerCap: 0 }), false);
+  assert.equal(rulesAreDefault({ bracket: 3, gameChangerCap: 9 }), true); // legacy cap above the bracket's = default
   assert.equal(rulesAreDefault({ bracket: 3, power: { min: 6, max: 7 } }), false);
   assert.equal(rulesAreDefault({ bracket: 3, budget: 200 }), false);
   assert.equal(rulesAreDefault({ bracket: 3, ownedOnly: true }), false);

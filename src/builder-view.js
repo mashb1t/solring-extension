@@ -1,7 +1,7 @@
 // Guided Deck Builder build view: pure view-model helpers for render-builder.js (deck
 // composition, rule chips, auto-complete preview grouping/totals, power verdict). No DOM.
 import { frontFace } from './sources/scryfall.js';
-import { checkCard, addToCtx, RULES_DEFAULT } from './build-rules.js';
+import { checkCard, addToCtx, RULES_DEFAULT, bracketGcCap, clampGcCap } from './build-rules.js';
 import { DEFAULT_PRICING, formatPrice } from './pricing.js';
 
 export const DECK_SIZE = 100;
@@ -85,7 +85,8 @@ export function builderStartsOpen({ setting, editable, cards }) {
 /** Do the deck's rules equal RULES_DEFAULT (so the rules bar's Reset has nothing to undo)? */
 export function rulesAreDefault(rules) {
   const r = rules || {};
-  return Number(r.bracket ?? RULES_DEFAULT.bracket) === RULES_DEFAULT.bracket && r.gameChangerCap == null
+  const bracket = Number(r.bracket ?? RULES_DEFAULT.bracket);
+  return bracket === RULES_DEFAULT.bracket && clampGcCap(r.gameChangerCap, bracket) == null
     && !r.power && r.budget == null && !r.ownedOnly;
 }
 
@@ -133,7 +134,10 @@ export function ruleChips(usage, { flagsMissing = false } = {}) {
   const chips = (usage || []).map((u) => {
     if (u.key === 'gc') {
       if (u.max === Infinity) return { key: 'gc', text: `Game Changers ${u.used} / no cap`, pct: null, warn: false };
-      return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
+      const bmax = u.bracket == null ? Infinity : bracketGcCap(u.bracket);
+      const src = u.custom ? (bmax === Infinity ? ' (your cap)' : ` (your cap, Bracket ${u.bracket} allows ${bmax})`)
+        : u.bracket != null ? ` (Bracket ${u.bracket})` : '';
+      return { key: 'gc', text: `Game Changers ${u.used} / ${u.max}${src}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
     }
     if (u.key === 'budget') {
       return { key: 'budget', text: `Budget ${whole(u.used, u.pricing)} / ${whole(u.max, u.pricing)}`, pct: u.max > 0 ? Math.min(1, u.used / u.max) : 1, warn: u.used >= u.max };
@@ -238,6 +242,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }, p
   if (!(Number.isInteger(b) && b >= 1 && b <= 5)) return { error: 'Bracket must be 1–5' };
   const cap = num(gcCap);
   if (cap != null && !(Number.isInteger(cap) && cap >= 0)) return { error: 'Game Changer cap must be a whole number ≥ 0' };
+  const gameChangerCap = clampGcCap(cap, b); // at/above the bracket's cap → null (bracket default)
   const lo = num(powerMin); const hi = num(powerMax);
   let power = null;
   if (lo != null || hi != null) {
@@ -246,7 +251,7 @@ export function parseRulesForm({ bracket, gcCap, powerMin, powerMax, budget }, p
   }
   const bud = num(budget);
   if (bud != null && !(bud > 0)) return { error: `Budget must be more than ${whole(0, pricing)}` };
-  return { rules: { bracket: b, gameChangerCap: cap, power, budget: bud } };
+  return { rules: { bracket: b, gameChangerCap, power, budget: bud } };
 }
 
 export const NOT_OWNED = 'Not in your collection';

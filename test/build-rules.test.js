@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  RULES_DEFAULT, effectiveGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
+  RULES_DEFAULT, effectiveGcCap, clampGcCap, bracketGcCap, comboAllowed, makeCtx, checkCard, ruleUsage, addToCtx, comboGuards,
 } from '../src/build-rules.js';
 
 const card = (name, o = {}) => ({ name, price: 1, gameChanger: false, colorIdentity: [], typeLine: '', image: '', ...o });
@@ -19,6 +19,28 @@ test('gc cap by bracket and explicit cap', () => {
   assert.equal(effectiveGcCap({ ...RULES_DEFAULT, bracket: 2 }), 0);
   assert.equal(effectiveGcCap({ ...RULES_DEFAULT, bracket: 1 }), 0);
   assert.equal(effectiveGcCap({ ...RULES_DEFAULT, bracket: 5 }), Infinity);
+});
+
+test('clampGcCap: a cap at/above the bracket cap is the bracket default (null)', () => {
+  assert.equal(bracketGcCap(2), 0);
+  assert.equal(bracketGcCap(3), 3);
+  assert.equal(bracketGcCap(4), Infinity);
+  assert.equal(clampGcCap(null, 3), null);
+  assert.equal(clampGcCap(2, 3), 2);
+  assert.equal(clampGcCap(3, 3), null);
+  assert.equal(clampGcCap(9, 3), null);
+  assert.equal(clampGcCap(0, 3), 0);
+  assert.equal(clampGcCap(1, 2), null); // B1–2 allow none: anything is the default 0
+  assert.equal(clampGcCap(0, 1), null);
+  assert.equal(clampGcCap(7, 4), 7); // no bracket cap at B4+
+});
+
+test('ruleUsage gc: carries the bracket and whether the cap is the user\'s own', () => {
+  const gcOf = (rules) => ruleUsage(ctxOf({ rules: { ...RULES_DEFAULT, ...rules } })).find((r) => r.key === 'gc');
+  assert.deepEqual(gcOf({}), { key: 'gc', label: 'Game Changers', used: 0, max: 3, bracket: 3, custom: false });
+  assert.deepEqual(gcOf({ gameChangerCap: 2 }), { key: 'gc', label: 'Game Changers', used: 0, max: 2, bracket: 3, custom: true });
+  assert.deepEqual(gcOf({ gameChangerCap: 9 }), { key: 'gc', label: 'Game Changers', used: 0, max: 3, bracket: 3, custom: false });
+  assert.equal(gcOf({ bracket: 4, gameChangerCap: 1 }).custom, true);
 });
 
 test('4th game changer rejected, via flags or info', () => {

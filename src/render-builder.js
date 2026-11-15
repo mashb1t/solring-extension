@@ -15,7 +15,7 @@ import { el, registerDisposable, isDark, chevronSvg } from './dom.js';
 import { parseDeckId } from './moxfield.js';
 import { getOptions, onPrefChange } from './prefs.js';
 import { getDeckBuild, setDeckBuild, peekPendingBuild, takePendingBuild, getPricingProvider, setPricingProvider } from './build-store.js';
-import { makeCtx, ruleUsage, effectiveGcCap, comboGuards, RULES_DEFAULT } from './build-rules.js';
+import { makeCtx, ruleUsage, effectiveGcCap, bracketGcCap, clampGcCap, comboGuards, RULES_DEFAULT } from './build-rules.js';
 import { buildTiers } from './build-rank.js';
 import { keyCombos } from './sources/spellbook.js';
 import { spellbookComboUrl } from './sources/spellbook.js';
@@ -584,7 +584,7 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     ruleBtn.addEventListener('click', () => { S.rulesOpen = !S.rulesOpen; S.rulesError = null; render(); });
     // Reset: only while the rules differ from the defaults; no confirm (re-adding a rule undoes it).
     const reset = V.rulesAreDefault(S.build.rules) ? null
-      : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3, no caps, no budget)' } });
+      : el('button', { class: 'solring-builder-chip solring-builder-rulebtn solring-builder-reset', text: 'Reset', attrs: { type: 'button', title: 'Reset the rules to the defaults (Bracket 3 with its Game Changer limit, no other caps, no budget)' } });
     if (reset) { reset.disabled = loadingNow() || !!S.busy; reset.addEventListener('click', resetRules); }
     const ac = el('button', { class: 'btn btn-primary btn-sm solring-builder-ac', text: S.busy === 'ac' ? 'Adding via Moxfield…' : '⚡ Auto-complete deck', attrs: { type: 'button' } });
     ac.disabled = !!S.busy || !S.ctx || addsPaused() || !S.flagsOk || loadingNow();
@@ -598,13 +598,26 @@ export async function installBuilder({ waitFor, rebuild = false }) {
     const inp = (value, attrs) => { const i = el('input', { class: 'form-control form-control-sm', attrs: { type: 'number', ...attrs } }); i.value = value == null ? '' : String(value); return i; };
     const bracket = el('select', { class: 'form-select form-select-sm' }, [1, 2, 3, 4, 5].map((b) => el('option', { text: `Bracket ${b}`, attrs: { value: String(b) } })));
     bracket.value = String(r.bracket);
-    const gc = inp(r.gameChangerCap, { min: '0', step: '1', placeholder: 'bracket default' });
+    // GC cap: never above the bracket's own cap (input max; none at B4+). Blank = bracket default.
+    const gc = inp(clampGcCap(r.gameChangerCap, r.bracket), { min: '0', step: '1' });
+    const gcDefault = el('button', { class: 'solring-builder-linkbtn', text: 'use bracket default', attrs: { type: 'button', title: 'Clear your cap: the bracket decides how many Game Changers fit' } });
+    const syncGc = () => {
+      const max = bracketGcCap(Number(bracket.value));
+      if (max === Infinity) gc.removeAttribute('max'); else gc.max = String(max);
+      gc.placeholder = max === Infinity ? 'default: no cap' : `default: ${max}`;
+      if (gc.value !== '' && Number(gc.value) > max) gc.value = '';
+      gcDefault.hidden = gc.value === '';
+    };
+    bracket.addEventListener('change', syncGc);
+    gc.addEventListener('input', () => { gcDefault.hidden = gc.value === ''; });
+    gcDefault.addEventListener('click', () => { gc.value = ''; syncGc(); gc.focus(); });
+    syncGc();
     const pmin = inp(r.power && r.power.min, { min: '1', max: '10', step: '0.5', placeholder: 'min' });
     const pmax = inp(r.power && r.power.max, { min: '1', max: '10', step: '0.5', placeholder: 'max' });
     const budget = inp(r.budget, { min: '1', step: '1', placeholder: 'no limit' });
     const save = el('button', { class: 'btn btn-primary btn-sm', text: 'Save rules', attrs: { type: 'submit' } });
     const form = el('form', { class: 'solring-builder-ruleform' }, [
-      field('Bracket', bracket), field('Game Changer cap', gc),
+      field('Bracket', bracket), field('Game Changer cap', el('span', { class: 'solring-builder-range solring-builder-gc' }, [gc, gcDefault])),
       field('Power target', el('span', { class: 'solring-builder-range' }, [pmin, el('span', { text: '–' }), pmax])),
       field(`Budget (whole deck, ${S.pricing.symbol})`, budget),
       el('div', { class: 'solring-builder-formfoot' }, [

@@ -935,6 +935,12 @@ span.solring-picker-entry { display: inline; }
 .solring-builder-field .form-control, .solring-builder-field .form-select { width: auto; min-width: 7rem; }
 .solring-builder-range { display: inline-flex; align-items: center; gap: 0.3rem; }
 .solring-builder-range .form-control { min-width: 0; width: 4.5rem; }
+.solring-builder-gc .form-control { width: 7.5rem; }
+.solring-builder-linkbtn {
+  padding: 0; border: 0; background: none; color: var(--solring-accent); font-size: 0.75rem;
+  text-decoration: underline; white-space: nowrap; cursor: pointer;
+}
+.solring-builder-linkbtn[hidden] { display: none; }
 .solring-builder-formfoot { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 .solring-builder-err { color: var(--solring-rating-a); font-size: 0.8rem; }
 .solring-builder-power {
