@@ -28,7 +28,7 @@ export const THEME_HELP = {
   lifegain: 'Gains life often and turns each gain into counters, cards, tokens or drain.',
   'plus-1-plus-1-counters': 'Spreads and multiplies +1/+1 counters to grow a board of large creatures.',
   counters: 'Puts and moves counters around (+1/+1, charge, loyalty) and doubles them.',
-  proliferate: 'Adds one more of each counter that is already out: poison, loyalty, +1/+1 and more.',
+  proliferate: 'Adds another counter of each kind already there to permanents and players you choose.',
   reanimator: 'Puts big creatures into the graveyard and brings them back cheaply.',
   'self-mill': 'Fills your own graveyard on purpose to fuel recursion and graveyard payoffs.',
   mill: "Wins by emptying opponents' libraries.",
@@ -51,11 +51,39 @@ export const THEME_HELP = {
   typal: 'Built around one creature type and its lords and payoffs.',
 };
 
-/** ⓘ popover text for a playstyle: EDHREC's description, else the built-in text, else the fallback. */
+// Typal playstyles: EDHREC names them by the plural creature type ("elves", "zombies"). Plural
+// slug → singular type; most just drop the trailing "s", the rest are listed with their singular.
+const TYPAL_REGULAR = ('advisors allies angels apes archers artificers assassins avatars bats bears beasts berserkers birds boars '
+  + 'cats centaurs clerics constructs crabs demons devils dinosaurs djinns dogs dragons drakes druids eggs elementals elks faeries '
+  + 'frogs giants gnomes goats goblins golems gorgons halflings hippos horrors horses humans hydras illusions imps insects '
+  + 'kavus knights kobolds krakens leviathans lizards mercenaries minotaurs monks mutants nagas nightmares ninjas oozes orcs ogres '
+  + 'otters pegasus pirates plants rabbits raccoons rats rebels rogues saprolings satyrs scarecrows serpents shades shamans sharks '
+  + 'skeletons slivers snakes soldiers spiders spirits squirrels thopters treefolks trolls turtles unicorns vampires warlocks '
+  + 'warriors weasels wizards worms wraiths wurms zombies').split(' ');
+const TYPAL_IRREGULAR = {
+  elves: 'Elf', dwarves: 'Dwarf', wolves: 'Wolf', werewolves: 'Werewolf', mice: 'Mouse', foxes: 'Fox', sphinxes: 'Sphinx',
+  phoenixes: 'Phoenix', fungi: 'Fungus', fungus: 'Fungus', merfolk: 'Merfolk', myr: 'Myr', samurai: 'Samurai', kor: 'Kor',
+  kithkin: 'Kithkin', eldrazi: 'Eldrazi', fish: 'Fish', octopuses: 'Octopus', octopus: 'Octopus', treefolk: 'Treefolk',
+  pegasi: 'Pegasus', allies: 'Ally', faeries: 'Faerie', zombies: 'Zombie', mercenaries: 'Mercenary', zubera: 'Zubera',
+  jellyfish: 'Jellyfish', moonfolk: 'Moonfolk', homunculi: 'Homunculus', sliver: 'Sliver',
+};
+const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+/** EDHREC playstyle slug → singular creature type ("elves" → "Elf"), null when it isn't a known type. */
+export function typalType(slug) {
+  const k = String(slug || '').toLowerCase();
+  if (TYPAL_IRREGULAR[k]) return TYPAL_IRREGULAR[k];
+  return TYPAL_REGULAR.includes(k) ? cap(k.replace(/s$/, '')) : null;
+}
+
+/** ⓘ popover text for a playstyle: a description when one is passed, else the built-in text, else
+ *  the typal line for a creature-type slug, else the generic fallback. */
 export function themeHelp(slug, description) {
   const d = typeof description === 'string' ? description.trim() : '';
   if (d) return d;
-  return THEME_HELP[String(slug || '').toLowerCase()] || THEME_HELP_FALLBACK;
+  const k = String(slug || '').toLowerCase();
+  if (THEME_HELP[k]) return THEME_HELP[k];
+  const type = typalType(k);
+  return type ? `Built around ${type} creatures and cards that reward them.` : THEME_HELP_FALLBACK;
 }
 
 /** Free-text query → EDHREC tag slug guess: lowercase, runs of non-alphanumerics → '-', trimmed. */

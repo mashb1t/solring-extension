@@ -9,7 +9,7 @@ import { getEntry, setEntry, isFresh, isFreshTtl, dedupe, SCHEMA_VERSION, ENRICH
 import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchEdhrec } from './sources/edhrec.js';
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
 import { fetchRecs } from './sources/edhrec-recs.js';
-import { fetchEdhrecPage, themesOf, themeCards, topCommanders, cardSlug, themeDescription } from './sources/edhrec-build.js';
+import { fetchEdhrecPage, themesOf, themeCards, topCommanders, cardSlug } from './sources/edhrec-build.js';
 import { searchCommanders, fetchCardLookup, fetchFlagSets, frontFace } from './sources/scryfall.js';
 import { md5Hex } from './md5.js';
 
@@ -184,8 +184,6 @@ async function getBuildData({ op, commanders, theme, card, cards, fresh = false 
   } else if (op === 'theme') {
     const slug = commanderSlug(commanders);
     if (slug && theme) { path = `commanders/${slug}/${theme}`; shape = (j) => ({ cards: themeCards(j) }); }
-  } else if (op === 'themeInfo') { // picker ⓘ popover: the tag page's description only
-    if (theme) { path = `tags/${theme}`; shape = (j) => ({ description: themeDescription(j) }); }
   } else if (op === 'byTheme') {
     if (theme) { path = `tags/${theme}`; shape = (j) => ({ commanders: topCommanders(j) }); }
   } else if (op === 'byCard') {

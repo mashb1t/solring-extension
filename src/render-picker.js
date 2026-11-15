@@ -40,9 +40,23 @@ let rafId = 0;
 const txt = (n) => (n && n.textContent ? n.textContent.replace(/\s+/g, ' ').trim() : '');
 const btn = (props, children) => el('button', { ...props, attrs: { type: 'button', ...(props.attrs || {}) } }, children);
 
+// Live pickers → their cleanup (close the ⓘ popover and its document listeners, hide the shared
+// commander card preview). Run on teardown, and by the observer once a picker's dialog is gone.
+const pickers = new Map();
+function cleanupPickers(all) {
+  for (const [root, fn] of pickers) {
+    const gone = !root.isConnected || (root.dataset.solringAnchor === 'dialog' && !root.closest('.modal.show'));
+    if (!all && !gone) continue;
+    pickers.delete(root);
+    try { fn(); } catch { /* never throw into the page */ }
+  }
+}
+
 export function teardownPicker() {
   if (observer) { observer.disconnect(); observer = null; }
   if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  cleanupPickers(true);
+  cardPopFocus(null, false);
   document.querySelectorAll('.solring-picker').forEach((n) => n.remove());
   document.querySelectorAll(`.${WIDE}`).forEach((n) => n.classList.remove(WIDE));
 }
@@ -55,6 +69,7 @@ export async function installPicker(_ctx = {}) {
   if (opts.sources && opts.sources.edhrec === false) return; // gated on the EDHREC source
   if (observer) return;
   observer = new MutationObserver((records) => {
+    if (pickers.size) cleanupPickers(false); // a dialog closed (Escape / ✕ / Create) under a live picker
     // Our own re-renders must not re-trigger a scan.
     if (records.every((r) => r.target.closest && r.target.closest('.solring-picker'))) return;
     if (!rafId) rafId = requestAnimationFrame(() => { rafId = 0; scan(); });
@@ -355,12 +370,13 @@ function buildPicker({ anchor, hint, onUse }) {
   }
 
   // ---- playstyle ⓘ popover ------------------------------------------------------------------
-  // Hover / focus opens it, click pins it; Escape or an outside click closes. Text: EDHREC's tag
-  // description (fetched on first open, cached by the worker), else a built-in line, else a generic
-  // fallback (picker-logic.themeHelp). A sibling of the playstyle button (never nested in it), so
+  // Hover / focus opens it, click pins it; Escape or an outside click closes. Text: a built-in line
+  // (picker-logic.themeHelp), shown instantly with no network: EDHREC's tag pages are ~120 KB and their
+  // `description` is empty upstream, so they aren't fetched. A sibling of the playstyle button (never nested in it), so
   // its clicks don't select the playstyle; type=button, so it never submits Moxfield's form.
   const help = el('div', { class: 'solring-picker-help', attrs: { role: 'tooltip', id: `solring-picker-help-${anchor}`, hidden: '' } });
   root.append(help);
+  pickers.set(root, () => { closeHelp(); cardPopFocus(null, false); });
   let helpFor = null; let helpPinned = false; let helpBtn = null;
   const onHelpKey = (e) => { if (e.key === 'Escape' && helpFor) { e.preventDefault(); e.stopPropagation(); closeHelp(); } };
   const onHelpDown = (e) => { if (helpFor && !help.contains(e.target) && !(helpBtn && helpBtn.contains(e.target))) closeHelp(); };
@@ -389,13 +405,6 @@ function buildPicker({ anchor, hint, onUse }) {
       document.addEventListener('keydown', onHelpKey, true);
       document.addEventListener('pointerdown', onHelpDown, true);
       document.addEventListener('scroll', closeHelp, true);
-      const slug = t.slug;
-      getBuildData({ op: 'themeInfo', theme: slug }).catch(() => null).then((res) => {
-        const d = res && !res.miss && !res.error ? res.description : '';
-        if (helpFor !== slug || !d || !root.isConnected) return;
-        help.lastChild.textContent = themeHelp(slug, d);
-        placeHelp(b);
-      });
     }
     if (pin) helpPinned = true;
     placeHelp(b);

@@ -82,3 +82,17 @@ test('themeHelp: EDHREC description, else built-in text, else the fallback', asy
   assert.equal(themeHelp('some-new-theme', null), THEME_HELP_FALLBACK);
   assert.equal(THEME_HELP_FALLBACK, "Playstyle from EDHREC's theme lists.");
 });
+
+test('themeHelp: typal slugs get a creature-type line; proliferate text', async () => {
+  const { themeHelp, typalType, THEME_HELP, THEME_HELP_FALLBACK } = await import('../src/picker-logic.js');
+  assert.equal(typalType('elves'), 'Elf');
+  assert.equal(typalType('dragons'), 'Dragon');
+  assert.equal(typalType('zombies'), 'Zombie');
+  assert.equal(typalType('faeries'), 'Faerie');
+  assert.equal(typalType('group-hug'), null);
+  assert.equal(themeHelp('elves'), 'Built around Elf creatures and cards that reward them.');
+  assert.equal(themeHelp('Dragons', ''), 'Built around Dragon creatures and cards that reward them.');
+  assert.equal(themeHelp('voltron'), THEME_HELP.voltron);
+  assert.equal(themeHelp('lands-matter'), THEME_HELP_FALLBACK);
+  assert.equal(THEME_HELP.proliferate, 'Adds another counter of each kind already there to permanents and players you choose.');
+});

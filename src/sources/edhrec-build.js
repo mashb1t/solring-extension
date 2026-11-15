@@ -60,25 +60,3 @@ export function topCommanders(json) {
 // Single card name → EDHREC page slug (same normalization as commanders).
 export const cardSlug = (name) => commanderSlug([name]);
 
-// A tag page's `description` → plain text for the picker's playstyle ⓘ popover: HTML tags dropped,
-// common entities decoded, whitespace collapsed, capped at ~300 chars on a word boundary ('…').
-// '' when the page has none (EDHREC currently leaves most tag descriptions empty).
-const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', '#39': "'", rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”', mdash: '—', ndash: '–', hellip: '…' };
-export const THEME_DESC_MAX = 300;
-export function themeDescription(json) {
-  const raw = json && typeof json.description === 'string' ? json.description : '';
-  let t = raw.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ')
-    .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+\d*);/gi, (m, e) => {
-      const k = e.toLowerCase();
-      if (k in ENTITIES) return ENTITIES[k];
-      if (k[0] === '#') { const n = k[1] === 'x' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10); return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : ' '; }
-      return m;
-    })
-    .replace(/\s+/g, ' ').trim();
-  if (t.length > THEME_DESC_MAX) {
-    const cut = t.slice(0, THEME_DESC_MAX - 1);
-    const sp = cut.lastIndexOf(' ');
-    t = `${(sp > THEME_DESC_MAX * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,.;:–—-]+$/, '')}…`;
-  }
-  return t;
-}

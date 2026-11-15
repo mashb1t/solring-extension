@@ -78,16 +78,3 @@ test('fetchEdhrecPage: throw → null; ok → json', async () => {
   } finally { globalThis.fetch = real; }
 });
 
-test('themeDescription: strips HTML, decodes entities, collapses whitespace, caps ~300 chars', async () => {
-  const { themeDescription, THEME_DESC_MAX } = await import('../src/sources/edhrec-build.js');
-  assert.equal(themeDescription({ description: '<p>Help <b>everyone</b> &amp; win&nbsp;late.</p>\n<script>alert(1)</script>' }), 'Help everyone & win late.');
-  assert.equal(themeDescription({ description: 'It&#39;s &ldquo;fine&rdquo; &#x2014; ok' }), 'It\'s “fine” — ok');
-  assert.equal(themeDescription({ description: '' }), '');
-  assert.equal(themeDescription({}), '');
-  assert.equal(themeDescription(null), '');
-  const long = themeDescription({ description: 'word '.repeat(200) });
-  assert.ok(long.length <= THEME_DESC_MAX);
-  assert.match(long, /word…$/);
-  // the real group-hug tag page fixture has no description
-  assert.equal(themeDescription(groupHug), "");
-});

@@ -22,8 +22,8 @@ through any Solring backend — all data is fetched straight from the third-part
   (`eur`, `oracle`) are refetched once. `src/land-formula.js` (pure, tested): Karsten land target (option
   `landFormula`), article rules verbatim; land/spell MDFCs are partial lands, never cheap spells.
 - **Picker** — commander rows use `cardPopAttrs` (shared `.solring-cardpop`, `data-pop="left"` of the dialog); the
-  playstyle ⓘ popover reads EDHREC `tags/{slug}` `description` (op `themeInfo`, currently empty upstream) with
-  built-in fallbacks in `picker-logic.THEME_HELP`.
+  playstyle ⓘ popover is built-in text only (`picker-logic.themeHelp`: `THEME_HELP`, a typal line, a fallback), no
+  network (EDHREC tag `description`s are empty upstream). `teardownPicker` / the observer clean both up.
 - **`src/cache.js`** — `chrome.storage.local` cache. Prefixes `deck:` / `search:` / `edhrec:` / `sbook:` / `ebuild:` / `scry:` (disposable; cleared with the cache;
   shaped data only — `ebuild:<op>:<path>` holds the shaped EDHREC result, never the raw page; `scry:flags` is served stale on a failed refresh). `build:` (per-deck builder
   playstyle/rules + pending handoff) is **user state**, NOT in `isCacheKey`, never cleared with the cache. TTL-gated
