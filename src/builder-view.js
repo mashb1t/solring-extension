@@ -100,15 +100,31 @@ export function flagSets(res) {
   return { gameChangers: set('gameChangers'), extraTurns: set('extraTurns'), massLandDenial: set('massLandDenial'), tutors: set('tutors'), stax: set('stax') };
 }
 
+const BASE_FLAG_LISTS = ['gameChangers', 'extraTurns', 'massLandDenial'];
+const baseFlagsOk = (res) => !!(res && !res.error && !res.miss && BASE_FLAG_LISTS.every((k) => Array.isArray(res[k])));
+
 /** Did getCardData({op:'flags'}) return the real lists? (The worker serves a stale copy on a failed
  *  refresh, so false means nothing is cached at all: extra-turn / MLD / GC checks can't run.)
- *  A list added later (tutors, stax) is only required while its rule is on: a stale copy cached before it
- *  existed still serves the bracket checks. */
+ *  A list added later (tutors, stax) is only required while a rule the USER set needs it: a stale
+ *  copy cached before it existed still serves the bracket checks, and a PRESET tutor cap (B1–2)
+ *  degrades instead (not checked, see flagListWarnings) so a failed list never pauses a default deck. */
 export function flagsAvailable(res, rules = null) {
-  const need = ['gameChangers', 'extraTurns', 'massLandDenial'];
-  if (rules && effectiveRules(rules).tutorCap != null) need.push('tutors'); // B1–2 preset caps too
-  if (rules && rules.noStax) need.push('stax');
-  return !!(res && !res.error && !res.miss && need.every((k) => Array.isArray(res[k])));
+  return baseFlagsOk(res) && !flagListWarnings(res, rules).some((w) => w.paused);
+}
+
+/** Optional flag lists an active rule needs but the response lacks → warning chips
+ *  [{ key, list, paused, text }]. `paused` = Auto-complete is off (a user-set rule); a preset tutor
+ *  cap just goes unchecked. [] when the base lists are missing too (that's "Bracket checks unavailable"). */
+export function flagListWarnings(res, rules = null) {
+  if (!rules || !baseFlagsOk(res)) return [];
+  const eff = effectiveRules(rules);
+  const out = [];
+  if (eff.tutorCap != null && !Array.isArray(res.tutors)) {
+    const paused = !eff.fromPreset.tutorCap;
+    out.push({ key: 'tutorList', list: 'tutors', paused, text: `Tutor list unavailable — ${paused ? 'Auto-complete paused' : 'tutor cap not checked'}` });
+  }
+  if (eff.noStax && !Array.isArray(res.stax)) out.push({ key: 'staxList', list: 'stax', paused: true, text: 'Stax list unavailable — Auto-complete paused' });
+  return out;
 }
 
 /** Same commander set, compared by lowercased front face (order-insensitive). */
@@ -137,10 +153,13 @@ const whole = (n, pricing = DEFAULT_PRICING) => formatPrice(n, pricing, { whole:
 /**
  * ruleUsage(ctx) → chips: { key, text, pct (0–1 meter fill, or null), warn, hint }.
  * `warn` = the limit is reached (the next card of that kind is blocked). `flagsMissing` appends a
- * "Bracket checks unavailable" warning chip (flag lists couldn't load).
+ * "Bracket checks unavailable" warning chip (flag lists couldn't load). `listWarnings`
+ * (flagListWarnings) adds one warning chip per missing optional list; a missing tutor list drops
+ * the tutor meter (its count would read 0).
  */
-export function ruleChips(usage, { flagsMissing = false } = {}) {
-  const chips = (usage || []).map((u) => {
+export function ruleChips(usage, { flagsMissing = false, listWarnings = [] } = {}) {
+  const noTutorList = (listWarnings || []).some((w) => w.list === 'tutors');
+  const chips = (usage || []).filter((u) => !(noTutorList && u.key === 'tutors')).map((u) => {
     if (u.key === 'gc') {
       if (u.max === Infinity) return { key: 'gc', text: `Game Changers ${u.used} / no cap`, pct: null, warn: false };
       const bmax = u.bracket == null ? Infinity : bracketGcCap(u.bracket);
@@ -160,6 +179,7 @@ export function ruleChips(usage, { flagsMissing = false } = {}) {
     return { key: u.key, text: u.label, pct: null, warn: false };
   });
   if (flagsMissing) chips.push({ key: 'flags', text: 'Bracket checks unavailable', pct: null, warn: true });
+  for (const w of listWarnings || []) chips.push({ key: w.key, text: w.text, pct: null, warn: true });
   return chips;
 }
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   deckComposition, flagSets, flagsAvailable, commanderMatches, infoNames, ruleChips, comboCheck, groupPicks,
-  previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault, deckSizeStatus,
+  flagListWarnings, previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault, deckSizeStatus,
   cleanupCuts, deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckRowEntries, rowsAhead, pruneSelection,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage, effectiveRules } from '../src/build-rules.js';
@@ -464,6 +464,26 @@ test('previewSummary + flagsAvailable use the effective (preset) tutor cap', () 
   assert.match(previewSummary(t, { ...RULES_DEFAULT, bracket: 2 }, 0), / · Tutors 2 \/ 3 · /);
   assert.doesNotMatch(previewSummary(t, { ...RULES_DEFAULT, bracket: 4 }, Infinity), /Tutors/);
   const old = { gameChangers: [], extraTurns: [], massLandDenial: [] };
-  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, bracket: 2 }), false);
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, bracket: 2 }), true); // preset cap: degrades, see below
+  assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, bracket: 2, tutorCap: 2 }), false);
   assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, bracket: 4 }), true);
+});
+
+test('missing tutor list: a PRESET cap degrades (not checked, Auto-complete runs); a user cap pauses', () => {
+  const noTutors = { gameChangers: [], extraTurns: [], massLandDenial: [] };
+  const b2 = { ...RULES_DEFAULT, bracket: 2 };
+  assert.equal(flagsAvailable(noTutors, b2), true); // preset cap: not required
+  assert.deepEqual(flagListWarnings(noTutors, b2), [{ key: 'tutorList', list: 'tutors', paused: false, text: 'Tutor list unavailable — tutor cap not checked' }]);
+  const own = { ...RULES_DEFAULT, bracket: 2, tutorCap: 2 };
+  assert.equal(flagsAvailable(noTutors, own), false);
+  assert.deepEqual(flagListWarnings(noTutors, own), [{ key: 'tutorList', list: 'tutors', paused: true, text: 'Tutor list unavailable — Auto-complete paused' }]);
+  assert.deepEqual(flagListWarnings(noTutors, { ...RULES_DEFAULT, noStax: true }), [{ key: 'staxList', list: 'stax', paused: true, text: 'Stax list unavailable — Auto-complete paused' }]);
+  assert.deepEqual(flagListWarnings(noTutors, { ...RULES_DEFAULT }), []); // B3: no tutor cap
+  assert.deepEqual(flagListWarnings({ ...noTutors, tutors: [] }, b2), []);
+  assert.deepEqual(flagListWarnings({ miss: true }, b2), []); // base lists missing: the "Bracket checks" chip covers it
+  assert.deepEqual(flagListWarnings(undefined, b2), []);
+  // Chips: the warning replaces the (unchecked) tutor meter; base "Bracket checks" chip not added.
+  const usage = [{ key: 'bracket', label: 'Bracket 2' }, { key: 'tutors', label: 'Tutors', used: 0, max: 3, bracket: 2, preset: true }];
+  const chips = ruleChips(usage, { listWarnings: flagListWarnings(noTutors, b2) });
+  assert.deepEqual(chips.map((c) => [c.key, c.text, c.warn]), [['bracket', 'Bracket 2', false], ['tutorList', 'Tutor list unavailable — tutor cap not checked', true]]);
 });

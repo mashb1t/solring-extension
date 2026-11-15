@@ -566,7 +566,11 @@ export async function installBuilder({ waitFor, rebuild = false }) {
   }
 
   function rulesBar() {
-    const chips = S.ctx ? V.ruleChips(ruleUsage(S.ctx), { flagsMissing: !flagsOk() }) : [];
+    const fres = S.flagsRes;
+    const chips = S.ctx ? V.ruleChips(ruleUsage(S.ctx), {
+      flagsMissing: fres !== undefined && !V.flagsAvailable(fres), // base lists (GC / extra turns / MLD)
+      listWarnings: fres === undefined ? [] : V.flagListWarnings(fres, S.build.rules), // tutors / stax
+    }) : [];
     const items = [el('span', { class: 'solring-builder-label', text: 'Rules' })];
     for (const c of chips) {
       const kids = [c.text];
