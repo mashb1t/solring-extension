@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {
   deckComposition, flagSets, flagsAvailable, commanderMatches, infoNames, ruleChips, comboCheck, groupPicks,
   previewTotals, previewSummary, shortfallText, powerVerdict, parseRulesForm, builderStartsOpen, rulesAreDefault, deckSizeStatus,
+  cleanupCuts, deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckRowEntries, rowsAhead, pruneSelection,
 } from '../src/builder-view.js';
 import { RULES_DEFAULT, makeCtx, ruleUsage } from '../src/build-rules.js';
-import { cleanupCuts } from '../src/builder-view.js';
 
 const flags = (o = {}) => ({ gameChangers: new Set(), extraTurns: new Set(), massLandDenial: new Set(), ...o });
 const entry = (name, quantity = 1, isLand = false) => ({ name, quantity, isLand });
@@ -261,10 +261,6 @@ test('builderStartsOpen: open / collapsed force the state on editable decks', ()
   assert.equal(builderStartsOpen({ setting: 'open', editable: true, cards: 100 }), true);
   assert.equal(builderStartsOpen({ setting: 'collapsed', editable: true, cards: 10 }), false);
 });
-
-import {
-  deckSyncTarget, mergeSyncWant, syncNeeded, deckSignature, deckRowEntries, rowsAhead, pruneSelection,
-} from '../src/builder-view.js';
 
 test('deckSyncTarget: this deck → version / unknown; other decks and non-deck messages → null', () => {
   assert.equal(deckSyncTarget({ v: 1, kind: 'deck', publicId: 'abc', prevVersion: 80, version: 81, isTruncated: false }, 'abc'), 81);

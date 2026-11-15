@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nearMissCombos } from '../src/sources/spellbook.js';
-import { spellbookComboUrl } from '../src/sources/spellbook.js';
+import { nearMissCombos, spellbookComboUrl, keyCombos } from '../src/sources/spellbook.js';
 
 const combo = (id, useNames, produces, popularity, opts = {}) => ({
   id,
@@ -74,8 +73,6 @@ test('nearMissCombos: empty/absent results → []', () => {
   assert.deepEqual(nearMissCombos({}, ['x']), []);
   assert.deepEqual(nearMissCombos({ almostIncluded: [] }, ['x']), []);
 });
-
-import { keyCombos } from '../src/sources/spellbook.js';
 
 test('keyCombos: 1-2 missing, bracket-filtered, popularity desc, capped', () => {
   const results = { almostIncluded: [
