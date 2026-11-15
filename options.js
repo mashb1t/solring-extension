@@ -2,7 +2,7 @@
 // extension page, so chrome.storage + the src modules are available); open Moxfield
 // tabs react via prefs.js onPrefChange('options'). Cache size/clear use cache.js.
 
-import { getOptions, setOptions } from './src/prefs.js';
+import { getOptions, setOptions, getWide, setWide, onPrefChange } from './src/prefs.js';
 import { cachedBytes, clearCached } from './src/cache.js';
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +37,7 @@ async function render() {
   $('landFormula').checked = o.landFormula === true;
   $('pickerEnabled').checked = o.pickerEnabled !== false;
   $('cutsEnabled').checked = o.cutsEnabled !== false;
+  $('wide').checked = await getWide();
   for (const c of COLORS) {
     const v = c.get(o);
     $(c.id).value = v || c.def;
@@ -65,6 +66,10 @@ function bind() {
   onCheck('landFormula', 'landFormula');
   onCheck('pickerEnabled', 'pickerEnabled');
   onCheck('cutsEnabled', 'cutsEnabled');
+  // Wide layout mirrors the page's header toggle (prefs:wide): writing it applies live in open
+  // Moxfield tabs, and a toggle on the page updates this checkbox while Options is open.
+  $('wide').addEventListener('change', () => setWide($('wide').checked));
+  onPrefChange(async (which) => { if (which === 'wide') $('wide').checked = await getWide(); });
 
   const onNum = (id, key) => {
     $(id).addEventListener('change', () => {
