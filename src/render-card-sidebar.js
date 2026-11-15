@@ -79,7 +79,9 @@ export function installCardSidebar(fieldsGetter, optsGetter) {
   // attributeFilter keeps this cheap despite the body-wide subtree.
   observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
-  const offPref = onPrefChange((which) => { if (which === 'options') schedule(); }); // re-apply on toggle/threshold change
+  // Re-apply on toggle/threshold change. The owner's options getter refreshes after its own async
+  // storage read, so re-run once more after it has landed (an immediate pass alone can read stale opts).
+  const offPref = onPrefChange((which) => { if (which === 'options') { schedule(); setTimeout(schedule, 120); } });
   // Router drains this on nav (disconnect + drop listener + reset once-guard).
   registerDisposable(() => { if (observer) observer.disconnect(); offPref(); observer = null; });
 }
