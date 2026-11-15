@@ -17,6 +17,13 @@ through any Solring backend — all data is fetched straight from the third-part
 - **`src/sources/`** — worker-only pure fetch+shape helpers: `edhrec.js` (commander page, `json.edhrec.com`, ACAO:\*),
   `edhrec-recs.js` (`edhrec.com/api/recs` cuts, no ACAO → `getRecs` message), `spellbook.js` (`find-my-combos`),
   `edhrec-build.js` (deck-builder theme/commander pages, `json.edhrec.com`), `scryfall.js` (`api.scryfall.com` card info + flag lists).
+- **Builder data** — `getBuildData` / `getCardData` take `fresh:true` (the builder header's ↻ reload): skip the TTL,
+  overwrite the entry, fall back to the cached copy if the fetch fails. `scry:` entries missing a newly kept field
+  (`eur`, `oracle`) are refetched once. `src/land-formula.js` (pure, tested): Karsten land target (option
+  `landFormula`), article rules verbatim; land/spell MDFCs are partial lands, never cheap spells.
+- **Picker** — commander rows use `cardPopAttrs` (shared `.solring-cardpop`, `data-pop="left"` of the dialog); the
+  playstyle ⓘ popover reads EDHREC `tags/{slug}` `description` (op `themeInfo`, currently empty upstream) with
+  built-in fallbacks in `picker-logic.THEME_HELP`.
 - **`src/cache.js`** — `chrome.storage.local` cache. Prefixes `deck:` / `search:` / `edhrec:` / `sbook:` / `ebuild:` / `scry:` (disposable; cleared with the cache;
   shaped data only — `ebuild:<op>:<path>` holds the shaped EDHREC result, never the raw page; `scry:flags` is served stale on a failed refresh). `build:` (per-deck builder
   playstyle/rules + pending handoff) is **user state**, NOT in `isCacheKey`, never cleared with the cache. TTL-gated
