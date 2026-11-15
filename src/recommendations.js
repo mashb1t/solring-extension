@@ -82,7 +82,7 @@ export async function installRecommendations({ waitFor }) {
   // Combo breakers: cut cards that are pieces of a combo the deck already has. Loads alongside
   // the recs (never blocks the tabs); cells rendered before it lands get their badge when it does.
   const ctx = { publicId, editId: deck && deck.editId, breakers: new Map(), view: cutsView };
-  if (deck && !(opts.sources && opts.sources.spellbook === false)) loadBreakers(deck, ctx);
+  if (deck && !(opts.sources && opts.sources.spellbook === false)) ctx.breakersReady = loadBreakers(deck, ctx);
   const json = deck ? await getRecs(deck.commanders, Object.values(deck.boards.mainboard).map((e) => e.name)).catch(() => null) : null;
   const inScore = new Map();
   for (const r of (json && json.inRecs) || []) if (r && r.name && typeof r.score === 'number') inScore.set(frontKey(r.name), r.score);
@@ -350,7 +350,9 @@ function wireRemove(btn, cut, ctx, cell) {
     e.preventDefault(); e.stopPropagation();
     if (!hasToken()) { toast('Interact with Moxfield once so it authenticates, then retry.', true); return; }
     // Removing the last copy of a combo piece breaks the combo: confirm first. (A decrement
-    // leaves a copy, so nothing breaks; non-combo cards remove straight away.)
+    // leaves a copy, so nothing breaks; non-combo cards remove straight away.) If the combo data
+    // is still loading, wait for it briefly (never fails; capped so a slow API can't block).
+    if (cut.quantity <= 1 && ctx.breakersReady) await Promise.race([ctx.breakersReady, new Promise((r) => setTimeout(r, 1500))]);
     const combos = cut.quantity > 1 ? null : ctx.breakers.get(frontKey(cut.name));
     if (combos && combos.length && !(await confirmRemove(cut.name, combos, btn))) return;
     cell.classList.add('solring-cut-busy'); btn.disabled = true;
