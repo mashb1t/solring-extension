@@ -22,9 +22,19 @@ async function getJson(url) {
   return json && typeof json === 'object' ? json : null;
 }
 
+// Scryfall query for the picker. A single word also matches the type line, so a creature type
+// ("Fairy", "Faeries") finds its commanders; plurals are singularised for t: (Scryfall types are singular).
+const TYPE_ALIAS = { fairy: 'Faerie', fairies: 'Faerie', fae: 'Faerie', elves: 'Elf', dwarves: 'Dwarf', wolves: 'Wolf' };
+export function commanderQuery(q) {
+  const s = String(q || '').trim();
+  if (!/^[a-z-]+$/i.test(s)) return `is:commander ${s}`;
+  const one = TYPE_ALIAS[s.toLowerCase()] || s.replace(/([^s])s$/i, '$1');
+  return `is:commander (${s} or t:${one})`;
+}
+
 // Commander picker search: first page, EDHREC-popularity order. [] on failure.
 export async function searchCommanders(q) {
-  const query = `is:commander ${q}`;
+  const query = commanderQuery(q);
   const json = await getJson(`${API}/cards/search?q=${encodeURIComponent(query)}&order=edhrec`);
   return ((json && json.data) || []).map((c) => ({
     name: c.name,

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { shapeCards, resolveRequested, fetchCardLookup, fetchCardInfo, searchCommanders, fetchFlagSets } from '../src/sources/scryfall.js';
+import { shapeCards, resolveRequested, fetchCardLookup, fetchCardInfo, searchCommanders, fetchFlagSets, commanderQuery } from '../src/sources/scryfall.js';
 
 const collection = JSON.parse(readFileSync(new URL('../fixtures/scryfall_collection.json', import.meta.url)));
 const jsonRes = (body, ok = true) => ({ ok, json: async () => body });
@@ -68,7 +68,7 @@ test('searchCommanders: shapes first page, [] on failure', async () => {
   let url;
   const stub = async (u) => { url = u; return jsonRes({ data: collection.data }); };
   const res = await withFetch(stub, () => searchCommanders('ojer'));
-  assert.match(decodeURIComponent(url), /q=is:commander ojer&order=edhrec/);
+  assert.match(decodeURIComponent(url), /q=is:commander \(ojer or t:ojer\)&order=edhrec/);
   assert.equal(res.length, collection.data.length);
   assert.deepEqual(Object.keys(res[0]), ['name', 'colorIdentity', 'image']);
   assert.deepEqual(await withFetch(async () => jsonRes({}, false), () => searchCommanders('x')), []);
@@ -116,4 +116,14 @@ test('fetchCardLookup: not_found reported; failed batch reports nothing', async 
   assert.deepEqual(res.notFound, ['b']);
   const bad = async () => { throw new Error('net'); };
   assert.deepEqual(await withFetch(bad, () => fetchCardLookup(['A', 'B'], { delayMs: 0 })), { info: {}, notFound: [] });
+});
+
+test('commanderQuery: single word also matches the type line, plurals singularised', () => {
+  assert.equal(commanderQuery('Fairy'), 'is:commander (Fairy or t:Faerie)');
+  assert.equal(commanderQuery('Faeries'), 'is:commander (Faeries or t:Faerie)');
+  assert.equal(commanderQuery('Fairies'), 'is:commander (Fairies or t:Faerie)');
+  assert.equal(commanderQuery('Zombies'), 'is:commander (Zombies or t:Zombie)');
+  assert.equal(commanderQuery('elves'), 'is:commander (elves or t:Elf)');
+  assert.equal(commanderQuery('  ojer '), 'is:commander (ojer or t:ojer)');
+  assert.equal(commanderQuery('Ms. Bumbleflower'), 'is:commander Ms. Bumbleflower');
 });
