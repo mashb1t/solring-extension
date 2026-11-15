@@ -116,6 +116,19 @@ test('previewTotals + previewSummary follow the ticked rows', () => {
   assert.match(previewSummary(all, { bracket: 4, budget: null }, Infinity), /Game Changers 2 · adds \$44\.50$/);
 });
 
+test('previewTotals + previewSummary: tutors after picks, shown only with a tutor cap', () => {
+  const tp = [{ name: 'Demonic Tutor', qty: 1, price: 30, tier: 'key' }, { name: 'Sol Ring', qty: 1, price: 1, tier: 'key' }];
+  const ctx = { ...makeCtx({ rules: { ...RULES_DEFAULT, tutorCap: 2 }, info: {}, flags: flags({ tutors: new Set(['demonic tutor']) }), owned: null, deckNames: [] }), tutorUsed: 1 };
+  const t = previewTotals({ picks: tp, ticked: new Set([0, 1]), ctx, current: { cards: 98, lands: 36 } });
+  assert.equal(t.tutorsAfter, 2);
+  assert.equal(previewTotals({ picks: tp, ticked: new Set([1]), ctx, current: { cards: 98, lands: 36 } }).tutorsAfter, 1);
+  assert.match(previewSummary(t, ctx.rules, 3), / · Game Changers 0 \/ 3 · Tutors 2 \/ 2 · adds \$31\.00$/);
+  assert.doesNotMatch(previewSummary(t, { ...ctx.rules, tutorCap: null }, 3), /Tutors/);
+  // An old flags object without a tutor list counts none.
+  const old = { ...makeCtx({ rules: RULES_DEFAULT, info: {}, flags: flags(), owned: null, deckNames: [] }) };
+  assert.equal(previewTotals({ picks: tp, ticked: new Set([0]), ctx: old, current: { cards: 98, lands: 36 } }).tutorsAfter, 0);
+});
+
 test('shortfallText: only when short; names the binding rule', () => {
   assert.equal(shortfallText({ shortfall: 0, binding: null }), null);
   assert.equal(shortfallText({ shortfall: 12, binding: 'Over budget ($1.20 left)' }), 'Short by 12 cards: Over budget ($1.20 left) is the binding rule.');

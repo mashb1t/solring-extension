@@ -190,7 +190,7 @@ export function groupPicks(picks) {
  * → { count, cost, gcAdded, landsAdded, deckAfter, landsAfter, gcAfter, spentAfter }
  */
 export function previewTotals({ picks, ticked, ctx, current }) {
-  let count = 0; let cost = 0; let gcAdded = 0; let landsAdded = 0;
+  let count = 0; let cost = 0; let gcAdded = 0; let landsAdded = 0; let tutorsAdded = 0;
   (picks || []).forEach((p, i) => {
     if (!ticked.has(i)) return;
     count += p.qty;
@@ -198,12 +198,14 @@ export function previewTotals({ picks, ticked, ctx, current }) {
     if (p.tier === 'land') landsAdded += p.qty;
     const key = frontFace(p.name);
     if (ctx.flags.gameChangers.has(key) || (ctx.info[key] && ctx.info[key].gameChanger)) gcAdded += p.qty;
+    if (ctx.flags.tutors && ctx.flags.tutors.has(key)) tutorsAdded += p.qty;
   });
   return {
     count, cost, gcAdded, landsAdded,
     deckAfter: current.cards + count,
     landsAfter: current.lands + landsAdded,
     gcAfter: ctx.gcUsed + gcAdded,
+    tutorsAfter: (ctx.tutorUsed || 0) + tutorsAdded,
     spentAfter: ctx.spent + cost,
   };
 }
@@ -213,6 +215,7 @@ export function previewTotals({ picks, ticked, ctx, current }) {
 export function previewSummary(t, rules, gcCap, pricing = DEFAULT_PRICING, lands = LAND_TARGET) {
   const parts = [`${t.count} cards proposed`, `deck ${t.deckAfter} / ${DECK_SIZE}`, `lands ${t.landsAfter} / ${lands}`, `Bracket ${rules.bracket}`];
   parts.push(gcCap === Infinity ? `Game Changers ${t.gcAfter}` : `Game Changers ${t.gcAfter} / ${gcCap}`);
+  if (rules.tutorCap != null) parts.push(`Tutors ${t.tutorsAfter ?? 0} / ${rules.tutorCap}`);
   if (rules.budget != null) parts.push(`${priceText(t.spentAfter, pricing)} / ${whole(rules.budget, pricing)}`);
   else parts.push(`adds ${priceText(t.cost, pricing)}`);
   return parts.join(' · ');
