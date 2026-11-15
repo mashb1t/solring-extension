@@ -225,6 +225,12 @@ test('flagsAvailable: the tutor list is required only while a tutor cap is set (
   assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, noStax: true }), false);
   assert.equal(flagsAvailable({ ...old, stax: [] }, { ...RULES_DEFAULT, noStax: true }), true);
   assert.equal(flagsAvailable(old, { ...RULES_DEFAULT, noLandHate: true }), true); // MLD is a base list
+  // v2 entry whose optional query failed: null blocks only its own rule.
+  const v2 = { v: 2, gameChangers: [], extraTurns: [], massLandDenial: [], tutors: null, stax: [] };
+  assert.equal(flagsAvailable(v2, { ...RULES_DEFAULT }), true);
+  assert.equal(flagsAvailable(v2, { ...RULES_DEFAULT, noStax: true }), true);
+  assert.equal(flagsAvailable(v2, { ...RULES_DEFAULT, tutorCap: 1 }), false);
+  assert.equal(flagsAvailable({ ...v2, tutors: [], stax: null }, { ...RULES_DEFAULT, noStax: true }), false);
   assert.deepEqual([...flagSets({ ...old, stax: ['rule of law'] }).stax], ['rule of law']);
 });
 

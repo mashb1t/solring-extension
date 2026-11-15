@@ -143,13 +143,28 @@ const FLAG_QUERIES = {
   stax: '(otag:rule-of-law or otag:cost-increaser)',
 };
 
+// Base lists are all-or-nothing (the bracket checks need every one); optional lists (a rule's own
+// list, added later) fail on their own and never take the base checks down.
+const BASE_FLAGS = ['gameChangers', 'extraTurns', 'massLandDenial'];
+export const OPTIONAL_FLAGS = ['tutors', 'stax'];
+
+// One search page. A 404 whose body is Scryfall's "no cards found" error is an empty page, not a failure.
+async function searchPage(url) {
+  let r;
+  try { r = await fetch(url); } catch { return null; }
+  const json = await r.json().catch(() => null);
+  if (!json || typeof json !== 'object') return null;
+  if (r.ok) return json;
+  return r.status === 404 && json.object === 'error' && json.code === 'not_found' ? { data: [] } : null;
+}
+
 // Front-face keys for every result of a search, following next_page. null if any page fails.
 async function searchAllKeys(q, delayMs) {
   const keys = new Set();
   let url = `${API}/cards/search?q=${encodeURIComponent(q)}`;
   for (let pages = 0; url && pages < 20; pages++) {
     if (pages > 0) await sleep(delayMs);
-    const json = await getJson(url);
+    const json = await searchPage(url);
     if (!json) return null;
     for (const c of (json.data || [])) if (c && c.name) keys.add(frontFace(c.name));
     url = json.has_more ? json.next_page : null;
@@ -157,7 +172,8 @@ async function searchAllKeys(q, delayMs) {
   return keys;
 }
 
-// Bracket flag lists. Returns null if any query fails, so callers never cache a partial list.
+// Bracket flag lists as Sets. null if any BASE query fails, so callers never cache a partial base;
+// a failed optional query (tutors, stax) is null on its own.
 export async function fetchFlagSets({ delayMs = DELAY_MS } = {}) {
   const out = {};
   let first = true;
@@ -165,8 +181,35 @@ export async function fetchFlagSets({ delayMs = DELAY_MS } = {}) {
     if (!first) await sleep(delayMs);
     first = false;
     const keys = await searchAllKeys(q, delayMs);
-    if (!keys) return null;
+    if (!keys && BASE_FLAGS.includes(name)) return null;
     out[name] = keys;
   }
   return out;
+}
+
+// Cached scry:flags shape. v2 = optional lists fetched independently; optFailedAt stamps a fetch in
+// which an optional list failed (a previous good copy is kept, else null) so it's retried daily.
+export const FLAGS_V = 2;
+export const FLAGS_RETRY_MS = 24 * 60 * 60 * 1000;
+
+/** Pure: fetchFlagSets() result (+ the previous cached data) → the v2 entry to store. */
+export function flagsEntry(sets, prev, now) {
+  const out = { v: FLAGS_V };
+  for (const k of BASE_FLAGS) out[k] = [...sets[k]];
+  let failed = false;
+  for (const k of OPTIONAL_FLAGS) {
+    if (sets[k]) { out[k] = [...sets[k]]; continue; }
+    failed = true;
+    out[k] = prev && Array.isArray(prev[k]) ? prev[k] : null;
+  }
+  out.optFailedAt = failed ? now : null;
+  return out;
+}
+
+/** Pure: does the cached scry:flags entry ({fetchedAt, data}) need a refetch? Missing / expired /
+ *  pre-v2 → yes; a v2 entry whose optional list failed → once FLAGS_RETRY_MS has passed. */
+export function flagsNeedFetch(cached, now, ttl) {
+  const d = cached && cached.data;
+  if (!d || !(now - cached.fetchedAt < ttl) || d.v !== FLAGS_V) return true;
+  return d.optFailedAt != null && now - d.optFailedAt >= FLAGS_RETRY_MS;
 }

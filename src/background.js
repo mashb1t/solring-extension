@@ -10,7 +10,7 @@ import { commanderSlug, inclusionByName, stockMeter, commanderPopularity, fetchE
 import { fetchMyCombos, nearMissCombos } from './sources/spellbook.js';
 import { fetchRecs } from './sources/edhrec-recs.js';
 import { fetchEdhrecPage, themesOf, themeCards, topCommanders, cardSlug } from './sources/edhrec-build.js';
-import { searchCommanders, fetchCardLookup, fetchFlagSets, frontFace } from './sources/scryfall.js';
+import { searchCommanders, fetchCardLookup, fetchFlagSets, flagsEntry, flagsNeedFetch, frontFace } from './sources/scryfall.js';
 import { md5Hex } from './md5.js';
 
 async function fetchAndCacheDeck(md5) {
@@ -236,18 +236,18 @@ async function flagLists(fresh = false) {
   const key = 'scry:flags';
   const entry = await dedupe(fresh ? `${key}:fresh` : key, async () => {
     const cached = await getEntry(key);
-    // An entry cached before a list existed (tutors, stax) is refetched once.
-    if (!fresh && isFreshTtl(cached, SCRY_FLAGS_TTL_MS) && Array.isArray(cached.data.tutors) && Array.isArray(cached.data.stax)) return cached;
+    // Pre-v2 entries refetch once; a v2 entry with a failed optional list (tutors/stax) retries daily.
+    if (!fresh && !flagsNeedFetch(cached, Date.now(), SCRY_FLAGS_TTL_MS)) return cached;
     const sets = await fetchFlagSets();
     // Stale-on-error: an expired copy beats none (empty lists would lift the bracket limits).
-    if (!sets) return cached && cached.data ? cached : null;
-    return setEntry(key, {
-      gameChangers: [...sets.gameChangers],
-      extraTurns: [...sets.extraTurns],
-      massLandDenial: [...sets.massLandDenial],
-      tutors: [...sets.tutors],
-      stax: [...sets.stax],
-    });
+    if (!sets) {
+      // A failed daily retry of an optional list: restamp it (fetchedAt kept) so it waits another day.
+      if (cached && cached.data && cached.data.optFailedAt != null) {
+        await chrome.storage.local.set({ [key]: { ...cached, data: { ...cached.data, optFailedAt: Date.now() } } }).catch(() => {});
+      }
+      return cached && cached.data ? cached : null;
+    }
+    return setEntry(key, flagsEntry(sets, cached && cached.data, Date.now()));
   });
   return entry && entry.data ? entry.data : { miss: true };
 }

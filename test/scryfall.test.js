@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { shapeCards, resolveRequested, fetchCardLookup, fetchCardInfo, searchCommanders, fetchFlagSets, commanderQuery } from '../src/sources/scryfall.js';
+import { shapeCards, resolveRequested, fetchCardLookup, fetchCardInfo, searchCommanders, fetchFlagSets, commanderQuery, flagsEntry, flagsNeedFetch, FLAGS_V, FLAGS_RETRY_MS } from '../src/sources/scryfall.js';
 
 const collection = JSON.parse(readFileSync(new URL('../fixtures/scryfall_collection.json', import.meta.url)));
-const jsonRes = (body, ok = true) => ({ ok, json: async () => body });
+const jsonRes = (body, ok = true, status = ok ? 200 : 500) => ({ ok, status, json: async () => body });
 
 async function withFetch(stub, fn) {
   const real = globalThis.fetch;
@@ -102,13 +102,33 @@ test('fetchFlagSets: follows next_page, sets of front keys', async () => {
   assert.ok(calls.some((u) => decodeURIComponent(u).includes('(otag:rule-of-law or otag:cost-increaser)')));
 });
 
-test('fetchFlagSets: a failed stax query alone → null', async () => {
-  const stub = async (u) => (decodeURIComponent(u).includes('rule-of-law') ? jsonRes({}, false) : jsonRes({ data: [{ name: 'X' }] }));
-  assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
+test('fetchFlagSets: a failed stax query nulls only stax; the base lists stay', async () => {
+  const stub = async (u) => (decodeURIComponent(u).includes('rule-of-law') ? jsonRes({}, false, 429) : jsonRes({ data: [{ name: 'X' }] }));
+  const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
+  assert.equal(f.stax, null);
+  assert.deepEqual([...f.tutors], ['x']);
+  for (const k of ['gameChangers', 'extraTurns', 'massLandDenial']) assert.deepEqual([...f[k]], ['x']);
 });
 
-test('fetchFlagSets: a failed tutor query alone → null', async () => {
-  const stub = async (u) => (decodeURIComponent(u).includes('otag:tutor') ? jsonRes({}, false) : jsonRes({ data: [{ name: 'X' }] }));
+test('fetchFlagSets: a failed tutor query nulls only tutors', async () => {
+  const stub = async (u) => (decodeURIComponent(u).includes('otag:tutor') ? jsonRes({}, false, 503) : jsonRes({ data: [{ name: 'X' }] }));
+  const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
+  assert.equal(f.tutors, null);
+  assert.deepEqual([...f.stax], ['x']);
+  assert.deepEqual([...f.gameChangers], ['x']);
+});
+
+test('fetchFlagSets: a 404 "no cards found" search is an empty set, not a failure', async () => {
+  const none = { object: 'error', code: 'not_found', status: 404, details: 'Your query didn’t match any cards.' };
+  const stub = async (u) => (decodeURIComponent(u).includes('rule-of-law') || decodeURIComponent(u).includes('extra-turn')
+    ? jsonRes(none, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
+  const f = await withFetch(stub, () => fetchFlagSets({ delayMs: 0 }));
+  assert.deepEqual([...f.stax], []);
+  assert.deepEqual([...f.extraTurns], []);
+});
+
+test('fetchFlagSets: a 404 without the not_found body is still a failure', async () => {
+  const stub = async (u) => (decodeURIComponent(u).includes('extra-turn') ? jsonRes({}, false, 404) : jsonRes({ data: [{ name: 'X' }] }));
   assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
 });
 
@@ -123,7 +143,7 @@ test('fetchFlagSets: the tutor list follows has_more', async () => {
   assert.deepEqual([...f.tutors].sort(), ['demonic tutor', 'vampiric tutor']);
 });
 
-test('fetchFlagSets: any failed query → null (no partial lists)', async () => {
+test('fetchFlagSets: any failed base query → null (no partial base lists)', async () => {
   const stub = async (u) => (decodeURIComponent(u).includes('extra-turn') ? jsonRes({}, false) : jsonRes({ data: [{ name: 'X' }] }));
   assert.equal(await withFetch(stub, () => fetchFlagSets({ delayMs: 0 })), null);
 });
@@ -186,4 +206,46 @@ test('fetchCardLookup: asks Scryfall by front face, keys the result by the reque
   assert.deepEqual(sent, ['Toralf, God of Fury']);
   assert.equal(res.info['toralf, god of fury'].image, 'img');
   assert.deepEqual(res.notFound, []);
+});
+
+const SETS = { gameChangers: new Set(['a']), extraTurns: new Set(['b']), massLandDenial: new Set(['c']), tutors: new Set(['d']), stax: new Set(['e']) };
+
+test('flagsEntry: v2 marker, arrays, no retry stamp when every list loaded', () => {
+  const e = flagsEntry(SETS, null, 1000);
+  assert.equal(e.v, FLAGS_V);
+  assert.equal(FLAGS_V, 2);
+  assert.deepEqual(e, { v: 2, gameChangers: ['a'], extraTurns: ['b'], massLandDenial: ['c'], tutors: ['d'], stax: ['e'], optFailedAt: null });
+});
+
+test('flagsEntry: a failed optional is null and stamped, or keeps a previous good list', () => {
+  const e = flagsEntry({ ...SETS, tutors: null }, null, 1000);
+  assert.equal(e.tutors, null);
+  assert.equal(e.optFailedAt, 1000);
+  const kept = flagsEntry({ ...SETS, stax: null }, { stax: ['old'] }, 2000);
+  assert.deepEqual(kept.stax, ['old']);
+  assert.equal(kept.optFailedAt, 2000); // still retried (daily) for a fresh copy
+});
+
+test('flagsNeedFetch: missing / expired / pre-v2 entries refetch; a good v2 entry does not', () => {
+  const TTL = 7 * 864e5;
+  const now = 100 * 864e5;
+  const entry = (data, age = 0) => ({ fetchedAt: now - age, data });
+  const v2 = flagsEntry(SETS, null, now);
+  assert.equal(flagsNeedFetch(null, now, TTL), true);
+  assert.equal(flagsNeedFetch({ fetchedAt: now }, now, TTL), true);
+  assert.equal(flagsNeedFetch(entry(v2), now, TTL), false);
+  assert.equal(flagsNeedFetch(entry(v2, TTL + 1), now, TTL), true);
+  // A pre-v2 entry is refetched once, even if it already has tutors/stax arrays.
+  const { v, optFailedAt, ...v1 } = v2;
+  assert.equal(flagsNeedFetch(entry(v1), now, TTL), true);
+});
+
+test('flagsNeedFetch: a v2 entry with a failed optional retries at most once a day', () => {
+  const TTL = 7 * 864e5;
+  const now = 100 * 864e5;
+  const failed = (at) => ({ fetchedAt: at, data: flagsEntry({ ...SETS, stax: null }, null, at) });
+  assert.equal(flagsNeedFetch(failed(now - 60e3), now, TTL), false); // tutors:null 1 min ago: no
+  assert.equal(flagsNeedFetch(failed(now - FLAGS_RETRY_MS + 1), now, TTL), false);
+  assert.equal(flagsNeedFetch(failed(now - FLAGS_RETRY_MS), now, TTL), true);
+  assert.equal(FLAGS_RETRY_MS, 864e5);
 });
